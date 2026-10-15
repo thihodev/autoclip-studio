@@ -6,11 +6,14 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlencode
 
 from fastapi import Body, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+import edge_tts
 
 from . import claude, db, framejam, pipeline, platforms, postiz, render, settings
 from .config import ROOT, VIDEOS_DIR
@@ -137,9 +140,17 @@ def get_settings(request: Request):
 
 
 @app.put("/api/settings/{section}")
-def put_settings(section: str, value=Body(...)):
+async def put_settings(section: str, value=Body(...)):
     if section not in settings.DEFAULTS:
         raise HTTPException(404)
+    if section == "footage" and isinstance(value, dict):
+        # Validate keys that actually changed (masked values mean "unchanged").
+        for provider in ("pexels", "pixabay"):
+            key = value.get(f"{provider}_api_key") or ""
+            if key and not key.startswith(settings.MASK):
+                if err := await render.test_footage_key(provider, key.strip()):
+                    raise HTTPException(400, err)
+                value[f"{provider}_api_key"] = key.strip()
     settings.put(section, value)
     return {"ok": True}
 
@@ -151,7 +162,9 @@ async def claude_info():
     current, system = await asyncio.gather(
         asyncio.to_thread(claude.auth_status), asyncio.to_thread(claude.system_status)
     )
-    return {"current": current, "system": system, "login": claude.login_state()}
+    state = "connected" if current["ok"] else ("expired" if current["source"] else "disconnected")
+    return {"state": state, "current": current, "system": system, "login": claude.login_state(),
+            "model": settings.get("claude")["model"]}
 
 
 @app.post("/api/claude/login/start")
@@ -202,7 +215,7 @@ def oauth_start(platform: str, request: Request):
     if not p:
         raise HTTPException(404)
     if not p.configured():
-        return RedirectResponse(f"/#connections?error={platform}+app+credentials+missing")
+        return RedirectResponse("/connections?" + urlencode({"error": f"Add the {p.label} app credentials first"}))
     state = secrets.token_urlsafe(24)
     redirect_uri = f"{_public_base(request)}/oauth/{platform}/callback"
     _oauth_states[state] = {"platform": platform, "redirect_uri": redirect_uri, "at": time.time()}
@@ -214,17 +227,17 @@ async def oauth_callback(platform: str, request: Request):
     q = request.query_params
     st = _oauth_states.pop(q.get("state", ""), None)
     if not st or st["platform"] != platform or time.time() - st["at"] > 900:
-        return RedirectResponse("/#connections?error=Sign-in+expired,+try+again")
+        return RedirectResponse("/connections?" + urlencode({"error": "Sign-in expired, try again"}))
     if q.get("error"):
-        return RedirectResponse(f"/#connections?error={q.get('error_description') or q.get('error')}")
+        return RedirectResponse("/connections?" + urlencode({"error": q.get("error_description") or q.get("error")}))
     try:
         accounts = await platforms.PLATFORMS[platform].exchange(q.get("code", ""), st["redirect_uri"])
         for a in accounts:
             db.upsert_account(platform, a["external_id"], a["name"], a.get("avatar"), a["data"])
     except Exception as e:
         logging.exception("oauth %s failed", platform)
-        return RedirectResponse(f"/#connections?error={str(e)[:200]}")
-    return RedirectResponse(f"/#connections?connected={platform}")
+        return RedirectResponse("/connections?" + urlencode({"error": str(e)[:200]}))
+    return RedirectResponse("/connections?" + urlencode({"connected": platforms.PLATFORMS[platform].label}))
 
 
 @app.get("/api/channels")
@@ -262,8 +275,16 @@ def projects():
     return db.list_projects()
 
 
+def _require_setup():
+    if not settings.get("claude")["source"]:
+        raise HTTPException(400, "Connect Claude first (Connections → Claude)")
+    if not render.footage_status()["ok"]:
+        raise HTTPException(400, "Add a stock footage API key first (Connections → Stock footage)")
+
+
 @app.post("/api/projects")
 async def create_project(body: ProjectIn):
+    _require_setup()
     p = db.create_project(body.model_dump())
     pipeline.start(p["id"])
     return p
@@ -286,6 +307,7 @@ def delete_project(pid: str):
 @app.post("/api/projects/{pid}/retry")
 async def retry(pid: str):
     _project(pid)
+    _require_setup()
     db.update_project(pid, status="queued", progress=0, error=None)
     pipeline.start(pid)
     return {"ok": True}
@@ -371,13 +393,23 @@ async def publish(pid: str, body: PublishIn):
 
 @app.get("/api/autopilot")
 def get_autopilot():
-    return db.get_setting("autopilot", AutopilotIn().model_dump())
+    cfg = db.get_setting("autopilot", AutopilotIn().model_dump())
+    last = db.get_setting("autopilot_last_run", 0)
+    every = max(1, float(cfg.get("every_hours", 24))) * 3600
+    return {**cfg, "last_run": last or None, "next_run": (last + every if last else time.time()) if cfg.get("enabled") else None,
+            "last_error": db.get_setting("autopilot_last_error")}
 
 
 @app.put("/api/autopilot")
 def put_autopilot(body: AutopilotIn):
+    if body.enabled:
+        if not body.niche.strip():
+            raise HTTPException(400, "Enter a niche before enabling autopilot")
+        _require_setup()
+        if body.auto_publish and not body.integrations:
+            raise HTTPException(400, "Pick at least one account to auto-publish to")
     db.set_setting("autopilot", body.model_dump())
-    return body
+    return get_autopilot()
 
 
 # ------------------------------------------------------------------ files
@@ -398,4 +430,39 @@ def media(pid: str, name: str):
     return FileResponse(path)
 
 
-app.mount("/", StaticFiles(directory=ROOT / "static", html=True), name="static")
+# ------------------------------------------------------------------ voices
+
+_voices_cache: list | None = None
+
+
+@app.get("/api/voices")
+async def voices(language: str = "English"):
+    global _voices_cache
+    if _voices_cache is None:
+        try:
+            _voices_cache = await edge_tts.list_voices()
+        except Exception as e:
+            raise HTTPException(502, f"Could not load voices ({e.__class__.__name__})")
+    prefix = render.LANGUAGE_LOCALES.get(language, "en")
+    return [
+        {"name": v["ShortName"], "gender": v.get("Gender"), "locale": v.get("Locale")}
+        for v in _voices_cache if v.get("Locale", "").split("-")[0] == prefix
+    ]
+
+
+# ------------------------------------------------------------------ pages (client-side routes)
+
+INDEX = ROOT / "static" / "index.html"
+
+
+@app.get("/", include_in_schema=False)
+@app.get("/ideas", include_in_schema=False)
+@app.get("/autopilot", include_in_schema=False)
+@app.get("/connections", include_in_schema=False)
+@app.get("/projects/{pid}", include_in_schema=False)
+@app.get("/projects/{pid}/{section}", include_in_schema=False)
+def page(pid: str | None = None, section: str | None = None):
+    return FileResponse(INDEX, headers={"Cache-Control": "no-cache"})
+
+
+app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")

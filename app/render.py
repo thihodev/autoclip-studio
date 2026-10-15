@@ -42,6 +42,11 @@ DEFAULT_VOICES = {
     "Indonesian": "id-ID-ArdiNeural",
 }
 
+LANGUAGE_LOCALES = {
+    "English": "en", "Vietnamese": "vi", "Spanish": "es", "Portuguese": "pt",
+    "French": "fr", "German": "de", "Italian": "it", "Indonesian": "id",
+}
+
 CAPTION_PRESETS = {
     # name: font scale, uppercase, outline, box, highlight word
     "bold": {"scale": 0.095, "upper": True, "outline": 0.09, "box": False, "highlight": True},
@@ -94,6 +99,26 @@ def footage_status() -> dict:
     provider = cfg["provider"]
     key = cfg[f"{provider}_api_key"]
     return {"ok": bool(key), "detail": f"{provider.title()} key set" if key else f"{provider.title()} API key not set"}
+
+
+async def test_footage_key(provider: str, key: str) -> str | None:
+    """→ None if the key works, else an error message."""
+    if not key:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=15) as c:
+            if provider == "pexels":
+                r = await c.get("https://api.pexels.com/videos/search", params={"query": "city", "per_page": 1},
+                                headers={"Authorization": key})
+            else:
+                r = await c.get("https://pixabay.com/api/videos/", params={"key": key, "q": "city", "per_page": 3})
+    except httpx.HTTPError as e:
+        return f"Could not reach {provider.title()} ({e.__class__.__name__})"
+    if r.status_code in (400, 401, 403):
+        return f"{provider.title()} rejected this API key"
+    if r.status_code >= 400:
+        return f"{provider.title()} error {r.status_code}"
+    return None
 
 
 def _orientation(size):

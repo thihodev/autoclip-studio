@@ -6,561 +6,1109 @@
 <title>AutoClip Studio</title>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 <style>
-  :root { --bg:#0f1115; --panel:#181b22; --panel2:#1f232c; --line:#2a2f3a; --text:#e7e9ee; --muted:#8b93a3; --accent:#ff4d6d; --ok:#2ecc71; --warn:#f5a623; }
+  :root {
+    --bg:#f6f7f9; --surface:#ffffff; --surface-2:#f1f3f6; --border:#e3e6eb; --border-strong:#cfd4dc;
+    --text:#14171c; --text-2:#5b6472; --text-3:#8a93a1;
+    --accent:#e8385a; --accent-hover:#d22a4c; --accent-soft:#fde8ec; --on-accent:#fff;
+    --ok:#12805c; --ok-soft:#e3f5ee; --warn:#a15c00; --warn-soft:#fdf1df; --err:#c62d3f; --err-soft:#fde7ea;
+    --shadow:0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+    --radius:12px; --radius-sm:8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0e1013; --surface:#16191e; --surface-2:#1d2128; --border:#262b33; --border-strong:#353b45;
+      --text:#e8eaee; --text-2:#a2a9b5; --text-3:#6f7784;
+      --accent:#ff4d6d; --accent-hover:#ff6a85; --accent-soft:#3a1a22; --on-accent:#fff;
+      --ok:#3ccf91; --ok-soft:#10291f; --warn:#f0b04f; --warn-soft:#2d2210; --err:#ff6b7d; --err-soft:#341519;
+      --shadow:none;
+    }
+  }
   * { box-sizing:border-box; }
   [x-cloak] { display:none !important; }
-  body { margin:0; font:14px/1.5 system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); }
-  a { color:#8ab4ff; }
-  header { display:flex; align-items:center; gap:16px; padding:12px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap; position:sticky; top:0; background:var(--bg); z-index:5; }
-  header h1 { font-size:18px; margin:0; } header h1 span { color:var(--accent); }
-  nav { display:flex; gap:2px; flex-wrap:wrap; }
-  nav button { background:none; border:0; color:var(--muted); padding:6px 10px; cursor:pointer; font:inherit; border-radius:6px; }
-  nav button.on { color:var(--text); background:var(--panel); }
-  .pills { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
-  .pill { font-size:12px; padding:3px 9px; border-radius:99px; border:1px solid var(--line); color:var(--muted); cursor:pointer; background:none; font-family:inherit; }
-  .pill::before { content:"●"; margin-right:5px; color:var(--accent); } .pill.ok::before { color:var(--ok); } .pill.opt::before { color:var(--muted); }
-  main { max-width:1200px; margin:0 auto; padding:20px 16px; }
-  .grid { display:grid; grid-template-columns:380px 1fr; gap:20px; align-items:start; }
-  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
-  .editor { display:grid; grid-template-columns:340px 1fr; gap:20px; align-items:start; }
-  @media (max-width:900px){ .grid, .grid2, .editor { grid-template-columns:1fr; } }
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
-  .card h3 { margin:0 0 4px; font-size:15px; }
-  label { display:block; font-size:12px; color:var(--muted); margin:10px 0 4px; }
-  input, select, textarea { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:8px; font:inherit; }
-  input[type=range] { padding:0; } input[type=color] { padding:2px; height:34px; }
-  textarea { min-height:70px; resize:vertical; }
-  .row { display:flex; gap:8px; align-items:end; } .row > * { flex:1; }
-  .btns { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; align-items:center; }
-  button.primary, a.primary { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:9px 14px; font:inherit; font-weight:600; cursor:pointer; text-decoration:none; display:inline-block; }
-  button.ghost, a.ghost { background:none; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 10px; font:inherit; cursor:pointer; text-decoration:none; display:inline-block; }
-  button.small { padding:3px 8px; font-size:12px; }
-  button:disabled { opacity:.45; cursor:default; }
-  .chk { display:flex; align-items:center; gap:6px; margin:4px 0; color:var(--text); font-size:13px; } .chk input { width:auto; }
-  .proj { display:grid; grid-template-columns:96px 1fr; gap:14px; padding:12px 0; border-bottom:1px solid var(--line); }
-  .proj:last-child { border:0; }
-  .thumb { width:96px; aspect-ratio:9/16; background:#000; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:11px; }
-  .thumb video, .thumb img { width:100%; height:100%; object-fit:cover; }
-  .player { width:100%; background:#000; border-radius:8px; max-height:70vh; }
-  .bar { height:4px; background:var(--line); border-radius:2px; overflow:hidden; margin:6px 0; } .bar i { display:block; height:100%; background:var(--accent); transition:width .3s; }
-  .st { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--warn); }
-  .st.published, .st.ready { color:var(--ok); } .st.failed { color:var(--accent); }
-  .err { color:var(--accent); font-size:12px; white-space:pre-wrap; word-break:break-word; }
-  .okmsg { color:var(--ok); font-size:12px; }
-  .muted { color:var(--muted); font-size:12px; }
-  .idea { padding:10px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; cursor:pointer; } .idea:hover { border-color:var(--accent); }
-  details summary { cursor:pointer; color:var(--muted); font-size:12px; margin-top:6px; }
-  pre { white-space:pre-wrap; font-size:12px; background:var(--bg); padding:8px; border-radius:6px; }
-  code { background:var(--bg); padding:1px 5px; border-radius:4px; font-size:12px; word-break:break-all; }
-  .scene { display:grid; grid-template-columns:72px 1fr auto; gap:10px; padding:10px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; background:var(--panel2); }
-  .scene .thumb { width:72px; }
-  .scene textarea { min-height:52px; }
-  .scene .side { display:flex; flex-direction:column; gap:4px; }
-  .tag { font-size:11px; color:var(--muted); }
-  .acct { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--line); }
-  .acct img { width:24px; height:24px; border-radius:50%; }
-  .acct:last-child { border:0; }
-  .banner { background:#2a1d10; border:1px solid #5a3b14; color:#f8d9a8; padding:10px 14px; border-radius:8px; margin-bottom:16px; }
-  .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--panel2); border:1px solid var(--line); padding:10px 16px; border-radius:8px; z-index:20; max-width:90vw; }
-  .modal { position:fixed; inset:0; background:rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; z-index:10; padding:16px; }
-  .modal .card { width:min(900px, 100%); max-height:90vh; overflow:auto; margin:0; }
-  .results { display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:8px; margin-top:10px; }
-  .results button { padding:0; border:2px solid transparent; border-radius:6px; overflow:hidden; background:#000; cursor:pointer; aspect-ratio:9/16; }
+  html, body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:inherit; }
+  svg.i { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+  h1 { font-size:22px; line-height:1.25; margin:0; letter-spacing:-.01em; }
+  h2 { font-size:15px; margin:0; }
+  p { margin:0; }
+  code { font:12px ui-monospace, SFMono-Regular, Menlo, monospace; background:var(--surface-2); border:1px solid var(--border); padding:1px 6px; border-radius:6px; word-break:break-all; }
+
+  /* layout */
+  .shell { display:grid; grid-template-columns:232px 1fr; min-height:100vh; }
+  .side { position:sticky; top:0; height:100vh; display:flex; flex-direction:column; gap:4px; padding:18px 12px; border-right:1px solid var(--border); background:var(--surface); }
+  .brand { font-weight:700; font-size:16px; padding:4px 10px 16px; letter-spacing:-.01em; } .brand span { color:var(--accent); }
+  .nav { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; color:var(--text-2); text-decoration:none; font-weight:500; }
+  .nav:hover { background:var(--surface-2); color:var(--text); }
+  .nav.on { background:var(--accent-soft); color:var(--accent); }
+  .nav .count { margin-left:auto; font-size:11px; background:var(--err-soft); color:var(--err); border-radius:99px; padding:0 7px; }
+  .side-foot { margin-top:auto; padding:12px 10px; border:1px solid var(--border); border-radius:10px; font-size:12px; color:var(--text-2); }
+  .side-foot .row-s { display:flex; align-items:center; gap:8px; padding:2px 0; }
+  .dot { width:7px; height:7px; border-radius:50%; background:var(--text-3); flex:none; }
+  .dot.ok { background:var(--ok); } .dot.err { background:var(--err); }
+  .content { min-width:0; }
+  .page { max-width:1180px; margin:0 auto; padding:28px 28px 120px; }
+  .page-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px; flex-wrap:wrap; }
+  .page-head .sub { color:var(--text-2); margin-top:4px; }
+  @media (max-width: 860px) {
+    .shell { grid-template-columns:1fr; }
+    .side { position:sticky; height:auto; flex-direction:row; align-items:center; overflow-x:auto; padding:10px 12px; border-right:0; border-bottom:1px solid var(--border); z-index:6; }
+    .brand { padding:0 8px 0 4px; white-space:nowrap; } .side-foot { display:none; } .nav { white-space:nowrap; }
+    .page { padding:20px 16px 120px; }
+  }
+
+  /* components */
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); }
+  .card + .card { margin-top:16px; }
+  .card-head { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .card-head .grow { flex:1; min-width:0; }
+  .card-head p { color:var(--text-2); font-size:13px; margin-top:2px; }
+  .stack > * + * { margin-top:12px; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+  .grid-3 { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
+  @media (max-width: 860px) { .grid-2, .grid-3 { grid-template-columns:1fr; } }
+  .field label, .lbl { display:block; font-size:12px; font-weight:500; color:var(--text-2); margin-bottom:5px; }
+  .hint { font-size:12px; color:var(--text-3); margin-top:5px; }
+  input, select, textarea { width:100%; background:var(--surface); color:var(--text); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:8px 10px; font:inherit; outline:none; }
+  input:focus, select:focus, textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  input[type=range] { padding:0; border:0; box-shadow:none; accent-color:var(--accent); }
+  input[type=color] { padding:2px; height:36px; cursor:pointer; }
+  input[type=checkbox] { width:auto; accent-color:var(--accent); }
+  textarea { resize:vertical; min-height:72px; }
+  fieldset { border:0; padding:0; margin:0; min-width:0; }
+  fieldset:disabled { opacity:.6; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; border-radius:var(--radius-sm); padding:8px 14px; font:inherit; font-weight:600; cursor:pointer; border:1px solid var(--border-strong); background:var(--surface); color:var(--text); text-decoration:none; white-space:nowrap; }
+  .btn:hover { background:var(--surface-2); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+  .btn.primary:hover { background:var(--accent-hover); }
+  .btn.ghost { border-color:transparent; background:none; color:var(--text-2); }
+  .btn.ghost:hover { background:var(--surface-2); color:var(--text); }
+  .btn.danger { color:var(--err); }
+  .btn.sm { padding:5px 10px; font-size:13px; }
+  .btn.icon { padding:6px; }
+  .btn:disabled, .btn[aria-disabled=true] { opacity:.45; cursor:not-allowed; pointer-events:none; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .chip { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:2px 9px; border-radius:99px; background:var(--surface-2); color:var(--text-2); white-space:nowrap; }
+  .chip::before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor; }
+  .chip.ok { background:var(--ok-soft); color:var(--ok); } .chip.warn { background:var(--warn-soft); color:var(--warn); }
+  .chip.err { background:var(--err-soft); color:var(--err); }
+  .notice { display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:var(--radius-sm); background:var(--warn-soft); color:var(--warn); font-size:13px; }
+  .notice.err { background:var(--err-soft); color:var(--err); } .notice.ok { background:var(--ok-soft); color:var(--ok); }
+  .notice.info { background:var(--surface-2); color:var(--text-2); }
+  .notice a { font-weight:600; }
+  .muted { color:var(--text-2); } .small { font-size:12px; }
+  .bar { height:6px; background:var(--surface-2); border-radius:99px; overflow:hidden; } .bar i { display:block; height:100%; background:var(--accent); transition:width .4s; }
+  .divider { height:1px; background:var(--border); margin:14px 0; }
+  .toggle { display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; }
+  .seg { display:inline-flex; border:1px solid var(--border-strong); border-radius:var(--radius-sm); overflow:hidden; }
+  .seg button { border:0; background:var(--surface); color:var(--text-2); padding:7px 12px; font:inherit; cursor:pointer; }
+  .seg button + button { border-left:1px solid var(--border-strong); }
+  .seg button.on { background:var(--accent-soft); color:var(--accent); font-weight:600; }
+  .pickchips { display:flex; flex-wrap:wrap; gap:8px; }
+  .pickchip { display:inline-flex; align-items:center; gap:8px; padding:6px 12px 6px 6px; border:1px solid var(--border-strong); border-radius:99px; cursor:pointer; background:var(--surface); color:var(--text); font:inherit; font-size:13px; }
+  .pickchip.on { border-color:var(--accent); background:var(--accent-soft); }
+  .avatar { width:24px; height:24px; border-radius:50%; background:var(--surface-2); display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--text-2); overflow:hidden; flex:none; }
+  .avatar img { width:100%; height:100%; object-fit:cover; }
+  .avatar.lg { width:40px; height:40px; font-size:15px; background:var(--accent-soft); color:var(--accent); }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:16px; overflow-x:auto; }
+  .tabs a { padding:9px 12px; text-decoration:none; color:var(--text-2); font-weight:600; border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; }
+  .tabs a.on { color:var(--text); border-color:var(--accent); }
+  .empty { text-align:center; padding:36px 16px; color:var(--text-2); }
+  .empty h2 { color:var(--text); margin-bottom:6px; }
+
+  /* connection choices */
+  .options { display:flex; flex-direction:column; gap:8px; }
+  .option { display:flex; align-items:center; gap:12px; padding:12px; border:1px solid var(--border); border-radius:10px; }
+  .option .grow { flex:1; min-width:0; }
+  .option .t { font-weight:600; } .option .d { font-size:12px; color:var(--text-2); }
+  .option.rec { border-color:var(--accent); }
+  .account { display:flex; align-items:center; gap:12px; }
+  .account .grow { flex:1; min-width:0; } .account .t { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .account .d { font-size:12px; color:var(--text-2); }
+  .acct-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--border); }
+  .acct-row:first-of-type { border-top:0; }
+  .acct-row .grow { flex:1; min-width:0; }
+  .steps { margin:0; padding-left:18px; color:var(--text-2); font-size:13px; } .steps li + li { margin-top:4px; }
+  .copy { display:flex; gap:6px; align-items:center; }
+  .copy code { flex:1; padding:6px 8px; }
+  details > summary { cursor:pointer; color:var(--text-2); font-weight:600; font-size:13px; list-style:none; display:flex; align-items:center; gap:6px; }
+  details > summary::-webkit-details-marker { display:none; }
+  details > summary::before { content:"▸"; transition:transform .15s; } details[open] > summary::before { transform:rotate(90deg); }
+
+  /* studio */
+  .composer textarea { font-size:15px; min-height:90px; }
+  .projects { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:14px; }
+  .pcard { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; display:flex; flex-direction:column; text-decoration:none; color:inherit; box-shadow:var(--shadow); transition:border-color .15s; }
+  .pcard:hover { border-color:var(--border-strong); }
+  .pthumb { aspect-ratio:9/12; background:var(--surface-2); position:relative; display:flex; align-items:center; justify-content:center; color:var(--text-3); }
+  .pthumb img { width:100%; height:100%; object-fit:cover; }
+  .pthumb .chip { position:absolute; top:8px; left:8px; }
+  .pbody { padding:10px 12px 12px; display:flex; flex-direction:column; gap:6px; flex:1; }
+  .ptitle { font-weight:600; font-size:13px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .perr { font-size:12px; color:var(--err); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+  /* editor */
+  .editor { display:grid; grid-template-columns:minmax(260px, 340px) 1fr; gap:20px; align-items:start; }
+  .editor .left { position:sticky; top:20px; }
+  @media (max-width: 860px) { .editor { grid-template-columns:1fr; } .editor .left { position:static; } }
+  .player { width:100%; background:#000; border-radius:10px; display:block; max-height:62vh; }
+  .versions { display:flex; flex-direction:column; gap:2px; margin-top:12px; }
+  .ver { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; cursor:pointer; font-size:13px; }
+  .ver:hover { background:var(--surface-2); } .ver.on { background:var(--accent-soft); }
+  .ver .n { font-weight:700; width:28px; } .ver .note { flex:1; color:var(--text-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .scene { display:grid; grid-template-columns:76px 1fr auto; gap:12px; padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--surface); }
+  .scene + .scene { margin-top:10px; }
+  .sthumb { width:76px; aspect-ratio:9/16; border-radius:8px; overflow:hidden; background:var(--surface-2); border:0; padding:0; cursor:pointer; position:relative; display:flex; align-items:center; justify-content:center; color:var(--text-3); font-size:11px; }
+  .sthumb img { width:100%; height:100%; object-fit:cover; }
+  .sthumb .swap { position:absolute; inset:auto 0 0 0; background:rgba(0,0,0,.6); color:#fff; font-size:11px; padding:3px; text-align:center; }
+  .scene .meta { font-size:12px; color:var(--text-3); margin-bottom:4px; display:flex; gap:8px; }
+  .scene textarea { min-height:56px; }
+  .scene .tools { display:flex; flex-direction:column; gap:2px; }
+  .presets { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
+  @media (max-width: 600px) { .presets { grid-template-columns:repeat(2, 1fr); } }
+  .preset { border:1px solid var(--border-strong); border-radius:10px; padding:10px; cursor:pointer; background:var(--surface); text-align:center; font:inherit; color:var(--text); }
+  .preset.on { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .preset .demo { height:54px; border-radius:6px; background:linear-gradient(135deg,#3a4a5e,#1d2733); display:flex; align-items:center; justify-content:center; margin-bottom:6px; color:#fff; font-weight:800; font-size:12px; }
+  .preset .demo .b { text-transform:uppercase; text-shadow:0 0 2px #000, 0 0 2px #000, 0 0 3px #000; } .preset .demo .b em { color:#ffe14d; font-style:normal; }
+  .preset .demo .x { background:rgba(0,0,0,.6); padding:2px 6px; border-radius:3px; font-weight:600; }
+  .preset .demo .m { font-weight:500; font-size:11px; text-shadow:0 0 2px #000; }
+  .preset .name { font-size:12px; font-weight:600; }
+  .suggest { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .suggest button { border:1px dashed var(--border-strong); background:none; color:var(--text-2); border-radius:99px; padding:3px 10px; font:inherit; font-size:12px; cursor:pointer; }
+  .suggest button:hover { color:var(--text); border-color:var(--accent); }
+  .hist { display:flex; gap:10px; font-size:13px; padding:8px 0; border-top:1px solid var(--border); }
+  .hist:first-of-type { border-top:0; }
+  .hist .src { font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-3); width:72px; flex:none; padding-top:2px; }
+  .savebar { position:fixed; left:0; right:0; bottom:16px; display:flex; justify-content:center; pointer-events:none; z-index:8; }
+  .savebar > div { pointer-events:auto; display:flex; align-items:center; gap:12px; background:var(--text); color:var(--bg); padding:8px 8px 8px 16px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+  .savebar .btn.ghost { color:var(--bg); } .savebar .btn.ghost:hover { background:rgba(127,127,127,.2); }
+
+  /* overlays */
+  .modal { position:fixed; inset:0; background:rgba(10,12,16,.55); display:flex; align-items:center; justify-content:center; z-index:20; padding:16px; }
+  .modal .card { width:min(560px, 100%); max-height:90vh; overflow:auto; }
+  .modal .card.wide { width:min(920px, 100%); }
+  .results { display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:8px; margin-top:12px; }
+  .results button { padding:0; border:2px solid transparent; border-radius:8px; overflow:hidden; background:var(--surface-2); cursor:pointer; aspect-ratio:9/16; position:relative; }
   .results button:hover { border-color:var(--accent); }
   .results img { width:100%; height:100%; object-fit:cover; display:block; }
-  .hist { font-size:12px; border-left:2px solid var(--line); padding-left:8px; margin:6px 0; }
+  .results .dur { position:absolute; right:4px; bottom:4px; background:rgba(0,0,0,.65); color:#fff; font-size:11px; padding:0 5px; border-radius:4px; }
+  .toast { position:fixed; top:16px; right:16px; z-index:30; max-width:min(420px, calc(100vw - 32px)); padding:10px 14px; border-radius:10px; background:var(--text); color:var(--bg); box-shadow:0 8px 24px rgba(0,0,0,.25); font-size:13px; cursor:pointer; }
+  .toast.err { background:var(--err); color:#fff; }
+  .spin { width:14px; height:14px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .8s linear infinite; display:inline-block; flex:none; }
+  @keyframes spin { to { transform:rotate(360deg); } }
 </style>
 </head>
-<body x-data="app()" x-init="init()" x-cloak>
-<header>
-  <h1>Auto<span>Clip</span> Studio</h1>
-  <nav>
-    <button :class="tab==='create'&&'on'" @click="go('create')">Create</button>
-    <button :class="tab==='edit'&&'on'" @click="go('edit')" x-show="cur">Editor</button>
-    <button :class="tab==='ideas'&&'on'" @click="go('ideas')">Ideas</button>
-    <button :class="tab==='autopilot'&&'on'" @click="go('autopilot')">Autopilot</button>
-    <button :class="tab==='connections'&&'on'" @click="go('connections')">Connections</button>
-  </nav>
-  <div class="pills">
-    <button class="pill" :class="status.claude?.ok&&'ok'" :title="status.claude?.detail" @click="go('connections')">Claude</button>
-    <button class="pill" :class="status.footage?.ok&&'ok'" :title="status.footage?.detail" @click="go('connections')">Footage</button>
-    <button class="pill" :class="status.accounts?.ok?'ok':'opt'" :title="status.accounts?.detail" @click="go('connections')">Accounts</button>
-    <button class="pill" :class="status.framejam?.ok?'ok':'opt'" :title="status.framejam?.detail" @click="go('connections')">FrameJam</button>
-  </div>
-</header>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></symbol>
+  <symbol id="i-retry" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></symbol>
+</svg>
 
-<main>
-  <div class="banner" x-show="tab!=='connections' && status.claude && (!status.claude.ok || !status.footage.ok)">
-    Finish setup in <a href="#" @click.prevent="go('connections')">Connections</a>:
-    <span x-show="!status.claude?.ok">connect Claude</span><span x-show="!status.claude?.ok && !status.footage?.ok"> and </span><span x-show="!status.footage?.ok">add a free stock footage key</span>.
-  </div>
-
-  <!-- ============================== CREATE -->
-  <div class="grid" x-show="tab==='create'">
-    <div class="card">
-      <h3>New video</h3>
-      <label>Topic</label>
-      <textarea x-model="form.topic" placeholder="e.g. 5 surprising facts about the human brain"></textarea>
-      <div class="row">
-        <div><label>Language</label><select x-model="form.language"><template x-for="l in languages"><option x-text="l"></option></template></select></div>
-        <div><label>Format</label>
-          <select x-model="form.format">
-            <option value="shorts">Vertical 9:16</option><option value="youtube">Landscape 16:9</option><option value="square">Square 1:1</option>
-          </select></div>
-      </div>
-      <div class="row">
-        <div><label>Length (seconds)</label><input type="number" x-model.number="form.duration" min="10" max="600"></div>
-        <div><label>Voice speed</label><input type="number" step="0.05" min="0.5" max="2" x-model.number="form.voice_rate"></div>
-      </div>
-      <label>Style / tone</label>
-      <input x-model="form.style" placeholder="funny, storytelling, educational...">
-      <label>Voice (edge-tts name, empty = default for the language)</label>
-      <input x-model="form.voice" placeholder="en-US-AndrewMultilingualNeural">
-      <label>Publish to</label>
-      <template x-if="!channels.length"><div class="muted">No accounts yet — <a href="#" @click.prevent="go('connections')">connect YouTube / TikTok / Facebook</a>.</div></template>
-      <template x-for="c in channels" :key="c.id">
-        <label class="chk"><input type="checkbox" :value="c.id" x-model="form.channelIds"><span x-text="chLabel(c)"></span></label>
-      </template>
-      <label class="chk"><input type="checkbox" x-model="form.auto_publish"> Auto-publish when rendering finishes</label>
-      <div class="btns"><button class="primary" @click="create()" :disabled="busy || !form.topic">Create video</button></div>
+<div class="shell" x-data="app()" x-init="init()" x-cloak>
+  <!-- ======================================================= sidebar -->
+  <aside class="side">
+    <div class="brand">Auto<span>Clip</span> Studio</div>
+    <a class="nav" href="/" :class="(route.page==='studio'||route.page==='project')&&'on'" @click.prevent="nav('/')"><svg class="i"><use href="#i-film"/></svg>Studio</a>
+    <a class="nav" href="/ideas" :class="route.page==='ideas'&&'on'" @click.prevent="nav('/ideas')"><svg class="i"><use href="#i-zap"/></svg>Ideas</a>
+    <a class="nav" href="/autopilot" :class="route.page==='autopilot'&&'on'" @click.prevent="nav('/autopilot')"><svg class="i"><use href="#i-repeat"/></svg>Autopilot
+      <span class="count" x-show="autopilot.enabled" style="background:var(--ok-soft);color:var(--ok)">on</span></a>
+    <a class="nav" href="/connections" :class="route.page==='connections'&&'on'" @click.prevent="nav('/connections')"><svg class="i"><use href="#i-link"/></svg>Connections
+      <span class="count" x-show="missingSetup().length" x-text="missingSetup().length"></span></a>
+    <div class="side-foot">
+      <div class="row-s"><span class="dot" :class="status.claude?.ok?'ok':'err'"></span>Claude</div>
+      <div class="row-s"><span class="dot" :class="status.footage?.ok?'ok':'err'"></span>Stock footage</div>
+      <div class="row-s"><span class="dot" :class="nativeAccounts().length&&'ok'"></span><span x-text="nativeAccounts().length + ' social account' + (nativeAccounts().length===1?'':'s')"></span></div>
+      <div class="row-s"><span class="dot" :class="status.framejam?.ok&&'ok'"></span>FrameJam</div>
     </div>
+  </aside>
 
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <h3>Projects</h3><span class="muted" x-text="projects.length + ' videos'"></span>
+  <div class="content">
+    <!-- ===================================================== STUDIO -->
+    <section class="page" x-show="route.page==='studio'">
+      <div class="page-head">
+        <div><h1>Studio</h1><p class="sub">Describe a video and Claude writes it, picks footage and renders it.</p></div>
       </div>
-      <template x-if="!projects.length"><p class="muted">No videos yet.</p></template>
-      <template x-for="p in projects" :key="p.id">
-        <div class="proj">
-          <div class="thumb">
-            <template x-if="p.video_path"><video :src="videoUrl(p)" preload="metadata" muted></video></template>
-            <template x-if="!p.video_path"><span x-text="p.status"></span></template>
+
+      <div class="notice" x-show="ready && missingSetup().length" style="margin-bottom:16px">
+        <svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg>
+        <div>Before creating videos: <span x-text="missingSetup().join(' and ')"></span>. <a href="/connections" @click.prevent="nav('/connections')">Open Connections →</a></div>
+      </div>
+
+      <div class="card composer">
+        <fieldset :disabled="creating">
+          <div class="field"><label for="topic">What is the video about?</label>
+            <textarea id="topic" x-model="form.topic" placeholder="e.g. 5 surprising facts about the human brain"></textarea></div>
+          <div class="grid-3" style="margin-top:12px">
+            <div class="field"><label>Language</label>
+              <select x-model="form.language" @change="form.voice=''; loadVoices(form.language)"><template x-for="l in languages"><option :value="l" x-text="l" :selected="l===form.language"></option></template></select></div>
+            <div class="field"><label>Format</label>
+              <select x-model="form.format"><option value="shorts">Vertical 9:16 · Shorts, TikTok, Reels</option><option value="youtube">Landscape 16:9 · YouTube</option><option value="square">Square 1:1</option></select></div>
+            <div class="field"><label>Length</label>
+              <select x-model.number="form.duration"><template x-for="d in [15,30,45,60,90,120,180]"><option :value="d" x-text="d<60 ? d+' seconds' : (d/60)+' min'" :selected="d===form.duration"></option></template></select></div>
           </div>
-          <div>
-            <div class="st" :class="p.status" x-text="p.status + (p.version ? ' · v' + p.version : '')"></div>
-            <div><strong x-text="p.script?.title || p.request.topic"></strong></div>
-            <div class="bar" x-show="busyStatus(p)"><i :style="`width:${p.progress}%`"></i></div>
-            <div class="err" x-show="p.error" x-text="p.error"></div>
-            <div class="btns">
-              <button class="ghost small" x-show="p.timeline" @click="openEditor(p)">Edit</button>
-              <a class="ghost small" x-show="p.video_path" :href="videoUrl(p)" download>Download</a>
-              <button class="ghost small" x-show="p.status==='failed'" @click="retry(p)">Retry</button>
-              <button class="ghost small" @click="remove(p)">Delete</button>
+          <details style="margin-top:14px">
+            <summary>Style, voice and publishing</summary>
+            <div class="grid-3" style="margin-top:12px">
+              <div class="field"><label>Style / tone</label><input x-model="form.style" placeholder="funny, storytelling, educational…"></div>
+              <div class="field"><label>Voice</label>
+                <select x-model="form.voice">
+                  <option value="">Default for the language</option>
+                  <template x-for="v in (voices[form.language]||[])"><option :value="v.name" x-text="voiceLabel(v)"></option></template>
+                </select></div>
+              <div class="field"><label>Voice speed <span x-text="form.voice_rate.toFixed(2)+'×'"></span></label>
+                <input type="range" min="0.7" max="1.4" step="0.05" x-model.number="form.voice_rate"></div>
             </div>
-          </div>
-        </div>
-      </template>
-    </div>
-  </div>
-
-  <!-- ============================== EDITOR -->
-  <template x-if="tab==='edit' && cur">
-  <div class="editor">
-    <div>
-      <div class="card">
-        <template x-if="cur.video_path"><video class="player" :src="videoUrl(cur)" controls x-ref="player"></video></template>
-        <template x-if="!cur.video_path"><div class="muted">Not rendered yet.</div></template>
-        <div class="st" :class="cur.status" style="margin-top:8px" x-text="cur.status + (cur.version ? ' · v' + cur.version : '')"></div>
-        <div class="bar" x-show="busyStatus(cur)"><i :style="`width:${cur.progress}%`"></i></div>
-        <div class="err" x-show="cur.error" x-text="cur.error"></div>
-        <div class="btns">
-          <a class="ghost small" x-show="cur.video_path" :href="videoUrl(cur)" download>Download</a>
-          <select x-show="(cur.extra?.versions||[]).length > 1" @change="previewVersion($event.target.value)" style="width:100%;padding:3px">
-            <template x-for="v in (cur.extra?.versions||[]).slice().reverse()"><option :value="v.file" x-text="`v${v.version} · ${v.note}`"></option></template>
-          </select>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>Review with FrameJam</h3>
-        <p class="muted">Click the frame that's wrong and leave a comment; Claude applies your comments and renders a new version.</p>
-        <div class="btns">
-          <button class="ghost" @click="framejamOpen()" :disabled="!cur.video_path || busyStatus(cur)">Open in FrameJam</button>
-          <a class="ghost" x-show="cur.extra?.framejam?.url" :href="cur.extra?.framejam?.url" target="_blank">Review page ↗</a>
-          <button class="primary" x-show="cur.extra?.framejam?.review_id" @click="framejamApply()" :disabled="busyStatus(cur)">Apply feedback</button>
-        </div>
-        <div class="muted" x-show="!status.framejam?.ok" style="margin-top:6px">FrameJam isn't running — start it with <code>npx -y framejam start</code></div>
-      </div>
-
-      <div class="card">
-        <h3>Publish</h3>
-        <template x-if="!channels.length"><div class="muted">No accounts — <a href="#" @click.prevent="go('connections')">connect one</a>.</div></template>
-        <template x-for="c in channels" :key="c.id">
-          <label class="chk"><input type="checkbox" :value="c.id" x-model="pubIds"><span x-text="chLabel(c)"></span></label>
-        </template>
-        <div class="row">
-          <div><label>YouTube visibility</label><select x-model="pubOpts.youtube_visibility"><option>public</option><option>unlisted</option><option>private</option></select></div>
-          <div><label>TikTok mode</label><select x-model="pubOpts.tiktok_method"><option value="DIRECT_POST">Post directly</option><option value="UPLOAD">Send to inbox (drafts)</option></select></div>
-        </div>
-        <div class="btns"><button class="primary" @click="publish()" :disabled="!pubIds.length || !cur.video_path || busyStatus(cur)">Publish</button></div>
-        <template x-for="r in (cur.publish_result||[])"><div :class="r.ok?'okmsg':'err'" x-text="(r.ok?'✓ ':'✗ ') + (r.channel?.provider||r.channel?.via||'') + ' ' + (r.channel?.name||'') + (r.ok ? ' ' + (r.result?.url||'') : ': ' + r.error)"></div></template>
-      </div>
-    </div>
-
-    <div>
-      <div class="card">
-        <h3>Edit with AI</h3>
-        <textarea x-model="instruction" placeholder="e.g. Make the hook punchier, shorten scene 3, use darker moody footage, put captions on a box at the top"></textarea>
-        <div class="btns"><button class="primary" @click="aiEdit()" :disabled="!instruction || busyStatus(cur)">Apply with Claude</button></div>
-        <details x-show="(cur.extra?.history||[]).length"><summary>Edit history</summary>
-          <template x-for="h in (cur.extra?.history||[]).slice().reverse()"><div class="hist"><span class="tag" x-text="h.source"></span> <span x-text="h.summary"></span></div></template>
-        </details>
-      </div>
-
-      <div class="card">
-        <h3>Timeline</h3>
-        <label>Title</label><input x-model="edTitle">
-        <div class="row">
-          <div><label>Captions</label><select x-model="tl.captions.preset"><option value="bold">Bold (highlighted word)</option><option value="box">Box</option><option value="minimal">Minimal</option><option value="none">None</option></select></div>
-          <div><label>Text color</label><input type="color" x-model="tl.captions.color"></div>
-          <div><label>Highlight</label><input type="color" x-model="tl.captions.highlight_color"></div>
-        </div>
-        <div class="row">
-          <div><label>Caption position <span x-text="Math.round(tl.captions.position*100)+'%'"></span></label><input type="range" min="0.1" max="0.9" step="0.01" x-model.number="tl.captions.position"></div>
-          <div><label>Voice speed</label><input type="number" step="0.05" min="0.5" max="2" x-model.number="tl.voice_rate"></div>
-          <div><label>Voice</label><input x-model="tl.voice"></div>
-        </div>
-        <label class="chk"><input type="checkbox" x-model="tl.motion"> Slow camera drift</label>
-
-        <label style="margin-top:14px">Scenes</label>
-        <template x-for="(s, i) in tl.scenes" :key="s.id">
-          <div class="scene">
-            <div class="thumb"><img x-show="thumbOf(s)" :src="thumbOf(s)" alt=""><span x-show="!thumbOf(s)">auto</span></div>
-            <div>
-              <div class="tag" x-text="`Scene ${i+1}` + (s.start!=null ? ` · ${s.start}s–${s.end}s` : '')"></div>
-              <textarea x-model="s.text"></textarea>
-              <input x-model="s.search" placeholder="stock footage search (English)" style="margin-top:4px">
+            <div class="field" style="margin-top:12px"><label>Publish to</label>
+              <template x-if="!channels.length"><p class="small muted">No accounts connected. <a href="/connections" @click.prevent="nav('/connections')">Connect YouTube, TikTok or Facebook</a> to publish from here.</p></template>
+              <div class="pickchips">
+                <template x-for="c in channels" :key="c.id">
+                  <button type="button" class="pickchip" :class="form.channelIds.includes(c.id)&&'on'" @click="toggle(form.channelIds, c.id)">
+                    <span class="avatar"><img x-show="c.avatar" :src="c.avatar" alt=""><span x-show="!c.avatar" x-text="initial(c.name)"></span></span>
+                    <span x-text="c.name"></span><span class="small muted" x-text="platformLabel(c)"></span></button>
+                </template>
+              </div>
+              <label class="toggle small" style="margin-top:10px" x-show="channels.length" :style="!form.channelIds.length && 'opacity:.5'">
+                <input type="checkbox" x-model="form.auto_publish" :disabled="!form.channelIds.length"> Publish automatically when the first render is ready</label>
             </div>
-            <div class="side">
-              <button class="ghost small" @click="openPicker(s)">Footage</button>
-              <button class="ghost small" @click="seek(s)" x-show="s.start!=null">▶</button>
-              <button class="ghost small" @click="move(i,-1)" :disabled="i===0">↑</button>
-              <button class="ghost small" @click="move(i,1)" :disabled="i===tl.scenes.length-1">↓</button>
-              <button class="ghost small" @click="tl.scenes.splice(i,1)" :disabled="tl.scenes.length<2">✕</button>
-            </div>
-          </div>
-        </template>
-        <div class="btns">
-          <button class="ghost" @click="tl.scenes.push({id:'n'+Date.now(), text:'', search:'', clip:null})">+ Add scene</button>
-          <button class="primary" @click="saveTimeline()" :disabled="busyStatus(cur)">Save & re-render</button>
-          <button class="ghost" @click="loadTimeline()">Discard changes</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  </template>
-
-  <!-- footage picker -->
-  <div class="modal" x-show="picker.open" @click.self="picker.open=false">
-    <div class="card">
-      <div class="row">
-        <div><label>Search stock footage</label><input x-model="picker.q" @keydown.enter="searchFootage()"></div>
-        <div style="flex:0"><button class="primary" @click="searchFootage()">Search</button></div>
-        <div style="flex:0"><label class="ghost" style="margin:0;cursor:pointer;padding:8px 10px;border:1px solid var(--line);border-radius:6px;color:var(--text);white-space:nowrap">Upload clip<input type="file" accept="video/*" style="display:none" @change="uploadClip($event)"></label></div>
-        <div style="flex:0"><button class="ghost" @click="picker.open=false">Close</button></div>
-      </div>
-      <div class="muted" x-show="picker.loading" style="margin-top:8px">Loading…</div>
-      <div class="err" x-text="picker.error"></div>
-      <div class="results">
-        <template x-for="r in picker.results" :key="r.id">
-          <button @click="chooseClip(r)" :title="`${r.provider} · ${r.duration}s`"><img :src="r.thumb" alt="" loading="lazy"></button>
-        </template>
-      </div>
-    </div>
-  </div>
-
-  <!-- ============================== IDEAS -->
-  <div class="grid" x-show="tab==='ideas'">
-    <div class="card">
-      <h3>Idea generator</h3>
-      <label>Niche / channel topic</label>
-      <input x-model="ideaForm.niche" placeholder="personal finance, history, tech tips...">
-      <label>Language</label>
-      <select x-model="ideaForm.language"><template x-for="l in languages"><option x-text="l"></option></template></select>
-      <div class="btns"><button class="primary" @click="getIdeas()" :disabled="busy || !ideaForm.niche" x-text="busy?'Thinking...':'Suggest ideas'"></button></div>
-    </div>
-    <div class="card">
-      <template x-if="!ideas.length"><p class="muted">Click an idea to start a video from it.</p></template>
-      <template x-for="i in ideas"><div class="idea" @click="useIdea(i)">
-        <strong x-text="i.topic"></strong><div x-text="'“'+i.hook+'”'"></div><div class="muted" x-text="i.why"></div>
-      </div></template>
-    </div>
-  </div>
-
-  <!-- ============================== AUTOPILOT -->
-  <div class="card" x-show="tab==='autopilot'" style="max-width:560px">
-    <h3>Autopilot</h3>
-    <p class="muted">On a schedule, Claude comes up with ideas for your niche → renders them → (optionally) publishes.</p>
-    <label class="chk"><input type="checkbox" x-model="auto.enabled"> Enable autopilot</label>
-    <label>Niche</label><input x-model="auto.niche">
-    <div class="row">
-      <div><label>Every (hours)</label><input type="number" x-model.number="auto.every_hours" min="1"></div>
-      <div><label>Videos per run</label><input type="number" x-model.number="auto.videos_per_run" min="1" max="10"></div>
-      <div><label>Length (seconds)</label><input type="number" x-model.number="auto.duration"></div>
-    </div>
-    <div class="row">
-      <div><label>Language</label><select x-model="auto.language"><template x-for="l in languages"><option x-text="l"></option></template></select></div>
-      <div><label>Format</label><select x-model="auto.format"><option value="shorts">9:16</option><option value="youtube">16:9</option><option value="square">1:1</option></select></div>
-    </div>
-    <label>Style</label><input x-model="auto.style">
-    <label>Publish to</label>
-    <template x-for="c in channels" :key="c.id">
-      <label class="chk"><input type="checkbox" :value="c.id" x-model="auto.channelIds"><span x-text="chLabel(c)"></span></label>
-    </template>
-    <label class="chk"><input type="checkbox" x-model="auto.auto_publish"> Auto-publish</label>
-    <div class="btns"><button class="primary" @click="saveAuto()">Save</button></div>
-  </div>
-
-  <!-- ============================== CONNECTIONS -->
-  <div x-show="tab==='connections'">
-    <div class="grid2">
-      <div>
-        <!-- Claude -->
-        <div class="card">
-          <h3>1 · Claude</h3>
-          <p class="muted">Writes scripts, ideas and edits. Uses your Claude subscription through the Claude Agent SDK — no API key needed.</p>
-          <div :class="cl.current?.ok ? 'okmsg' : 'err'" x-text="(cl.current?.ok ? '✓ Connected — ' : '✗ ') + (cl.current?.detail || 'checking…') + sourceLabel(cl.current?.source)"></div>
-          <div class="muted" x-show="cl.current && !cl.current.source">Choose how this app should use Claude — it never picks an account on its own.</div>
-
-          <div class="btns">
-            <button class="primary" @click="claudeLogin()" x-show="!['waiting_code','verifying'].includes(cl.login?.state)">Sign in with Claude</button>
-            <button class="ghost" x-show="cl.system?.ok && cl.current?.source!=='system'" @click="claudeSource('system')" x-text="`Use this computer's Claude Code login (${cl.system?.email||''})`"></button>
-            <button class="ghost" x-show="cl.current?.source==='app' && cl.current?.ok" @click="claudeLogout()">Sign out</button>
-            <button class="ghost" x-show="['system','api_key'].includes(cl.current?.source)" @click="claudeSource('')">Disconnect</button>
-          </div>
-
-          <div x-show="['waiting_code','verifying'].includes(cl.login?.state)" style="margin-top:10px">
-            <div>1. <a :href="cl.login?.url" target="_blank">Open the Claude sign-in page ↗</a> and approve access.</div>
-            <div style="margin-top:6px">2. Paste the code it shows:</div>
-            <div class="row"><input x-model="claudeCode" placeholder="code#state"><button class="primary" style="flex:0" @click="claudeSubmitCode()" :disabled="!claudeCode || cl.login?.state==='verifying'" x-text="cl.login?.state==='verifying'?'Verifying…':'Connect'"></button></div>
-            <a href="#" class="muted" @click.prevent="api('/api/claude/login/cancel',{method:'POST'}).then(()=>loadConnections())">Cancel</a>
-          </div>
-          <div class="err" x-show="cl.login?.state==='error'" x-text="cl.login?.error"></div>
-
-          <details style="margin-top:10px"><summary>Use an Anthropic API key instead</summary>
-            <div class="row"><input x-model="cfg.claude.api_key" placeholder="sk-ant-..."><button class="ghost" style="flex:0" @click="saveSection('claude').then(()=>claudeSource('api_key'))">Use key</button></div>
-            <label>Model</label><select x-model="cfg.claude.model" @change="saveSection('claude')"><option value="sonnet">Sonnet</option><option value="opus">Opus</option><option value="haiku">Haiku</option></select>
           </details>
-          <p class="muted" style="margin-top:10px">Personal use only: subscription usage through the Agent SDK draws from your plan's monthly Agent SDK credit. Don't share your login with others.</p>
-        </div>
-
-        <!-- Footage -->
-        <div class="card">
-          <h3>2 · Stock footage</h3>
-          <p class="muted">Free API keys: <a href="https://www.pexels.com/api/" target="_blank">Pexels</a> (recommended) or <a href="https://pixabay.com/api/docs/" target="_blank">Pixabay</a>.</p>
-          <label>Provider</label><select x-model="cfg.footage.provider"><option value="pexels">Pexels</option><option value="pixabay">Pixabay</option></select>
-          <label>Pexels API key</label><input x-model="cfg.footage.pexels_api_key">
-          <label>Pixabay API key</label><input x-model="cfg.footage.pixabay_api_key">
-          <div class="btns"><button class="primary" @click="saveSection('footage')">Save</button></div>
-        </div>
-
-        <!-- FrameJam -->
-        <div class="card">
-          <h3>FrameJam review <span class="tag">optional</span></h3>
-          <p class="muted"><a href="https://github.com/moritzkremb/framejam" target="_blank">FrameJam</a> (MIT) lets you comment on exact frames; Claude applies the comments. Start it with <code>npx -y framejam start</code> (Node 22+).</p>
-          <div :class="status.framejam?.ok?'okmsg':'muted'" x-text="status.framejam?.detail"></div>
-          <label>FrameJam URL</label><input x-model="cfg.framejam.url">
-          <div class="btns"><button class="ghost" @click="saveSection('framejam')">Save</button></div>
-        </div>
+          <div class="actions" style="margin-top:16px; justify-content:flex-end">
+            <span class="small muted" x-show="missingSetup().length">Finish setup in Connections to create videos</span>
+            <button class="btn primary" @click="create()" :disabled="creating || form.topic.trim().length < 3 || missingSetup().length > 0">
+              <span class="spin" x-show="creating"></span><span x-text="creating ? 'Creating…' : 'Create video'"></span></button>
+          </div>
+        </fieldset>
       </div>
 
-      <div>
-        <!-- Social -->
-        <div class="card">
-          <h3>3 · Social accounts</h3>
-          <template x-if="!accounts.length"><p class="muted">No accounts connected yet.</p></template>
-          <template x-for="a in accounts" :key="a.id">
-            <div class="acct"><img x-show="a.avatar" :src="a.avatar" alt=""><span x-text="chLabel(a)" style="flex:1"></span>
-              <button class="ghost small" x-show="a.via==='native'" @click="removeAccount(a)">Disconnect</button></div>
-          </template>
-        </div>
-
-        <template x-for="pl in cfg.platforms" :key="pl.key">
-          <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-              <h3 x-text="pl.label"></h3>
-              <a class="primary" :href="`/oauth/${pl.key}/start`" x-show="pl.configured">Connect</a>
-              <span class="tag" x-show="!pl.configured">add app credentials first</span>
+      <div class="page-head" style="margin:28px 0 12px"><h2 x-text="`Projects · ${projects.length}`"></h2></div>
+      <template x-if="!projects.length">
+        <div class="card empty"><h2>No videos yet</h2><p>Your first video will appear here while it renders.</p></div>
+      </template>
+      <div class="projects">
+        <template x-for="p in projects" :key="p.id">
+          <a class="pcard" :href="`/projects/${p.id}`" @click.prevent="nav(`/projects/${p.id}`)">
+            <div class="pthumb">
+              <template x-if="projThumb(p)"><img :src="projThumb(p)" alt="" loading="lazy"></template>
+              <template x-if="!projThumb(p)"><svg class="i" style="width:28px;height:28px"><use href="#i-film"/></svg></template>
+              <span class="chip" :class="statusTone(p)" x-text="statusText(p)"></span>
             </div>
-            <details :open="!pl.configured"><summary>Developer app credentials</summary>
-              <p class="muted" x-text="pl.notes"></p>
-              <label>Redirect URI to register</label><code x-text="pl.redirect_uri"></code>
-              <template x-for="f in pl.fields"><div><label x-text="f.label"></label><input x-model="cfg.apps[pl.key][f.key]"></div></template>
-              <div class="btns"><button class="ghost" @click="saveSection('apps')">Save</button><a :href="pl.docs" target="_blank" class="muted">Docs ↗</a></div>
+            <div class="pbody">
+              <div class="ptitle" x-text="p.script?.title || p.request.topic"></div>
+              <div class="bar" x-show="isBusy(p)"><i :style="`width:${Math.max(4,p.progress)}%`"></i></div>
+              <div class="perr" x-show="p.status==='failed' && p.error" x-text="p.error"></div>
+              <div class="small muted" x-text="ago(p.created_at) + (p.version ? ` · v${p.version}` : '')"></div>
+            </div>
+          </a>
+        </template>
+      </div>
+    </section>
+
+    <!-- ===================================================== PROJECT / EDITOR -->
+    <section class="page" x-show="route.page==='project'">
+      <template x-if="!cur">
+        <div class="card empty">
+          <template x-if="curMissing"><div><h2>Project not found</h2><p>It may have been deleted.</p><div class="actions" style="justify-content:center;margin-top:12px"><a class="btn" href="/" @click.prevent="nav('/')">Back to Studio</a></div></div></template>
+          <template x-if="!curMissing"><div><span class="spin"></span></div></template>
+        </div>
+      </template>
+      <template x-if="cur">
+        <div>
+          <div class="page-head">
+            <div style="min-width:0">
+              <a class="btn ghost sm" href="/" @click.prevent="nav('/')" style="margin-left:-10px"><svg class="i"><use href="#i-back"/></svg>Studio</a>
+              <h1 style="margin-top:6px" x-text="cur.script?.title || cur.request.topic"></h1>
+              <div class="actions" style="margin-top:8px">
+                <span class="chip" :class="statusTone(cur)" x-text="statusText(cur)"></span>
+                <span class="small muted" x-show="cur.version" x-text="`Version ${cur.version} · ${(cur.timeline?.scenes||[]).length} scenes · ${duration(cur)}`"></span>
+              </div>
+            </div>
+            <div class="actions">
+              <a class="btn" x-show="cur.video_path" :href="videoUrl(cur)" download><svg class="i"><use href="#i-download"/></svg>Download</a>
+              <button class="btn" x-show="cur.status==='failed'" @click="retry(cur)" :disabled="missingSetup().length > 0"><svg class="i"><use href="#i-retry"/></svg>Retry</button>
+              <button class="btn ghost danger" title="Delete video" @click="askDelete(cur)" :disabled="isBusy(cur)"><svg class="i"><use href="#i-trash"/></svg></button>
+            </div>
+          </div>
+
+          <div class="notice" x-show="isBusy(cur)" style="margin-bottom:16px">
+            <span class="spin" style="margin-top:3px"></span>
+            <div style="flex:1"><div x-text="busyText(cur)"></div><div class="bar" style="margin-top:6px"><i :style="`width:${Math.max(4,cur.progress)}%`"></i></div></div>
+          </div>
+          <div class="notice err" x-show="!isBusy(cur) && cur.error" style="margin-bottom:16px">
+            <svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg>
+            <div><span x-text="cur.error"></span>
+              <a href="/connections" x-show="/Connections/.test(cur.error||'')" @click.prevent="nav('/connections')"> Open Connections →</a></div>
+          </div>
+
+          <div class="editor">
+            <div class="left">
+              <div class="card">
+                <template x-if="cur.video_path"><video class="player" :src="previewSrc()" controls x-ref="player" preload="metadata"></video></template>
+                <template x-if="!cur.video_path"><div class="empty small" x-text="isBusy(cur) ? 'Your video will play here when the first render is done.' : 'No render yet.'"></div></template>
+                <div class="versions" x-show="versions().length > 1">
+                  <div class="lbl" style="margin:4px 0">Versions</div>
+                  <template x-for="v in versions()" :key="v.file">
+                    <div class="ver" :class="(preview||latestFile())===v.file && 'on'" @click="preview = v.file===latestFile() ? null : v.file">
+                      <span class="n" x-text="'v'+v.version"></span><span class="note" x-text="v.note" :title="v.note"></span>
+                      <span class="small muted" x-show="v.file===latestFile()">latest</span>
+                    </div>
+                  </template>
+                  <p class="hint" x-show="preview">Previewing an older version. Publishing and downloads use the latest.</p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <nav class="tabs">
+                <template x-for="t in editorTabs" :key="t.key">
+                  <a :href="`/projects/${cur.id}/${t.key}`" :class="route.sub===t.key&&'on'" @click.prevent="nav(`/projects/${cur.id}/${t.key}`)" x-text="t.label"></a>
+                </template>
+              </nav>
+
+              <template x-if="!cur.timeline">
+                <div class="card empty small" x-text="isBusy(cur) ? 'Claude is writing the scenes…' : 'This video has no scenes yet. Retry to generate them.'"></div>
+              </template>
+
+              <!-- Scenes -->
+              <fieldset x-show="cur.timeline && route.sub==='scenes'" :disabled="isBusy(cur)">
+                <div class="field" style="margin-bottom:14px"><label>Title</label><input x-model="edTitle"></div>
+                <template x-for="(s, i) in tl.scenes" :key="s.id">
+                  <div class="scene">
+                    <button type="button" class="sthumb" @click="openPicker(s)" title="Change footage">
+                      <img x-show="sceneThumb(s)" :src="sceneThumb(s)" alt="">
+                      <span x-show="!sceneThumb(s)">Auto</span><span class="swap">Change</span>
+                    </button>
+                    <div style="min-width:0">
+                      <div class="meta"><strong x-text="`Scene ${i+1}`"></strong><span x-show="s.start!=null" x-text="`${fmt(s.start)} – ${fmt(s.end)}`"></span></div>
+                      <textarea x-model="s.text" placeholder="Voice-over for this scene"></textarea>
+                      <input x-model="s.search" placeholder="Footage search (English) — changing it picks new footage" style="margin-top:6px">
+                    </div>
+                    <div class="tools">
+                      <button type="button" class="btn ghost icon" title="Play this scene" @click="seek(s)" :disabled="s.start==null || !cur.video_path"><svg class="i"><use href="#i-play"/></svg></button>
+                      <button type="button" class="btn ghost icon" title="Move up" @click="move(i,-1)" :disabled="i===0"><svg class="i"><use href="#i-up"/></svg></button>
+                      <button type="button" class="btn ghost icon" title="Move down" @click="move(i,1)" :disabled="i===tl.scenes.length-1"><svg class="i"><use href="#i-down"/></svg></button>
+                      <button type="button" class="btn ghost icon danger" title="Delete scene" @click="tl.scenes.splice(i,1)" :disabled="tl.scenes.length<2"><svg class="i"><use href="#i-trash"/></svg></button>
+                    </div>
+                  </div>
+                </template>
+                <button type="button" class="btn" style="margin-top:12px" @click="addScene()"><svg class="i"><use href="#i-plus"/></svg>Add scene</button>
+              </fieldset>
+
+              <!-- Style -->
+              <fieldset x-show="cur.timeline && route.sub==='style'" :disabled="isBusy(cur)">
+                <div class="card">
+                  <div class="card-head"><div class="grow"><h2>Captions</h2></div></div>
+                  <div class="presets">
+                    <template x-for="pr in presets" :key="pr.key">
+                      <button type="button" class="preset" :class="tl.captions?.preset===pr.key&&'on'" @click="tl.captions.preset=pr.key">
+                        <div class="demo"><span :class="pr.cls" x-html="pr.demo"></span></div><div class="name" x-text="pr.label"></div>
+                      </button>
+                    </template>
+                  </div>
+                  <div class="grid-3" style="margin-top:14px" x-show="tl.captions?.preset!=='none'">
+                    <div class="field"><label>Position · <span x-text="positionLabel(tl.captions?.position)"></span></label>
+                      <input type="range" min="0.1" max="0.9" step="0.01" x-model.number="tl.captions.position"></div>
+                    <div class="field"><label>Text color</label><input type="color" x-model="tl.captions.color"></div>
+                    <div class="field" x-show="tl.captions?.preset==='bold'"><label>Highlighted word</label><input type="color" x-model="tl.captions.highlight_color"></div>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="card-head"><div class="grow"><h2>Voice & motion</h2></div></div>
+                  <div class="grid-2">
+                    <div class="field"><label>Voice</label>
+                      <select x-model="tl.voice">
+                        <template x-if="!(voices[cur.request.language]||[]).some(v=>v.name===tl.voice)"><option :value="tl.voice" x-text="tl.voice"></option></template>
+                        <template x-for="v in (voices[cur.request.language]||[])"><option :value="v.name" x-text="voiceLabel(v)" :selected="v.name===tl.voice"></option></template>
+                      </select></div>
+                    <div class="field"><label>Speed <span x-text="(+tl.voice_rate||1).toFixed(2)+'×'"></span></label>
+                      <input type="range" min="0.7" max="1.4" step="0.05" x-model.number="tl.voice_rate"></div>
+                  </div>
+                  <label class="toggle" style="margin-top:12px"><input type="checkbox" x-model="tl.motion"> Slow camera drift on every clip</label>
+                </div>
+              </fieldset>
+
+              <!-- AI & review -->
+              <div x-show="cur.timeline && route.sub==='review'">
+                <div class="card">
+                  <div class="card-head"><div class="grow"><h2>Edit with Claude</h2><p>Describe the change. Claude edits the scenes and style, then renders a new version.</p></div></div>
+                  <fieldset :disabled="isBusy(cur) || dirty || !status.claude?.ok">
+                    <textarea x-model="instruction" placeholder="e.g. Make the hook punchier and put the captions near the top"></textarea>
+                    <div class="suggest">
+                      <template x-for="s in suggestions"><button type="button" @click="instruction = instruction.trim() ? instruction.trim() + '. ' + s : s" x-text="s"></button></template>
+                    </div>
+                    <div class="actions" style="margin-top:12px;justify-content:flex-end">
+                      <button class="btn primary" @click="aiEdit()" :disabled="instruction.trim().length<3"><svg class="i"><use href="#i-star"/></svg>Apply with Claude</button>
+                    </div>
+                  </fieldset>
+                  <p class="hint" x-show="dirty">You have unsaved manual edits — save or discard them first.</p>
+                  <p class="hint" x-show="!status.claude?.ok">Connect Claude in Connections to use AI edits.</p>
+                </div>
+
+                <div class="card">
+                  <div class="card-head">
+                    <div class="grow"><h2>FrameJam review</h2><p>Click the exact frame that's wrong and comment. Claude applies the comments.</p></div>
+                    <span class="chip" :class="status.framejam?.ok?'ok':''" x-text="status.framejam?.ok?'Running':'Not running'"></span>
+                  </div>
+                  <template x-if="!status.framejam?.ok">
+                    <div class="notice info"><div>Start FrameJam with <code>npx -y framejam start</code> (Node 22+), then <a href="#" @click.prevent="refreshStatus()">check again</a>.</div></div>
+                  </template>
+                  <template x-if="status.framejam?.ok && !cur.extra?.framejam?.review_id">
+                    <div class="actions"><button class="btn primary" @click="framejamOpen()" :disabled="!cur.video_path || isBusy(cur)"><svg class="i"><use href="#i-send"/></svg>Send to FrameJam</button></div>
+                  </template>
+                  <template x-if="status.framejam?.ok && cur.extra?.framejam?.review_id">
+                    <div>
+                      <div class="actions">
+                        <a class="btn" :href="cur.extra.framejam.url" target="_blank" rel="noopener"><svg class="i"><use href="#i-ext"/></svg>Open review</a>
+                        <button class="btn primary" @click="framejamApply()" :disabled="isBusy(cur) || dirty || !status.claude?.ok">Apply comments</button>
+                      </div>
+                      <p class="hint">New versions are sent to this review automatically.</p>
+                    </div>
+                  </template>
+                </div>
+
+                <div class="card" x-show="(cur.extra?.history||[]).length">
+                  <div class="card-head"><div class="grow"><h2>History</h2></div></div>
+                  <template x-for="h in (cur.extra?.history||[]).slice().reverse()"><div class="hist"><span class="src" x-text="h.source"></span><span x-text="h.summary"></span></div></template>
+                </div>
+              </div>
+
+              <!-- Publish -->
+              <div x-show="cur.timeline && route.sub==='publish'">
+                <div class="card">
+                  <div class="card-head"><div class="grow"><h2>Publish the latest version</h2><p x-text="cur.video_path ? `Version ${cur.version}` : 'Render the video first'"></p></div></div>
+                  <template x-if="!channels.length">
+                    <div class="notice info"><div>No accounts connected yet. <a href="/connections" @click.prevent="nav('/connections')">Connect YouTube, TikTok or Facebook</a></div></div>
+                  </template>
+                  <div class="pickchips">
+                    <template x-for="c in channels" :key="c.id">
+                      <button type="button" class="pickchip" :class="pubIds.includes(c.id)&&'on'" @click="toggle(pubIds, c.id)">
+                        <span class="avatar"><img x-show="c.avatar" :src="c.avatar" alt=""><span x-show="!c.avatar" x-text="initial(c.name)"></span></span>
+                        <span x-text="c.name"></span><span class="small muted" x-text="platformLabel(c)"></span></button>
+                    </template>
+                  </div>
+                  <div class="grid-2" style="margin-top:14px" x-show="selectedProviders().includes('youtube') || selectedProviders().includes('tiktok')">
+                    <div class="field" x-show="selectedProviders().includes('youtube')"><label>YouTube visibility</label>
+                      <select x-model="pubOpts.youtube_visibility"><option value="public">Public</option><option value="unlisted">Unlisted</option><option value="private">Private</option></select></div>
+                    <div class="field" x-show="selectedProviders().includes('tiktok')"><label>TikTok</label>
+                      <select x-model="pubOpts.tiktok_method"><option value="DIRECT_POST">Post directly</option><option value="UPLOAD">Send to TikTok inbox as a draft</option></select></div>
+                  </div>
+                  <div class="actions" style="margin-top:14px;justify-content:flex-end" x-show="channels.length">
+                    <button class="btn primary" @click="publish()" :disabled="!pubIds.length || !cur.video_path || isBusy(cur) || dirty"><svg class="i"><use href="#i-send"/></svg>Publish</button>
+                  </div>
+                  <p class="hint" x-show="dirty">Save your edits first so the published video includes them.</p>
+                </div>
+                <div class="card" x-show="(cur.publish_result||[]).length">
+                  <div class="card-head"><div class="grow"><h2 x-text="`Results · version ${cur.version}`"></h2></div></div>
+                  <template x-for="r in (cur.publish_result||[])">
+                    <div class="acct-row">
+                      <span class="chip" :class="r.ok?'ok':'err'" x-text="r.ok?'Published':'Failed'"></span>
+                      <div class="grow"><div x-text="(r.channel?.name || 'Postiz') + (platformLabel(r.channel) ? ' · ' + platformLabel(r.channel) : '')"></div>
+                        <div class="small" :style="!r.ok && 'color:var(--err)'" :class="r.ok&&'muted'" x-text="r.ok ? (r.result?.url || r.result?.publish_id || r.result?.video_id || '') : r.error"></div></div>
+                      <a class="btn sm" x-show="r.result?.url" :href="r.result?.url" target="_blank" rel="noopener"><svg class="i"><use href="#i-ext"/></svg></a>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="savebar" x-show="dirty && ['scenes','style'].includes(route.sub)" x-transition>
+            <div><span>Unsaved changes</span>
+              <button class="btn ghost sm" @click="loadTimeline()">Discard</button>
+              <button class="btn primary sm" @click="saveTimeline()" :disabled="isBusy(cur)">Save & render</button></div>
+          </div>
+        </div>
+      </template>
+    </section>
+
+    <!-- ===================================================== IDEAS -->
+    <section class="page" x-show="route.page==='ideas'">
+      <div class="page-head"><div><h1>Ideas</h1><p class="sub">Claude suggests topics for your niche, each with an opening hook.</p></div></div>
+      <div class="card">
+        <fieldset :disabled="thinking || !status.claude?.ok">
+          <div class="grid-3">
+            <div class="field" style="grid-column:span 2"><label>Niche</label><input x-model="ideaForm.niche" placeholder="personal finance, history, tech tips…" @keydown.enter="getIdeas()"></div>
+            <div class="field"><label>Language</label><select x-model="ideaForm.language"><template x-for="l in languages"><option :value="l" x-text="l" :selected="l===ideaForm.language"></option></template></select></div>
+          </div>
+          <div class="actions" style="margin-top:12px;justify-content:flex-end">
+            <span class="small muted" x-show="!status.claude?.ok">Connect Claude first</span>
+            <button class="btn primary" @click="getIdeas()" :disabled="!ideaForm.niche.trim()"><span class="spin" x-show="thinking"></span><span x-text="thinking ? 'Thinking…' : 'Suggest ideas'"></span></button>
+          </div>
+        </fieldset>
+      </div>
+      <div class="projects" style="margin-top:16px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">
+        <template x-for="i in ideas">
+          <div class="card" style="margin:0;display:flex;flex-direction:column;gap:8px">
+            <strong x-text="i.topic"></strong>
+            <div class="muted" x-text="'“' + i.hook + '”'"></div>
+            <div class="small muted" x-text="i.why"></div>
+            <div class="actions" style="margin-top:auto;justify-content:flex-end"><button class="btn sm" @click="useIdea(i)">Use this idea</button></div>
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <!-- ===================================================== AUTOPILOT -->
+    <section class="page" x-show="route.page==='autopilot'">
+      <div class="page-head"><div><h1>Autopilot</h1><p class="sub">On a schedule, Claude comes up with ideas for your niche, renders them and can publish them.</p></div>
+        <span class="chip" :class="autopilot.enabled?'ok':''" x-text="autopilot.enabled?'On':'Off'"></span></div>
+      <div class="card" x-show="autopilot.enabled || autopilot.last_error">
+        <div class="grid-3">
+          <div><div class="lbl">Next run</div><div x-text="autopilot.next_run ? when(autopilot.next_run) : '—'"></div></div>
+          <div><div class="lbl">Last run</div><div x-text="autopilot.last_run ? when(autopilot.last_run) : 'Never'"></div></div>
+          <div><div class="lbl">Last result</div><div :style="autopilot.last_error&&'color:var(--err)'" x-text="autopilot.last_error || (autopilot.last_run ? 'OK' : '—')"></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="stack">
+          <div class="field"><label>Niche</label><input x-model="autoForm.niche" placeholder="e.g. money tips for students"></div>
+          <div class="grid-3">
+            <div class="field"><label>Every</label><select x-model.number="autoForm.every_hours"><template x-for="h in [6,12,24,48,72,168]"><option :value="h" x-text="h<24 ? h+' hours' : (h===168?'week':(h/24)+' day'+(h>24?'s':''))" :selected="h===autoForm.every_hours"></option></template></select></div>
+            <div class="field"><label>Videos per run</label><input type="number" min="1" max="10" x-model.number="autoForm.videos_per_run"></div>
+            <div class="field"><label>Length</label><select x-model.number="autoForm.duration"><template x-for="d in [15,30,45,60,90]"><option :value="d" x-text="d+' seconds'" :selected="d===autoForm.duration"></option></template></select></div>
+          </div>
+          <div class="grid-3">
+            <div class="field"><label>Language</label><select x-model="autoForm.language"><template x-for="l in languages"><option :value="l" x-text="l" :selected="l===autoForm.language"></option></template></select></div>
+            <div class="field"><label>Format</label><select x-model="autoForm.format"><option value="shorts">Vertical 9:16</option><option value="youtube">Landscape 16:9</option><option value="square">Square 1:1</option></select></div>
+            <div class="field"><label>Style</label><input x-model="autoForm.style" placeholder="optional"></div>
+          </div>
+          <div class="field"><label>Publish to</label>
+            <template x-if="!channels.length"><p class="small muted">No accounts connected — videos will be created but not published.</p></template>
+            <div class="pickchips">
+              <template x-for="c in channels" :key="c.id">
+                <button type="button" class="pickchip" :class="autoForm.channelIds.includes(c.id)&&'on'" @click="toggle(autoForm.channelIds, c.id)">
+                  <span class="avatar"><img x-show="c.avatar" :src="c.avatar" alt=""><span x-show="!c.avatar" x-text="initial(c.name)"></span></span>
+                  <span x-text="c.name"></span><span class="small muted" x-text="platformLabel(c)"></span></button>
+              </template>
+            </div>
+            <label class="toggle small" style="margin-top:10px" x-show="channels.length" :style="!autoForm.channelIds.length && 'opacity:.5'">
+              <input type="checkbox" x-model="autoForm.auto_publish" :disabled="!autoForm.channelIds.length"> Publish automatically</label>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="actions" style="justify-content:space-between">
+          <span class="small muted" x-text="!autopilot.enabled && missingSetup().length ? 'To turn it on: ' + missingSetup().join(' and ') : ''"></span>
+          <div class="actions">
+            <button class="btn" @click="saveAuto(!!autopilot.enabled)">Save</button>
+            <button class="btn" :class="!autopilot.enabled && 'primary'" @click="saveAuto(!autopilot.enabled)" :disabled="!autopilot.enabled && (missingSetup().length > 0 || !(autoForm.niche||'').trim())" x-text="autopilot.enabled ? 'Turn off' : 'Save & turn on'"></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== CONNECTIONS -->
+    <section class="page" x-show="route.page==='connections'">
+      <div class="page-head"><div><h1>Connections</h1><p class="sub">Claude and stock footage are required. Social accounts, FrameJam and Postiz are optional.</p></div></div>
+
+      <div class="grid-2">
+        <div>
+          <!-- Claude -->
+          <div class="card">
+            <div class="card-head">
+              <div class="grow"><h2>Claude</h2><p>Writes scripts, ideas and edits through the Claude Agent SDK.</p></div>
+              <span class="chip" :class="{connected:'ok', expired:'warn', disconnected:'err'}[cl.state]" x-text="{connected:'Connected', expired:'Needs sign-in', disconnected:'Not connected'}[cl.state] || 'Checking…'"></span>
+            </div>
+
+            <template x-if="!cl.state"><div class="small muted"><span class="spin"></span></div></template>
+
+            <!-- connected -->
+            <template x-if="cl.state==='connected' && !switching && !signingIn()">
+              <div>
+                <div class="account">
+                  <span class="avatar lg" x-text="initial(cl.current.email || 'K')"></span>
+                  <div class="grow"><div class="t" x-text="cl.current.email || cl.current.detail"></div>
+                    <div class="d" x-text="sourceText(cl.current.source) + (cl.current.email && cl.current.detail.includes('·') ? ' · ' + cl.current.detail.split('·').slice(1).join('·').trim() + ' plan' : '')"></div></div>
+                </div>
+                <div class="grid-2" style="margin-top:14px;align-items:end">
+                  <div class="field"><label>Model</label>
+                    <select @change="setModel($event.target.value)">
+                      <template x-for="m in [['sonnet','Sonnet · fast, recommended'],['opus','Opus · best quality'],['haiku','Haiku · fastest']]"><option :value="m[0]" x-text="m[1]" :selected="m[0]===cl.model"></option></template>
+                    </select></div>
+                  <div class="actions" style="justify-content:flex-end">
+                    <button class="btn" @click="switching=true">Switch account</button>
+                    <button class="btn ghost danger" @click="cl.current.source==='app' ? claudeLogout() : claudeSource('')" x-text="cl.current.source==='app' ? 'Sign out' : 'Disconnect'"></button>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- signing in -->
+            <template x-if="signingIn()">
+              <div class="stack">
+                <ol class="steps">
+                  <li>Approve access on the Claude page that opened in a new tab. <a :href="cl.login.url" target="_blank" rel="noopener" x-show="cl.login.url">Open it again ↗</a></li>
+                  <li>Copy the code Claude shows and paste it here.</li>
+                </ol>
+                <div class="actions" style="flex-wrap:nowrap">
+                  <input x-model="claudeCode" placeholder="Paste the code" @keydown.enter="claudeSubmitCode()" :disabled="cl.login.state!=='waiting_code'" autocomplete="off">
+                  <button class="btn primary" @click="claudeSubmitCode()" :disabled="!claudeCode.trim() || cl.login.state!=='waiting_code'">
+                    <span class="spin" x-show="cl.login.state==='verifying'"></span><span x-text="cl.login.state==='verifying' ? 'Connecting…' : 'Connect'"></span></button>
+                </div>
+                <button class="btn ghost sm" @click="claudeCancel()" :disabled="cl.login.state==='verifying'">Cancel</button>
+              </div>
+            </template>
+
+            <!-- chooser -->
+            <template x-if="cl.state && (cl.state!=='connected' || switching) && !signingIn()">
+              <div class="stack">
+                <div class="notice" x-show="cl.state==='expired'"><svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg><div>The saved Claude connection no longer works. Choose how to connect again.</div></div>
+                <div class="notice err" x-show="cl.login?.state==='error'"><svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg><div x-text="cl.login?.error"></div></div>
+                <div class="options">
+                  <div class="option rec">
+                    <div class="grow"><div class="t">Sign in with Claude</div><div class="d">Any Claude Pro, Max or Team account. Kept separate from your terminal login.</div></div>
+                    <button class="btn primary" @click="claudeLogin()" :disabled="cl.login?.state==='starting'"><span class="spin" x-show="cl.login?.state==='starting'"></span>Sign in</button>
+                  </div>
+                  <div class="option" x-show="cl.system?.ok && !(cl.current?.source==='system' && cl.state==='connected')">
+                    <div class="grow"><div class="t">Use this computer's Claude Code login</div><div class="d" x-text="cl.system?.email || cl.system?.detail"></div></div>
+                    <button class="btn" @click="claudeSource('system')">Use</button>
+                  </div>
+                  <div class="option">
+                    <div class="grow"><div class="t">Anthropic API key</div><div class="d">Pay as you go from the Claude Console.</div>
+                      <div class="actions" style="margin-top:8px;flex-wrap:nowrap"><input type="password" x-model="apiKey" placeholder="sk-ant-…" autocomplete="off" @keydown.enter="useApiKey()">
+                        <button class="btn" @click="useApiKey()" :disabled="!apiKey.trim().startsWith('sk-')">Use key</button></div></div>
+                  </div>
+                </div>
+                <button class="btn ghost sm" x-show="switching" @click="switching=false">Cancel</button>
+              </div>
+            </template>
+            <p class="hint" style="margin-top:12px">Personal use only: subscription usage through the Agent SDK draws from your plan's monthly Agent SDK credit. Don't share your login with others.</p>
+          </div>
+
+          <!-- Footage -->
+          <div class="card">
+            <div class="card-head">
+              <div class="grow"><h2>Stock footage</h2><p>A free API key for royalty-free clips.</p></div>
+              <span class="chip" :class="status.footage?.ok?'ok':'err'" x-text="status.footage?.ok?'Connected':'Not connected'"></span>
+            </div>
+            <template x-if="status.footage?.ok && !footageEdit">
+              <div class="account">
+                <div class="grow"><div class="t" x-text="cfg.footage.provider==='pexels' ? 'Pexels' : 'Pixabay'"></div>
+                  <div class="d" x-text="'API key ' + (cfg.footage[cfg.footage.provider + '_api_key'] || '')"></div></div>
+                <button class="btn" @click="footageEdit=true; footageKey=''">Change</button>
+                <button class="btn ghost danger" @click="removeFootage()">Remove</button>
+              </div>
+            </template>
+            <template x-if="!status.footage?.ok || footageEdit">
+              <div class="stack">
+                <div class="seg"><button type="button" :class="footageProvider==='pexels'&&'on'" @click="footageProvider='pexels'">Pexels</button><button type="button" :class="footageProvider==='pixabay'&&'on'" @click="footageProvider='pixabay'">Pixabay</button></div>
+                <p class="small muted" x-show="footageProvider==='pexels'">Get a free key at <a href="https://www.pexels.com/api/" target="_blank" rel="noopener">pexels.com/api</a>. Recommended: the best vertical footage.</p>
+                <p class="small muted" x-show="footageProvider==='pixabay'">Get a free key at <a href="https://pixabay.com/api/docs/" target="_blank" rel="noopener">pixabay.com/api/docs</a>.</p>
+                <div class="actions" style="flex-wrap:nowrap">
+                  <input x-model="footageKey" placeholder="Paste your API key" autocomplete="off" @keydown.enter="saveFootage()">
+                  <button class="btn primary" @click="saveFootage()" :disabled="!footageKey.trim() || savingFootage"><span class="spin" x-show="savingFootage"></span>Verify & save</button>
+                </div>
+                <button class="btn ghost sm" x-show="footageEdit" @click="footageEdit=false">Cancel</button>
+              </div>
+            </template>
+          </div>
+
+          <!-- FrameJam -->
+          <div class="card">
+            <div class="card-head">
+              <div class="grow"><h2>FrameJam <span class="small muted">optional</span></h2><p>Review renders frame by frame; Claude applies your comments.</p></div>
+              <span class="chip" :class="status.framejam?.ok?'ok':''" x-text="status.framejam?.ok?'Running':'Not running'"></span>
+            </div>
+            <p class="small muted" x-show="!status.framejam?.ok">Start it with <code>npx -y framejam start</code> (Node 22+), then <a href="#" @click.prevent="refreshStatus()">check again</a>.</p>
+            <details style="margin-top:10px"><summary>Address</summary>
+              <div class="actions" style="margin-top:8px;flex-wrap:nowrap"><input x-model="cfg.framejam.url"><button class="btn" @click="saveSection('framejam')">Save</button></div>
             </details>
           </div>
+        </div>
+
+        <div>
+          <!-- Social platforms -->
+          <template x-for="pl in (cfg.platforms||[])" :key="pl.key">
+            <div class="card">
+              <div class="card-head">
+                <div class="grow"><h2 x-text="pl.label"></h2>
+                  <p x-text="accountsFor(pl.key).length ? `${accountsFor(pl.key).length} account${accountsFor(pl.key).length>1?'s':''} connected` : (pl.configured ? 'Ready to connect' : 'Needs a developer app (one-time setup)')"></p></div>
+                <span class="chip" :class="accountsFor(pl.key).length ? 'ok' : (pl.configured ? 'warn' : '')" x-text="accountsFor(pl.key).length ? 'Connected' : (pl.configured ? 'Not connected' : 'Not set up')"></span>
+              </div>
+              <template x-for="a in accountsFor(pl.key)" :key="a.id">
+                <div class="acct-row">
+                  <span class="avatar"><img x-show="a.avatar" :src="a.avatar" alt=""><span x-show="!a.avatar" x-text="initial(a.name)"></span></span>
+                  <div class="grow" x-text="a.name"></div>
+                  <button class="btn ghost sm danger" @click="askDisconnect(a)">Disconnect</button>
+                </div>
+              </template>
+              <div class="actions" style="margin-top:10px" x-show="pl.configured">
+                <a class="btn" :class="!accountsFor(pl.key).length && 'primary'" :href="`/oauth/${pl.key}/start`"
+                   x-text="accountsFor(pl.key).length ? 'Connect another' : `Connect ${pl.label}`"></a>
+              </div>
+              <details :open="!pl.configured" style="margin-top:12px">
+                <summary x-text="pl.configured ? 'Developer app settings' : 'Set up the developer app'"></summary>
+                <div class="stack" style="margin-top:10px">
+                  <p class="small muted" x-text="pl.notes"></p>
+                  <div class="field"><label>Redirect URI to register</label>
+                    <div class="copy"><code x-text="pl.redirect_uri"></code><button class="btn sm" title="Copy" @click="copy(pl.redirect_uri)"><svg class="i"><use href="#i-copy"/></svg></button></div></div>
+                  <template x-for="f in pl.fields"><div class="field"><label x-text="f.label"></label><input x-model="cfg.apps[pl.key][f.key]" autocomplete="off"></div></template>
+                  <div class="actions"><button class="btn" @click="saveSection('apps')">Save</button><a class="btn ghost sm" :href="pl.docs" target="_blank" rel="noopener">Docs <svg class="i"><use href="#i-ext"/></svg></a></div>
+                </div>
+              </details>
+            </div>
+          </template>
+
+          <!-- Advanced -->
+          <div class="card">
+            <div class="card-head"><div class="grow"><h2>Advanced <span class="small muted">optional</span></h2></div></div>
+            <details><summary>Public URL for sign-in redirects</summary>
+              <div class="stack" style="margin-top:10px">
+                <p class="small muted">Leave empty to use this page's address. TikTok needs HTTPS: run <code>cloudflared tunnel --url http://localhost:8000</code> and paste the tunnel URL.</p>
+                <div class="actions" style="flex-wrap:nowrap"><input x-model="cfg.public_url" placeholder="https://my-tunnel.trycloudflare.com"><button class="btn" @click="saveSection('public_url')">Save</button></div>
+              </div>
+            </details>
+            <div class="divider"></div>
+            <details><summary>Postiz — publish to more networks</summary>
+              <div class="stack" style="margin-top:10px">
+                <p class="small muted">Instagram, LinkedIn, X, Threads and more through a <a href="https://github.com/gitroomhq/postiz-app" target="_blank" rel="noopener">Postiz</a> instance.</p>
+                <div class="field"><label>API URL</label><input x-model="cfg.postiz.url" placeholder="https://api.postiz.com or http://localhost:4007/api"></div>
+                <div class="field"><label>API key</label><input x-model="cfg.postiz.api_key" autocomplete="off"></div>
+                <div class="actions"><button class="btn" @click="saveSection('postiz')">Save</button><span class="small muted" x-text="status.postiz?.detail"></span></div>
+                <template x-for="c in channels.filter(c=>c.via==='postiz')"><div class="acct-row"><span class="avatar" x-text="initial(c.name)"></span><div class="grow" x-text="`${c.name} · ${c.provider}`"></div></div></template>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ======================================================= overlays -->
+  <div class="modal" x-show="picker.open" x-transition.opacity @click.self="picker.open=false" @keydown.escape.window="picker.open=false">
+    <div class="card wide">
+      <div class="card-head"><div class="grow"><h2>Choose footage</h2><p>Pick a stock clip or upload your own.</p></div><button class="btn ghost sm" @click="picker.open=false">Close</button></div>
+      <div class="actions" style="flex-wrap:nowrap">
+        <input x-model="picker.q" placeholder="Search in English, e.g. city at night" @keydown.enter="searchFootage()">
+        <button class="btn primary" @click="searchFootage()" :disabled="!picker.q.trim() || !status.footage?.ok">Search</button>
+        <label class="btn"><input type="file" accept="video/*" style="display:none" @change="uploadClip($event)">Upload</label>
+      </div>
+      <p class="hint" x-show="!status.footage?.ok">Add a stock footage key in Connections to search — you can still upload your own clips.</p>
+      <div class="small muted" x-show="picker.loading" style="margin-top:10px"><span class="spin"></span> Loading…</div>
+      <div class="notice err" x-show="picker.error" style="margin-top:10px"><div x-text="picker.error"></div></div>
+      <div class="results">
+        <template x-for="r in picker.results" :key="r.id">
+          <button @click="chooseClip(r)" :title="r.provider"><img :src="r.thumb" alt="" loading="lazy"><span class="dur" x-text="r.duration+'s'"></span></button>
         </template>
-
-        <div class="card">
-          <h3>Public URL <span class="tag">optional</span></h3>
-          <p class="muted">Base URL for OAuth redirects. Leave empty to use this page's address. TikTok needs HTTPS — use a tunnel such as <code>cloudflared tunnel --url http://localhost:8000</code> and paste its URL here.</p>
-          <input x-model="cfg.public_url" placeholder="https://my-tunnel.trycloudflare.com">
-          <div class="btns"><button class="ghost" @click="saveSection('public_url')">Save</button></div>
-        </div>
-
-        <div class="card">
-          <h3>Postiz <span class="tag">optional</span></h3>
-          <p class="muted">Publish to more networks (Instagram, LinkedIn, X, Threads…) through a <a href="https://github.com/gitroomhq/postiz-app" target="_blank">Postiz</a> instance.</p>
-          <label>Postiz API URL</label><input x-model="cfg.postiz.url" placeholder="https://api.postiz.com or http://localhost:4007/api">
-          <label>API key</label><input x-model="cfg.postiz.api_key">
-          <div class="btns"><button class="ghost" @click="saveSection('postiz')">Save</button><span class="muted" x-text="status.postiz?.detail"></span></div>
-        </div>
       </div>
     </div>
   </div>
-</main>
 
-<div class="toast" x-show="toast" x-text="toast" x-transition></div>
+  <div class="modal" x-show="dialog.open" x-transition.opacity @click.self="dialog.open=false" @keydown.escape.window="dialog.open=false">
+    <div class="card">
+      <h2 x-text="dialog.title"></h2>
+      <p class="muted" style="margin-top:6px" x-text="dialog.body"></p>
+      <div class="actions" style="margin-top:16px;justify-content:flex-end">
+        <button class="btn" @click="dialog.open=false">Cancel</button>
+        <button class="btn primary" @click="dialog.open=false; dialog.action()" x-text="dialog.confirm"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" :class="toastErr&&'err'" x-show="toast" x-transition x-text="toast" @click="toast=''"></div>
+</div>
 
 <script>
+const PLATFORM_LABELS = { youtube:'YouTube', tiktok:'TikTok', facebook:'Facebook' };
+const EDITOR_TABS = ['scenes', 'style', 'review', 'publish'];
+
+function parseRoute(pathname) {
+  const p = pathname.split('/').filter(Boolean);
+  if (p[0] === 'projects' && p[1]) return { page:'project', id:p[1], sub: EDITOR_TABS.includes(p[2]) ? p[2] : 'scenes' };
+  if (['ideas','autopilot','connections'].includes(p[0])) return { page:p[0], id:null, sub:null };
+  return { page:'studio', id:null, sub:null };
+}
+
 function app() {
   return {
-    tab: 'create', busy: false, toast: '',
+    ready: false, route: { page:'studio', id:null, sub:null },
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
-    status: {}, channels: [], accounts: [], projects: [], ideas: [],
-    cfg: { claude:{}, footage:{}, framejam:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
-    cl: {}, claudeCode: '',
+    status: {}, cl: {}, cfg: { claude:{}, footage:{}, framejam:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
+    channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] },
     form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false },
-    ideaForm: { niche:'', language:'English' },
-    auto: { channelIds: [] },
-    cur: null, tl: { captions:{}, scenes:[] }, edTitle: '', instruction: '',
+    creating: false, thinking: false, ideaForm: { niche:'', language:'English' },
+    switching: false, claudeCode: '', apiKey: '', footageEdit: false, footageKey: '', footageProvider: 'pexels', savingFootage: false,
+    cur: null, curMissing: false, tl: { captions:{}, scenes:[] }, baseTl: '', edTitle: '', baseTitle: '', preview: null, instruction: '',
     pubIds: [], pubOpts: { youtube_visibility:'public', tiktok_method:'DIRECT_POST' },
+    editorTabs: [{key:'scenes',label:'Scenes'},{key:'style',label:'Style'},{key:'review',label:'AI & review'},{key:'publish',label:'Publish'}],
+    presets: [
+      {key:'bold', label:'Bold', cls:'b', demo:'This is <em>huge</em>'},
+      {key:'box', label:'Box', cls:'x', demo:'This is huge'},
+      {key:'minimal', label:'Minimal', cls:'m', demo:'This is huge'},
+      {key:'none', label:'None', cls:'m', demo:'—'},
+    ],
+    suggestions: ['Make the hook punchier', 'Shorten every scene', 'Use calmer footage', 'Captions near the top', 'Speak a bit faster', 'Stronger call to action'],
     picker: { open:false, scene:null, q:'', results:[], loading:false, error:'' },
+    dialog: { open:false, title:'', body:'', confirm:'OK', action(){} },
+    toast: '', toastErr: false,
 
+    // ------------------------------------------------ helpers
+    get dirty() { return !!this.cur?.timeline && (JSON.stringify(this.tl) !== this.baseTl || this.edTitle !== this.baseTitle); },
     async api(path, opts={}) {
       const isForm = opts.body instanceof FormData;
-      const r = await fetch(path, { ...opts, headers: isForm ? {} : {'Content-Type':'application/json'}, body: opts.body && (isForm ? opts.body : JSON.stringify(opts.body)) });
-      if (!r.ok) { const t = await r.text(); let m=t; try { m = JSON.parse(t).detail } catch {} ; this.say(m || r.statusText); throw new Error(m); }
+      const r = await fetch(path, { ...opts, headers: isForm ? {} : {'Content-Type':'application/json'}, body: opts.body === undefined ? undefined : (isForm ? opts.body : JSON.stringify(opts.body)) });
+      if (!r.ok) { let m = await r.text(); try { m = JSON.parse(m).detail } catch {} ; throw new Error(typeof m === 'string' ? m : JSON.stringify(m)); }
       return r.json();
     },
-    say(m) { this.toast = String(m).slice(0, 300); clearTimeout(this._t); this._t = setTimeout(() => this.toast = '', 5000); },
-    go(t) { this.tab = t; if (t === 'connections') this.loadConnections(); },
-    chLabel(c) { return `${c.provider || c.platform} · ${c.name}` + (c.via === 'postiz' ? ' (Postiz)' : ''); },
-    sourceLabel(s) { return s ? ` (${ {app:'signed in here', system:"this computer's Claude Code login", api_key:'API key'}[s] })` : ''; },
+    async run(fn, okMsg) { try { const r = await fn(); if (okMsg) this.say(okMsg); return r ?? true; } catch (e) { this.say(e.message, true); return null; } },
+    say(m, err=false) { this.toast = String(m).slice(0, 300); this.toastErr = err; clearTimeout(this._t); this._t = setTimeout(() => this.toast = '', err ? 7000 : 3500); },
+    confirm(title, body, confirm, action) { this.dialog = { open:true, title, body, confirm, action }; },
+    toggle(arr, id) { const i = arr.indexOf(id); i < 0 ? arr.push(id) : arr.splice(i, 1); },
+    initial(s) { return (s || '?').trim().charAt(0).toUpperCase(); },
+    platformLabel(c) { if (!c || !c.provider) return ''; return c.via === 'postiz' ? `${c.provider} via Postiz` : (PLATFORM_LABELS[c.provider] || c.provider); },
+    nativeAccounts() { return this.channels.filter(c => c.via === 'native'); },
+    accountsFor(key) { return this.channels.filter(c => c.via === 'native' && c.provider === key); },
+    missingSetup() { const m = []; if (this.status.claude && !this.status.claude.ok) m.push('connect Claude'); if (this.status.footage && !this.status.footage.ok) m.push('add a stock footage key'); return m; },
+    sourceText(s) { return { app:'Signed in here', system:"This computer's Claude Code login", api_key:'Anthropic API key' }[s] || ''; },
+    voiceLabel(v) { const n = v.name.split('-').slice(2).join('-').replace(/Neural$/, '').replace(/Multilingual$/, ' (multilingual)'); return `${n} · ${v.gender || ''} · ${v.locale}`; },
+    isBusy(p) { return ['queued','scripting','editing','rendering','publishing'].includes(p?.status); },
+    statusText(p) { return { queued:'Queued', scripting:'Writing script', editing:'Claude is editing', rendering:`Rendering ${p.progress||0}%`, publishing:'Publishing', ready:'Ready', published:'Published', failed:'Failed' }[p.status] || p.status; },
+    statusTone(p) { return { ready:'ok', published:'ok', failed:'err' }[p.status] || 'warn'; },
+    busyText(p) { return { queued:'Waiting to start…', scripting:'Claude is writing the script…', editing:'Claude is editing the video…', rendering:`Rendering version ${(p.version||0)+1}…`, publishing:'Publishing…' }[p.status] || ''; },
+    base(path) { return (path || '').split(/[\\/]/).pop(); },
+    videoUrl(p) { return p.video_path ? '/videos/' + this.base(p.video_path) : ''; },
+    versions() { return (this.cur?.extra?.versions || []).slice().reverse(); },
+    latestFile() { return this.base(this.cur?.video_path); },
+    previewSrc() { return '/videos/' + (this.preview || this.latestFile()); },
+    sceneThumb(s) { const c = s.clip; if (!c) return ''; return c.thumb_local ? `/media/${this.cur.id}/${this.base(c.thumb_local)}` : (c.thumb || ''); },
+    projThumb(p) { const c = p.timeline?.scenes?.[0]?.clip; if (!c) return ''; return c.thumb_local ? `/media/${p.id}/${this.base(c.thumb_local)}` : (c.thumb || ''); },
+    selectedProviders() { return this.channels.filter(c => this.pubIds.includes(c.id)).map(c => c.provider); },
     pick(ids) { return this.channels.filter(c => ids.includes(c.id)).map(({id,provider,name,via}) => ({id,provider,name,via})); },
-    busyStatus(p) { return ['queued','scripting','editing','rendering','publishing'].includes(p?.status); },
-    videoUrl(p) { return p.video_path ? '/videos/' + p.video_path.split(/[\\/]/).pop() : ''; },
-    thumbOf(s) { const c = s.clip; if (!c) return ''; if (c.thumb_local) return `/media/${this.cur.id}/` + c.thumb_local.split(/[\\/]/).pop(); return c.thumb || ''; },
+    fmt(t) { t = +t || 0; return `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`; },
+    duration(p) { const s = p.timeline?.scenes || []; return s.length && s[s.length-1].end != null ? this.fmt(s[s.length-1].end) : '—'; },
+    positionLabel(v) { v = +v; return v < 0.35 ? 'top' : v > 0.65 ? 'bottom' : 'middle'; },
+    ago(ts) { const s = Date.now()/1000 - ts; if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s/60) + ' min ago'; if (s < 86400) return Math.floor(s/3600) + ' h ago'; return new Date(ts*1000).toLocaleDateString(); },
+    when(ts) { return new Date(ts*1000).toLocaleString([], { dateStyle:'medium', timeStyle:'short' }); },
+    copy(t) { navigator.clipboard?.writeText(t).then(() => this.say('Copied')); },
 
+    // ------------------------------------------------ routing (real URLs, survive reload)
+    leavingDirty(next) { return this.dirty && this.route.page === 'project' && (next.page !== 'project' || next.id !== this.route.id); },
+    discardThen(fn) {
+      this.confirm('Discard unsaved changes?', "Your edits to this video haven't been rendered yet.", 'Discard', () => { this.loadTimeline(); fn(); });
+    },
+    nav(path) {
+      if (this.leavingDirty(parseRoute(path))) return this.discardThen(() => this.nav(path));
+      if (path !== location.pathname) history.pushState({}, '', path);
+      this.onRoute();
+      window.scrollTo({ top: 0 });
+    },
+    async onRoute() {
+      const prev = this.route;
+      const r = this.route = parseRoute(location.pathname);
+      document.title = ({ studio:'Studio', project:'Editor', ideas:'Ideas', autopilot:'Autopilot', connections:'Connections' }[r.page]) + ' · AutoClip Studio';
+      if (r.page === 'project' && (prev.page !== 'project' || prev.id !== r.id || !this.cur)) await this.openProject(r.id);
+      if (r.page === 'connections') this.loadConnections();
+      if (r.page === 'autopilot') this.loadAutopilot();
+    },
+
+    // ------------------------------------------------ boot & polling
     async init() {
-      const h = location.hash;
-      if (h.startsWith('#connections')) {
-        const q = new URLSearchParams(h.split('?')[1] || '');
-        if (q.get('connected')) this.say(`Connected ${q.get('connected')} ✓`);
-        if (q.get('error')) this.say('Connection failed: ' + q.get('error'));
-        history.replaceState(null, '', '/');
-        this.go('connections');
-      }
-      await this.refreshStatus();
-      if (!this.status.claude?.ok || !this.status.footage?.ok) this.go('connections');
-      this.loadChannels();
-      this.api('/api/settings').then(s => this.cfg = s);
-      this.api('/api/autopilot').then(a => this.auto = { ...a, channelIds: (a.integrations||[]).map(i=>i.id) });
-      await this.load();
-      setInterval(() => this.load(), 3000);
-    },
-    async refreshStatus() { this.status = await this.api('/api/status'); },
-    async loadChannels() { this.channels = await this.api('/api/channels').catch(() => []); this.accounts = this.channels; },
-    async loadConnections() {
-      this.cfg = await this.api('/api/settings');
-      this.cl = await this.api('/api/claude');
-      this.loadChannels(); this.refreshStatus();
-    },
-    async load() {
-      this.projects = await this.api('/api/projects');
-      if (this.cur) {
-        const fresh = this.projects.find(p => p.id === this.cur.id);
-        if (fresh) {
-          const finished = this.busyStatus(this.cur) && !this.busyStatus(fresh);
-          this.cur = fresh;
-          if (finished) { this.loadTimeline(); if (fresh.status === 'ready') this.say(`v${fresh.version} ready`); }
+      this.route = parseRoute(location.pathname);
+      const q = new URLSearchParams(location.search);
+      if (q.get('connected')) this.say(`${q.get('connected')} connected`);
+      if (q.get('error')) this.say(q.get('error'), true);
+      if (location.search) history.replaceState({}, '', location.pathname);
+      window.addEventListener('popstate', () => {
+        const next = parseRoute(location.pathname);
+        if (this.leavingDirty(next)) {
+          const target = location.pathname;
+          history.pushState({}, '', `/projects/${this.route.id}/${this.route.sub}`);
+          return this.discardThen(() => this.nav(target));
         }
+        this.onRoute();
+      });
+      window.addEventListener('beforeunload', e => { if (this.dirty) { e.preventDefault(); e.returnValue = ''; } });
+      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language)]);
+      this.ready = true;
+      await this.onRoute();
+      setInterval(() => this.loadProjects(), 2500);
+      setInterval(() => this.refreshStatus(), 30000);
+    },
+    async refreshStatus() { this.status = await this.api('/api/status').catch(() => this.status); },
+    async loadChannels() { this.channels = await this.api('/api/channels').catch(() => []); },
+    async loadVoices(lang) { if (!this.voices[lang]) { const v = await this.api(`/api/voices?language=${encodeURIComponent(lang)}`).catch(() => []); this.voices = { ...this.voices, [lang]: v }; } },
+    async loadProjects() {
+      this.projects = await this.api('/api/projects').catch(() => this.projects);
+      if (this.route.page !== 'project' || !this.cur) return;
+      const fresh = this.projects.find(p => p.id === this.cur.id);
+      if (!fresh) { this.cur = null; this.curMissing = true; return; }
+      const finished = this.isBusy(this.cur) && !this.isBusy(fresh);
+      const gotTimeline = !this.cur.timeline && fresh.timeline;
+      this.cur = fresh;
+      if (gotTimeline || (finished && !this.dirty)) this.loadTimeline();
+      if (finished) {
+        this.preview = null;
+        if (fresh.error) this.say(fresh.error, true);
+        else if (fresh.status === 'ready') this.say(`Version ${fresh.version} is ready`);
+        else if (fresh.status === 'published') this.say('Published');
       }
     },
 
-    // ---- create / projects
+    // ------------------------------------------------ studio
     async create() {
-      this.busy = true;
-      try {
-        const { channelIds, ...f } = this.form;
-        await this.api('/api/projects', { method:'POST', body:{ ...f, integrations: this.pick(channelIds) } });
-        this.form.topic = ''; await this.load();
-      } finally { this.busy = false; }
+      this.creating = true;
+      const { channelIds, ...f } = this.form;
+      const p = await this.run(() => this.api('/api/projects', { method:'POST', body:{ ...f, auto_publish: f.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }));
+      this.creating = false;
+      if (p) { this.form.topic = ''; await this.loadProjects(); this.nav(`/projects/${p.id}`); }
     },
-    async retry(p) { await this.api(`/api/projects/${p.id}/retry`, { method:'POST' }); this.load(); },
-    async remove(p) { if (!confirm('Delete this project and its videos?')) return; await this.api(`/api/projects/${p.id}`, { method:'DELETE' }); if (this.cur?.id === p.id) this.cur = null; this.load(); },
+    async retry(p) { if (await this.run(() => this.api(`/api/projects/${p.id}/retry`, { method:'POST' }))) this.loadProjects(); },
+    askDelete(p) {
+      this.confirm('Delete this video?', 'The project, all its versions and downloaded footage will be removed. This cannot be undone.', 'Delete', async () => {
+        if (!await this.run(() => this.api(`/api/projects/${p.id}`, { method:'DELETE' }), 'Deleted')) return;
+        this.loadTimeline(); await this.loadProjects(); this.cur = null; this.nav('/');
+      });
+    },
 
-    // ---- editor
-    openEditor(p) { this.cur = p; this.loadTimeline(); this.pubIds = (p.request.integrations||[]).map(i => i.id); this.tab = 'edit'; },
-    loadTimeline() { this.tl = JSON.parse(JSON.stringify(this.cur.timeline)); this.edTitle = this.cur.script?.title || ''; },
+    // ------------------------------------------------ editor
+    async openProject(id) {
+      this.cur = null; this.curMissing = false; this.preview = null; this.instruction = '';
+      const p = this.projects.find(x => x.id === id) || await this.api(`/api/projects/${id}`).catch(() => null);
+      if (!p) { this.curMissing = true; return; }
+      this.cur = p;
+      this.loadTimeline();
+      this.pubIds = (p.request.integrations || []).map(i => i.id).filter(i => this.channels.some(c => c.id === i));
+      this.loadVoices(p.request.language || 'English');
+    },
+    loadTimeline() {
+      const tl = this.cur?.timeline ? JSON.parse(JSON.stringify(this.cur.timeline)) : { captions:{}, scenes:[] };
+      tl.captions = tl.captions || {};
+      this.tl = tl; this.baseTl = JSON.stringify(tl);
+      this.edTitle = this.baseTitle = this.cur?.script?.title || '';
+    },
     move(i, d) { const s = this.tl.scenes; [s[i], s[i+d]] = [s[i+d], s[i]]; },
-    seek(s) { const v = this.$refs.player; if (v) { v.currentTime = s.start; v.play(); } },
-    previewVersion(file) { if (this.$refs.player) this.$refs.player.src = '/videos/' + file; },
+    addScene() { this.tl.scenes.push({ id:'n' + Date.now(), text:'', search:'', clip:null }); },
+    seek(s) { const v = this.$refs.player; if (v && s.start != null) { this.preview = null; this.$nextTick(() => { v.currentTime = s.start; v.play(); }); } },
     async saveTimeline() {
+      const empty = this.tl.scenes.filter(s => !s.text.trim()).length;
       const tl = { ...this.tl, scenes: this.tl.scenes.filter(s => s.text.trim()) };
-      await this.api(`/api/projects/${this.cur.id}/timeline`, { method:'PUT', body:{ timeline: tl, title: this.edTitle } });
-      this.cur.status = 'rendering'; this.say('Re-rendering…');
+      if (!tl.scenes.length) return this.say('Add voice-over text to at least one scene', true);
+      if (!await this.run(() => this.api(`/api/projects/${this.cur.id}/timeline`, { method:'PUT', body:{ timeline: tl, title: this.edTitle } }))) return;
+      this.tl = tl; this.baseTl = JSON.stringify(tl); this.baseTitle = this.edTitle;
+      this.cur = { ...this.cur, status:'rendering', progress:0, error:null };
+      this.say(empty ? `Rendering — ${empty} empty scene${empty>1?'s were':' was'} removed` : 'Rendering a new version…');
     },
     async aiEdit() {
-      await this.api(`/api/projects/${this.cur.id}/ai-edit`, { method:'POST', body:{ instruction: this.instruction } });
-      this.cur.status = 'editing'; this.instruction = ''; this.say('Claude is editing…');
+      if (await this.run(() => this.api(`/api/projects/${this.cur.id}/ai-edit`, { method:'POST', body:{ instruction: this.instruction } }))) {
+        this.cur = { ...this.cur, status:'editing', progress:0, error:null }; this.instruction = '';
+      }
     },
-    openPicker(s) { this.picker = { open:true, scene:s, q: s.search || '', results:[], loading:false, error:'' }; if (this.picker.q) this.searchFootage(); },
+    openPicker(s) { this.picker = { open:true, scene:s, q:s.search || '', results:[], loading:false, error:'' }; if (this.picker.q && this.status.footage?.ok) this.searchFootage(); },
     async searchFootage() {
+      if (!this.picker.q.trim()) return;
       this.picker.loading = true; this.picker.error = '';
-      try { this.picker.results = await this.api(`/api/projects/${this.cur.id}/footage?q=${encodeURIComponent(this.picker.q)}`); }
+      try { this.picker.results = await this.api(`/api/projects/${this.cur.id}/footage?q=${encodeURIComponent(this.picker.q)}`); if (!this.picker.results.length) this.picker.error = 'No clips found — try other words.'; }
       catch (e) { this.picker.error = e.message; } finally { this.picker.loading = false; }
     },
-    chooseClip(r) { this.picker.scene.clip = r; this.picker.scene.search = this.picker.q; this.picker.scene.clip_start = 0; this.picker.open = false; this.say('Clip swapped — Save & re-render to apply'); },
+    chooseClip(r) { Object.assign(this.picker.scene, { clip:r, search:this.picker.q, clip_start:0 }); this.picker.open = false; },
     async uploadClip(ev) {
-      const f = ev.target.files[0]; if (!f) return;
+      const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
       const fd = new FormData(); fd.append('file', f);
-      this.picker.loading = true;
-      try { const clip = await this.api(`/api/projects/${this.cur.id}/upload`, { method:'POST', body: fd }); this.picker.scene.clip = clip; this.picker.open = false; this.say('Clip uploaded — Save & re-render to apply'); }
-      finally { this.picker.loading = false; ev.target.value = ''; }
+      this.picker.loading = true; this.picker.error = '';
+      try { const clip = await this.api(`/api/projects/${this.cur.id}/upload`, { method:'POST', body: fd }); Object.assign(this.picker.scene, { clip, clip_start:0 }); this.picker.open = false; }
+      catch (e) { this.picker.error = e.message; } finally { this.picker.loading = false; }
     },
     async framejamOpen() {
-      const r = await this.api(`/api/projects/${this.cur.id}/framejam`, { method:'POST' });
-      await this.load(); if (r.url) window.open(r.url, '_blank');
+      const r = await this.run(() => this.api(`/api/projects/${this.cur.id}/framejam`, { method:'POST' }));
+      if (r) { await this.loadProjects(); if (r.url) window.open(r.url, '_blank', 'noopener'); }
     },
     async framejamApply() {
-      const r = await this.api(`/api/projects/${this.cur.id}/framejam/apply`, { method:'POST' });
-      if (r.applied) { this.cur.status = 'editing'; this.say('Applying FrameJam feedback…'); } else this.say(r.detail);
+      const r = await this.run(() => this.api(`/api/projects/${this.cur.id}/framejam/apply`, { method:'POST' }));
+      if (r?.applied) this.cur = { ...this.cur, status:'editing', progress:0, error:null }; else if (r?.detail) this.say(r.detail);
     },
     async publish() {
-      this.say('Publishing…');
-      this.cur = await this.api(`/api/projects/${this.cur.id}/publish`, { method:'POST', body:{ integrations: this.pick(this.pubIds), publish_options: this.pubOpts } });
-      this.say(this.cur.error ? 'Some channels failed' : 'Published ✓');
+      this.cur = { ...this.cur, status:'publishing' };
+      const p = await this.run(() => this.api(`/api/projects/${this.cur.id}/publish`, { method:'POST', body:{ integrations: this.pick(this.pubIds), publish_options: this.pubOpts } }));
+      await this.loadProjects();
+      if (p) this.say(p.error ? 'Some accounts failed — see the results' : 'Published', !!p.error);
     },
 
-    // ---- ideas / autopilot
-    async getIdeas() { this.busy = true; try { this.ideas = await this.api('/api/ideas', { method:'POST', body:this.ideaForm }); } finally { this.busy = false; } },
-    useIdea(i) { this.form.topic = `${i.topic}\nHook: ${i.hook}`; this.form.language = this.ideaForm.language; this.tab = 'create'; },
-    async saveAuto() {
-      const { channelIds, ...a } = this.auto;
-      await this.api('/api/autopilot', { method:'PUT', body:{ ...a, integrations: this.pick(channelIds) } });
-      this.say('Autopilot saved');
+    // ------------------------------------------------ ideas & autopilot
+    async getIdeas() {
+      if (!this.ideaForm.niche.trim() || this.thinking || !this.status.claude?.ok) return;
+      this.thinking = true;
+      const r = await this.run(() => this.api('/api/ideas', { method:'POST', body:this.ideaForm }));
+      if (Array.isArray(r)) this.ideas = r;
+      this.thinking = false;
+    },
+    useIdea(i) { this.form.topic = `${i.topic}\nHook: ${i.hook}`; this.form.language = this.ideaForm.language; this.loadVoices(this.form.language); this.nav('/'); this.$nextTick(() => document.getElementById('topic')?.focus()); },
+    async loadAutopilot() {
+      const a = await this.api('/api/autopilot').catch(() => null); if (!a) return;
+      this.autopilot = a;
+      this.autoForm = { ...a, channelIds: (a.integrations || []).map(i => i.id).filter(i => this.channels.some(c => c.id === i)) };
+    },
+    async saveAuto(enabled) {
+      const { channelIds, last_run, next_run, last_error, ...a } = this.autoForm;
+      const msg = enabled ? (this.autopilot.enabled ? 'Saved' : 'Autopilot is on') : (this.autopilot.enabled ? 'Autopilot is off' : 'Saved');
+      if (await this.run(() => this.api('/api/autopilot', { method:'PUT', body:{ ...a, enabled, auto_publish: !!a.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }), msg)) this.loadAutopilot();
     },
 
-    // ---- connections
-    async saveSection(section) {
-      await this.api(`/api/settings/${section}`, { method:'PUT', body: this.cfg[section] });
-      this.say('Saved'); await this.loadConnections();
+    // ------------------------------------------------ connections
+    signingIn() { return ['waiting_code','verifying'].includes(this.cl.login?.state); },
+    async loadConnections() {
+      const [s, c] = await Promise.all([this.api('/api/settings').catch(() => null), this.api('/api/claude').catch(() => null)]);
+      if (s) { this.cfg = s; if (!this.footageEdit) this.footageProvider = s.footage.provider; }
+      if (c) this.cl = c;
+      await Promise.all([this.loadChannels(), this.refreshStatus()]);
     },
+    async saveSection(section) { if (await this.run(() => this.api(`/api/settings/${section}`, { method:'PUT', body: this.cfg[section] }), 'Saved')) this.loadConnections(); },
     async claudeLogin() {
-      this.cl.login = { state:'starting' }; this.claudeCode = '';
-      this.cl.login = await this.api('/api/claude/login/start', { method:'POST' });
-      if (this.cl.login.url) window.open(this.cl.login.url, '_blank');
+      // Open the tab synchronously (popup blockers), then point it at the sign-in URL.
+      const tab = window.open('about:blank', '_blank');
+      this.cl = { ...this.cl, login: { state:'starting' } }; this.claudeCode = '';
+      const r = await this.run(() => this.api('/api/claude/login/start', { method:'POST' }));
+      this.cl = { ...this.cl, login: r || { state:'error', error:'Could not start sign-in' } };
+      if (r?.url && tab) tab.location = r.url; else tab?.close();
     },
     async claudeSubmitCode() {
-      this.cl.login.state = 'verifying';
-      this.cl.login = await this.api('/api/claude/login/code', { method:'POST', body:{ code: this.claudeCode } });
-      if (this.cl.login.state === 'done') this.say('Claude connected ✓');
+      if (!this.claudeCode.trim() || this.cl.login?.state !== 'waiting_code') return;
+      this.cl = { ...this.cl, login: { ...this.cl.login, state:'verifying' } };
+      const r = await this.run(() => this.api('/api/claude/login/code', { method:'POST', body:{ code: this.claudeCode.trim() } }));
+      if (r?.state === 'done') { this.switching = false; this.claudeCode = ''; this.say('Claude connected'); }
+      else this.cl = { ...this.cl, login: r || { state:'error', error:'Sign-in failed' } };
       this.loadConnections();
     },
-    async claudeSource(source) { await this.api('/api/claude/source', { method:'POST', body:{ source } }); this.loadConnections(); },
-    async claudeLogout() { await this.api('/api/claude/logout', { method:'POST' }); this.loadConnections(); },
-    async removeAccount(a) { if (!confirm(`Disconnect ${a.name}?`)) return; await this.api(`/api/accounts/${a.id}`, { method:'DELETE' }); this.loadConnections(); },
+    async claudeCancel() { await this.run(() => this.api('/api/claude/login/cancel', { method:'POST' })); this.cl = { ...this.cl, login: { state:'idle' } }; },
+    async claudeSource(source) {
+      if (await this.run(() => this.api('/api/claude/source', { method:'POST', body:{ source } }), source ? 'Claude connected' : 'Claude disconnected')) { this.switching = false; this.loadConnections(); }
+    },
+    async useApiKey() {
+      if (!this.apiKey.trim().startsWith('sk-')) return;
+      if (await this.run(() => this.api('/api/settings/claude', { method:'PUT', body:{ ...this.cfg.claude, api_key: this.apiKey.trim(), source:'api_key' } }), 'Claude connected')) {
+        this.apiKey = ''; this.switching = false; this.loadConnections();
+      }
+    },
+    async setModel(model) { if (await this.run(() => this.api('/api/settings/claude', { method:'PUT', body:{ ...this.cfg.claude, model } }), 'Model updated')) this.loadConnections(); },
+    async claudeLogout() { if (await this.run(() => this.api('/api/claude/logout', { method:'POST' }), 'Signed out')) this.loadConnections(); },
+    async saveFootage() {
+      if (!this.footageKey.trim() || this.savingFootage) return;
+      this.savingFootage = true;
+      const body = { ...this.cfg.footage, provider: this.footageProvider, [`${this.footageProvider}_api_key`]: this.footageKey.trim() };
+      const ok = await this.run(() => this.api('/api/settings/footage', { method:'PUT', body }), 'Key verified and saved');
+      this.savingFootage = false;
+      if (ok) { this.footageEdit = false; this.footageKey = ''; this.loadConnections(); }
+    },
+    removeFootage() {
+      this.confirm('Remove the footage key?', "New videos can't be created until you add a key again.", 'Remove', async () => {
+        const p = this.cfg.footage.provider;
+        if (await this.run(() => this.api('/api/settings/footage', { method:'PUT', body:{ ...this.cfg.footage, [`${p}_api_key`]: '' } }), 'Removed')) this.loadConnections();
+      });
+    },
+    askDisconnect(a) {
+      this.confirm(`Disconnect ${a.name}?`, 'You can connect it again at any time.', 'Disconnect', async () => {
+        if (await this.run(() => this.api(`/api/accounts/${a.id}`, { method:'DELETE' }), 'Disconnected')) this.loadConnections();
+      });
+    },
   };
 }
 </script>

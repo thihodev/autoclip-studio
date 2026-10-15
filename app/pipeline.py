@@ -7,7 +7,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import claude, db, framejam, platforms, postiz, render
+from . import claude, db, framejam, platforms, postiz, render, settings
 from .config import VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
@@ -38,7 +38,7 @@ async def _render_version(pid: str, note: str) -> dict:
     extra = _extra(p)
     extra["versions"].append({"version": version, "file": out.name, "note": note, "at": time.time()})
     db.update_project(pid, timeline=tl, video_path=str(out), version=version, extra=extra,
-                      status="ready", progress=100, error=None)
+                      status="ready", progress=100, error=None, publish_result=None)
     if extra["framejam"].get("review_id"):
         try:
             await send_to_framejam(pid, note)
@@ -225,9 +225,14 @@ async def autopilot_loop():
                 last = float(db.get_setting("autopilot_last_run", 0))
                 if time.time() - last >= interval:
                     db.set_setting("autopilot_last_run", time.time())
-                    await _autopilot_run(cfg)
-        except Exception:
+                    if not settings.get("claude")["source"] or not render.footage_status()["ok"]:
+                        db.set_setting("autopilot_last_error", "Skipped: Claude or stock footage is not connected")
+                    else:
+                        db.set_setting("autopilot_last_error", None)
+                        await _autopilot_run(cfg)
+        except Exception as e:
             log.exception("autopilot tick failed")
+            db.set_setting("autopilot_last_error", f"{e.__class__.__name__}: {e}"[:500])
         await asyncio.sleep(60)
 
 
