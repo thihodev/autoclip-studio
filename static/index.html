@@ -52,7 +52,7 @@
   .side-foot { margin-top:auto; padding:12px 10px; border:1px solid var(--border); border-radius:10px; font-size:12px; color:var(--text-2); }
   .side-foot .row-s { display:flex; align-items:center; gap:8px; padding:2px 0; }
   .prefs { display:flex; flex-direction:column; gap:6px; }
-  .prefs select { padding:5px 8px; font-size:12px; }
+  .prefs select, .prefs .cselect { padding:5px 8px; font-size:12px; }
   .prefs .seg { display:flex; } .prefs .seg button { flex:1; padding:4px 6px; font-size:12px; }
   .dot { width:7px; height:7px; border-radius:50%; background:var(--text-3); flex:none; }
   .dot.ok { background:var(--ok); } .dot.err { background:var(--err); }
@@ -254,6 +254,15 @@
   table.data td { padding:7px 8px; border-bottom:1px solid var(--border); vertical-align:top; }
   table.data td.n, table.data th.n { text-align:right; }
   .tablewrap { overflow-x:auto; }
+  /* Claude-style select (x-select): the native <select> stays hidden as the source of truth */
+  select.cs-native { display:none !important; }
+  .cselect { display:flex; align-items:center; gap:8px; width:100%; background:var(--surface); color:var(--text); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:8px 10px; font:inherit; text-align:left; cursor:pointer; }
+  .cselect:hover { background:var(--surface-2); }
+  .cselect:focus-visible, .cselect[aria-expanded=true] { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .cselect .v { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cselect .i { width:14px; height:14px; flex:none; color:var(--text-3); }
+  .cselect:disabled { opacity:.5; cursor:not-allowed; }
+  .cmenu { position:fixed; z-index:45; overflow:auto; }
   .mpchip { display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--surface); color:var(--text); font:inherit; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
   .mpchip:hover, .mpchip[aria-expanded=true] { background:var(--surface-2); }
   .mpchip .e { color:var(--text-2); font-weight:500; } .mpchip .i { width:14px; height:14px; color:var(--text-3); }
@@ -363,7 +372,7 @@
       <div class="row-s"><span class="dot" :class="status.framejam?.ok&&'ok'"></span><span x-t>FrameJam</span></div>
       <div class="divider" style="margin:10px 0"></div>
       <div class="prefs">
-        <select :value="lang" @change="setLang($event.target.value)" :aria-label="t('Language')"><option value="en">English</option><option value="vi">Tiếng Việt</option></select>
+        <select x-select :value="lang" @change="setLang($event.target.value)" :aria-label="t('Language')"><option value="en">English</option><option value="vi">Tiếng Việt</option></select>
         <div class="seg" role="group" :aria-label="t('Theme')">
           <template x-for="th in [['system','Auto'],['light','Light'],['dark','Dark']]" :key="th[0]">
             <button type="button" :class="theme===th[0]&&'on'" @click="setTheme(th[0])" x-text="t(th[1])"></button>
@@ -398,10 +407,10 @@
               <div class="field"><label><span x-t>Website</span></label><input x-model="wsForm.website" placeholder="example.com">
                 <p class="hint"><span x-t>Without a brand kit, its design (colors, fonts, logo, product images) is read from this site automatically.</span></p></div>
               <div class="field"><label><span x-t>Brand kit</span></label>
-                <select x-model="wsForm.brand_id"><option value="" x-t>From the website, or none</option><template x-for="b in brandList" :key="b.id"><option :value="b.id" x-text="b.name" :selected="b.id===wsForm.brand_id"></option></template></select></div>
+                <select x-select x-model="wsForm.brand_id"><option value="" x-t>From the website, or none</option><template x-for="b in brandList" :key="b.id"><option :value="b.id" x-text="b.name" :selected="b.id===wsForm.brand_id"></option></template></select></div>
               <div class="grid-2">
-                <div class="field"><label><span x-t>Language</span></label><select x-model="wsForm.language"><option value="" x-t>Any</option><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===wsForm.language"></option></template></select></div>
-                <div class="field"><label><span x-t>Format</span></label><select x-model="wsForm.format"><option value="" x-t>Any</option><option value="shorts" x-t>Vertical 9:16</option><option value="youtube" x-t>Landscape 16:9</option><option value="square" x-t>Square 1:1</option></select></div>
+                <div class="field"><label><span x-t>Language</span></label><select x-select x-model="wsForm.language"><option value="" x-t>Any</option><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===wsForm.language"></option></template></select></div>
+                <div class="field"><label><span x-t>Format</span></label><select x-select x-model="wsForm.format"><option value="" x-t>Any</option><option value="shorts" x-t>Vertical 9:16</option><option value="youtube" x-t>Landscape 16:9</option><option value="square" x-t>Square 1:1</option></select></div>
               </div>
             </div>
             <div class="stack">
@@ -463,11 +472,11 @@
           <p class="hint" style="margin-top:4px" x-show="(form.framejam ?? (cfg.framejam?.auto !== false)) && !status.framejam?.ok"><span x-t>FrameJam isn't running; it's started when the first render is ready (needs Node 22+).</span></p>
           <div class="grid-3" style="margin-top:12px">
             <div class="field"><label><span x-t>Language</span></label>
-              <select x-model="form.language" @change="form.voice=''; loadVoices(form.language)"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===form.language"></option></template></select></div>
+              <select x-select x-model="form.language" @change="form.voice=''; loadVoices(form.language)"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===form.language"></option></template></select></div>
             <div class="field"><label><span x-t>Format</span></label>
-              <select x-model="form.format"><option value="shorts" x-t>Vertical 9:16 · Shorts, TikTok, Reels</option><option value="youtube" x-t>Landscape 16:9 · YouTube</option><option value="square" x-t>Square 1:1</option></select></div>
+              <select x-select x-model="form.format"><option value="shorts" x-t>Vertical 9:16 · Shorts, TikTok, Reels</option><option value="youtube" x-t>Landscape 16:9 · YouTube</option><option value="square" x-t>Square 1:1</option></select></div>
             <div class="field"><label><span x-t>Length</span></label>
-              <select x-model.number="form.duration"><template x-for="d in [15,30,45,60,90,120,180]"><option :value="d" x-text="d<60 ? d+t(' seconds') : (d/60)+t(' min')" :selected="d===form.duration"></option></template></select></div>
+              <select x-select x-model.number="form.duration"><template x-for="d in [15,30,45,60,90,120,180]"><option :value="d" x-text="d<60 ? d+t(' seconds') : (d/60)+t(' min')" :selected="d===form.duration"></option></template></select></div>
           </div>
           <div class="field" style="margin-top:12px" x-show="brandList.length">
             <label><span x-t>Brand kit</span></label>
@@ -484,7 +493,7 @@
           <div class="grid-3" style="margin-top:12px">
             <div class="field"><label><span x-t>Style / tone</span></label><input x-model="form.style" :placeholder="t('funny, storytelling, educational…')"></div>
             <div class="field"><label><span x-t>Voice</span></label>
-              <select x-model="form.voice">
+              <select x-select x-model="form.voice">
                 <option value="" x-t>Default for the language</option>
                 <template x-for="v in (voices[form.language]||[])"><option :value="v.name" x-text="voiceLabel(v)"></option></template>
               </select></div>
@@ -716,7 +725,7 @@
                   <div class="card-head"><div class="grow"><h2><span x-t>Voice & motion</span></h2></div></div>
                   <div class="grid-2">
                     <div class="field"><label><span x-t>Voice</span></label>
-                      <select x-model="tl.voice">
+                      <select x-select x-model="tl.voice">
                         <template x-if="!(voices[cur.request.language]||[]).some(v=>v.name===tl.voice)"><option :value="tl.voice" x-text="tl.voice"></option></template>
                         <template x-for="v in (voices[cur.request.language]||[])"><option :value="v.name" x-text="voiceLabel(v)" :selected="v.name===tl.voice"></option></template>
                       </select></div>
@@ -814,9 +823,9 @@
                   </div>
                   <div class="grid-2" style="margin-top:14px" x-show="selectedProviders().includes('youtube') || selectedProviders().includes('tiktok')">
                     <div class="field" x-show="selectedProviders().includes('youtube')"><label><span x-t>YouTube visibility</span></label>
-                      <select x-model="pubOpts.youtube_visibility"><option value="public" x-t>Public</option><option value="unlisted" x-t>Unlisted</option><option value="private" x-t>Private</option></select></div>
+                      <select x-select x-model="pubOpts.youtube_visibility"><option value="public" x-t>Public</option><option value="unlisted" x-t>Unlisted</option><option value="private" x-t>Private</option></select></div>
                     <div class="field" x-show="selectedProviders().includes('tiktok')"><label><span x-t>TikTok</span></label>
-                      <select x-model="pubOpts.tiktok_method"><option value="DIRECT_POST" x-t>Post directly</option><option value="UPLOAD" x-t>Send to TikTok inbox as a draft</option></select></div>
+                      <select x-select x-model="pubOpts.tiktok_method"><option value="DIRECT_POST" x-t>Post directly</option><option value="UPLOAD" x-t>Send to TikTok inbox as a draft</option></select></div>
                   </div>
                   <div class="actions" style="margin-top:14px;justify-content:flex-end" x-show="channels.length">
                     <button class="btn primary" @click="publish()" :disabled="!pubIds.length || !cur.video_path || isBusy(cur) || dirty"><svg class="i"><use href="#i-send"/></svg><span x-t>Publish</span></button>
@@ -854,7 +863,7 @@
         <fieldset :disabled="thinking || !status.claude?.ok">
           <div class="grid-3">
             <div class="field" style="grid-column:span 2"><label><span x-t>Niche</span></label><input x-model="ideaForm.niche" :placeholder="t('personal finance, history, tech tips…')" @keydown.enter="getIdeas()"></div>
-            <div class="field"><label><span x-t>Language</span></label><select x-model="ideaForm.language"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===ideaForm.language"></option></template></select></div>
+            <div class="field"><label><span x-t>Language</span></label><select x-select x-model="ideaForm.language"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===ideaForm.language"></option></template></select></div>
           </div>
           <div class="actions" style="margin-top:12px;justify-content:flex-end">
             <span class="small muted" x-show="!status.claude?.ok"><span x-t>Connect Claude first</span></span>
@@ -950,8 +959,8 @@
                     <div class="field"><label><span x-t>Call to action</span></label><input x-model="brand.cta" :placeholder="t('Start free at acme.com')"></div>
                   </div>
                   <div class="grid-2">
-                    <div class="field"><label><span x-t>Language</span></label><select x-model="brand.language" @change="brand.voice_name=''; loadVoices(brand.language||'English')"><option value="" x-t>Any</option><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===brand.language"></option></template></select></div>
-                    <div class="field"><label><span x-t>Voice</span></label><select x-model="brand.voice_name"><option value="" x-t>Default for the language</option><template x-for="v in (voices[brand.language||'English']||[])"><option :value="v.name" x-text="voiceLabel(v)" :selected="v.name===brand.voice_name"></option></template></select></div>
+                    <div class="field"><label><span x-t>Language</span></label><select x-select x-model="brand.language" @change="brand.voice_name=''; loadVoices(brand.language||'English')"><option value="" x-t>Any</option><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===brand.language"></option></template></select></div>
+                    <div class="field"><label><span x-t>Voice</span></label><select x-select x-model="brand.voice_name"><option value="" x-t>Default for the language</option><template x-for="v in (voices[brand.language||'English']||[])"><option :value="v.name" x-text="voiceLabel(v)" :selected="v.name===brand.voice_name"></option></template></select></div>
                   </div>
                 </div>
               </div>
@@ -1001,7 +1010,7 @@
                   <div class="stack">
                     <div class="logobox"><img :src="brandUrl(brand, brand.logo.file)" alt="" :style="`opacity:${brand.logo.opacity}`"></div>
                     <div class="grid-3">
-                      <div class="field"><label><span x-t>Corner</span></label><select x-model="brand.logo.position"><option value="top-left" x-t>Top left</option><option value="top-right" x-t>Top right</option><option value="bottom-left" x-t>Bottom left</option><option value="bottom-right" x-t>Bottom right</option></select></div>
+                      <div class="field"><label><span x-t>Corner</span></label><select x-select x-model="brand.logo.position"><option value="top-left" x-t>Top left</option><option value="top-right" x-t>Top right</option><option value="bottom-left" x-t>Bottom left</option><option value="bottom-right" x-t>Bottom right</option></select></div>
                       <div class="field"><label><span x-t>Size</span> <span x-text="Math.round(brand.logo.size*100)+'%'"></span></label><input type="range" min="0.06" max="0.4" step="0.01" x-model.number="brand.logo.size"></div>
                       <div class="field"><label><span x-t>Opacity</span> <span x-text="Math.round(brand.logo.opacity*100)+'%'"></span></label><input type="range" min="0.2" max="1" step="0.05" x-model.number="brand.logo.opacity"></div>
                     </div>
@@ -1196,17 +1205,17 @@
         <div class="stack">
           <div class="field"><label><span x-t>Niche</span></label><input x-model="autoForm.niche" :placeholder="t('e.g. money tips for students')"></div>
           <div class="grid-3">
-            <div class="field"><label><span x-t>Every</span></label><select x-model.number="autoForm.every_hours"><template x-for="h in [6,12,24,48,72,168]"><option :value="h" x-text="h<24 ? t('{n} hours', {n: h}) : h===168 ? t('1 week') : h===24 ? t('1 day') : t('{n} days', {n: h/24})" :selected="h===autoForm.every_hours"></option></template></select></div>
+            <div class="field"><label><span x-t>Every</span></label><select x-select x-model.number="autoForm.every_hours"><template x-for="h in [6,12,24,48,72,168]"><option :value="h" x-text="h<24 ? t('{n} hours', {n: h}) : h===168 ? t('1 week') : h===24 ? t('1 day') : t('{n} days', {n: h/24})" :selected="h===autoForm.every_hours"></option></template></select></div>
             <div class="field"><label><span x-t>Videos per run</span></label><input type="number" min="1" max="10" x-model.number="autoForm.videos_per_run"></div>
-            <div class="field"><label><span x-t>Length</span></label><select x-model.number="autoForm.duration"><template x-for="d in [15,30,45,60,90]"><option :value="d" x-text="d+t(' seconds')" :selected="d===autoForm.duration"></option></template></select></div>
+            <div class="field"><label><span x-t>Length</span></label><select x-select x-model.number="autoForm.duration"><template x-for="d in [15,30,45,60,90]"><option :value="d" x-text="d+t(' seconds')" :selected="d===autoForm.duration"></option></template></select></div>
           </div>
           <div class="grid-3">
-            <div class="field"><label><span x-t>Language</span></label><select x-model="autoForm.language"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===autoForm.language"></option></template></select></div>
-            <div class="field"><label><span x-t>Format</span></label><select x-model="autoForm.format"><option value="shorts" x-t>Vertical 9:16</option><option value="youtube" x-t>Landscape 16:9</option><option value="square" x-t>Square 1:1</option></select></div>
+            <div class="field"><label><span x-t>Language</span></label><select x-select x-model="autoForm.language"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===autoForm.language"></option></template></select></div>
+            <div class="field"><label><span x-t>Format</span></label><select x-select x-model="autoForm.format"><option value="shorts" x-t>Vertical 9:16</option><option value="youtube" x-t>Landscape 16:9</option><option value="square" x-t>Square 1:1</option></select></div>
             <div class="field"><label><span x-t>Style</span></label><input x-model="autoForm.style" :placeholder="t('optional')"></div>
           </div>
           <div class="field" x-show="brandList.length"><label><span x-t>Brand kit</span></label>
-            <select x-model="autoForm.brand_id"><option value="" x-t>No brand</option><template x-for="b in brandList" :key="b.id"><option :value="b.id" x-text="b.name" :selected="autoForm.brand_id===b.id"></option></template></select></div>
+            <select x-select x-model="autoForm.brand_id"><option value="" x-t>No brand</option><template x-for="b in brandList" :key="b.id"><option :value="b.id" x-text="b.name" :selected="autoForm.brand_id===b.id"></option></template></select></div>
           <div class="field"><label><span x-t>Publish to</span></label>
             <template x-if="!channels.length"><p class="small muted"><span x-t>No accounts connected — videos will be created but not published.</span></p></template>
             <div class="pickchips">
@@ -1366,7 +1375,7 @@
             <template x-if="status.voice?.provider==='elevenlabs' && !voiceEdit">
               <div class="stack">
                 <div class="field"><label><span x-t>Voice</span></label>
-                  <select @change="setElevenVoice($event.target.value)">
+                  <select x-select @change="setElevenVoice($event.target.value)">
                     <option value="" x-t>First voice in my account</option>
                     <template x-for="v in elevenVoices" :key="v.id"><option :value="v.id" :selected="v.id===cfg.voice?.elevenlabs_voice_id" x-text="[v.name, v.gender, v.accent, v.description].filter(Boolean).join(' · ')"></option></template>
                   </select></div>
@@ -1700,7 +1709,89 @@ document.addEventListener('alpine:init', () => {
     el.dataset.src = src;
     effect(() => { el.textContent = tr(src); });
   });
+  Alpine.directive('select', (el, _, { effect, cleanup }) => {
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'cselect';
+    btn.setAttribute('aria-haspopup', 'listbox'); btn.setAttribute('aria-expanded', 'false');
+    btn.innerHTML = '<span class="v"></span><svg class="i"><use href="#i-down"/></svg>';
+    el.classList.add('cs-native');
+    el.after(btn);
+    const sync = () => {
+      btn.firstChild.textContent = el.selectedOptions[0]?.textContent.trim() ?? '';
+      btn.disabled = el.disabled;  // a disabled <fieldset> disables the button by itself
+      const label = el.getAttribute('aria-label');
+      if (label) btn.setAttribute('aria-label', label); else btn.removeAttribute('aria-label');
+    };
+    const later = () => Alpine.nextTick(sync);
+    btn.addEventListener('click', () => CSelect.open(el, btn));
+    btn.addEventListener('keydown', e => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); CSelect.open(el, btn); } });
+    el.addEventListener('change', later);
+    // Options, labels and :selected change in the DOM; x-model changes the data behind it.
+    const mo = new MutationObserver(later);
+    mo.observe(el, { childList: true, subtree: true, attributes: true, characterData: true });
+    effect(() => { el._x_model?.get(); later(); });
+    cleanup(() => { mo.disconnect(); if (CSelect.owner?.sel === el) CSelect.close(false); btn.remove(); });
+  });
 });
+// Claude-style select. `x-select` on a <select> hides the browser's dropdown and shows a button with
+// a menu like Claude's. The <select> stays the source of truth, so x-model, @change and :selected keep working.
+const CSelect = {
+  menu: null, owner: null,
+  close(focusBack = true) {
+    if (!this.menu) return;
+    this.menu.remove(); this.menu = null;
+    const o = this.owner; this.owner = null;
+    o?.btn.setAttribute('aria-expanded', 'false');
+    if (focusBack) o?.btn.focus();
+  },
+  open(sel, btn) {
+    if (this.owner?.sel === sel) return this.close();
+    this.close(false);
+    const menu = this.menu = document.createElement('div');
+    menu.className = 'mpmenu cmenu';
+    menu.setAttribute('role', 'listbox');
+    for (const opt of sel.options) {
+      if (opt.hidden) continue;
+      const it = document.createElement('button');
+      it.type = 'button'; it.className = 'mpi'; it.disabled = opt.disabled;
+      it.setAttribute('role', 'option'); it.setAttribute('aria-selected', String(opt.selected));
+      it.innerHTML = '<span class="grow"></span><svg class="i ck"><use href="#i-check"/></svg>';
+      it.firstChild.textContent = opt.textContent.trim();
+      if (!opt.selected) it.lastChild.style.visibility = 'hidden';
+      it.addEventListener('click', () => {
+        if (sel.value !== opt.value) { sel.value = opt.value; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+        this.close();
+      });
+      menu.append(it);
+    }
+    menu.addEventListener('keydown', e => {
+      const items = [...menu.querySelectorAll('.mpi:not(:disabled)')], i = items.indexOf(document.activeElement);
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus(); }
+      else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); items[e.key === 'Home' ? 0 : items.length - 1]?.focus(); }
+      else if (e.key === 'Escape') { e.preventDefault(); this.close(); }
+      else if (e.key === 'Tab') this.close(false);
+    });
+    document.body.append(menu);
+    // Below the button when it fits (or has more room), else above; never off screen.
+    const r = btn.getBoundingClientRect(), W = window.innerWidth, H = window.innerHeight;
+    menu.style.minWidth = `${Math.max(r.width, 200)}px`;
+    const below = H - r.bottom - 12, above = r.top - 12, down = menu.offsetHeight <= below || below >= above;
+    menu.style.maxHeight = `${Math.min(360, down ? below : above)}px`;
+    menu.style.top = `${down ? r.bottom + 4 : r.top - 4 - menu.offsetHeight}px`;
+    menu.style.left = `${Math.max(8, Math.min(r.left, W - menu.offsetWidth - 8))}px`;
+    this.owner = { sel, btn };
+    btn.setAttribute('aria-expanded', 'true');
+    const cur = menu.querySelector('[aria-selected="true"]') || menu.querySelector('.mpi:not(:disabled)');
+    cur?.focus({ preventScroll: true });
+    cur?.scrollIntoView({ block: 'nearest' });
+  },
+};
+document.addEventListener('mousedown', e => {
+  if (CSelect.menu && !CSelect.menu.contains(e.target) && !CSelect.owner?.btn.contains(e.target)) CSelect.close(false);
+});
+document.addEventListener('scroll', e => { if (CSelect.menu && !CSelect.menu.contains(e.target)) CSelect.close(false); }, true);
+window.addEventListener('resize', () => CSelect.close(false));
+
 function tr(key, vars) {
   const st = window.Alpine?.store('i18n');
   let s = (st && st.lang !== 'en' && st.dict[key]) || key;
