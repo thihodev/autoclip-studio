@@ -147,7 +147,36 @@
   details > summary::before { content:"▸"; transition:transform .15s; } details[open] > summary::before { transform:rotate(90deg); }
 
   /* studio */
-  .composer textarea { font-size:15px; min-height:90px; }
+  .cprompt { border:1px solid var(--border-strong); border-radius:var(--radius); background:var(--surface); transition:border-color .15s, box-shadow .15s; }
+  .cprompt:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .cprompt textarea { border:0; box-shadow:none; background:none; resize:none; min-height:104px; font-size:15px; padding:14px 16px 8px; }
+  .cprompt textarea:focus { box-shadow:none; }
+  .cprompt .files { padding:0 12px 8px; }
+  .cbar { display:flex; align-items:center; gap:4px; flex-wrap:wrap; padding:8px; border-top:1px solid var(--border); }
+  .cbar .grow { flex:1; } .cbar .mpchip { margin-right:4px; }
+  .csec { display:grid; grid-template-columns:140px minmax(0, 1fr); gap:8px 24px; margin-top:18px; padding-top:18px; border-top:1px solid var(--border); }
+  .csec h3 { margin:2px 0 0; font-size:13px; font-weight:600; }
+  .cstack { display:grid; gap:14px; }
+  .crow3 { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr); gap:12px; }
+  .crow2 { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; align-items:start; } .crow2.one { grid-template-columns:minmax(0, 1fr); }
+  .engines { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+  .engine { display:flex; gap:10px; align-items:flex-start; text-align:left; padding:10px 12px; border:1px solid var(--border-strong); border-radius:var(--radius-sm); background:var(--surface); color:var(--text); font:inherit; cursor:pointer; }
+  .engine:hover { background:var(--surface-2); } .engine.on { border-color:var(--accent); background:var(--accent-soft); }
+  .engine:disabled { opacity:.5; cursor:not-allowed; }
+  .engine .grow { flex:1; min-width:0; }
+  .engine .radio { width:16px; height:16px; flex:none; margin-top:2px; border-radius:50%; border:1.5px solid var(--border-strong); background:var(--surface); }
+  .engine.on .radio { border:5px solid var(--accent); }
+  .engine .t { display:flex; align-items:center; gap:8px; font-weight:600; }
+  .engine .time { font-size:11px; font-weight:500; color:var(--text-2); background:var(--surface-2); border-radius:99px; padding:1px 8px; }
+  .engine.on .time { background:var(--surface); }
+  .engine .d { display:block; font-size:12px; color:var(--text-2); margin-top:2px; }
+  .seg.full { display:flex; width:100%; }
+  .seg.full button { flex:1; display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:8px 6px; }
+  .seg .ar { display:inline-block; border:1.5px solid currentColor; border-radius:2px; }
+  .seg .ar.shorts { width:9px; height:15px; } .seg .ar.youtube { width:17px; height:10px; } .seg .ar.square { width:13px; height:13px; }
+  .crange { margin-top:12px; } .cswitch { min-height:38px; }
+  @media (max-width: 560px) { .cbar .grow { flex-basis:100%; height:0; } .cbar .btn.primary { flex:1; } }
+  @media (max-width: 860px) { .csec { grid-template-columns:1fr; } .crow3, .crow2, .engines { grid-template-columns:minmax(0, 1fr); } }
   .projects { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:14px; }
   .pcard { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; display:flex; flex-direction:column; text-decoration:none; color:inherit; box-shadow:var(--shadow); transition:border-color .15s; }
   .pcard:hover { border-color:var(--border-strong); }
@@ -519,19 +548,26 @@
 
       <div class="card composer">
         <fieldset :disabled="creating">
-          <div class="field"><label for="topic"><span x-t>What is the video about?</span></label>
-            <textarea id="topic" x-model="form.topic" :placeholder="t('e.g. 5 surprising facts about the human brain — or “Turn the attached article into a 45-second explainer”')"></textarea></div>
-          <div class="files" style="margin-top:8px">
-            <template x-for="f in form.context" :key="f.id">
-              <span class="filechip" :title="`${f.name} · ${fmtChars(f.chars)}`"><svg class="i" style="width:13px;height:13px"><use href="#i-clip"/></svg><span class="n" x-text="f.name"></span><span class="muted" x-text="fmtChars(f.chars)"></span><button type="button" class="x" @click="removeFormContext(f)" :title="t('Remove')">✕</button></span>
-            </template>
-            <span class="filechip" x-show="form.github_repo"><svg class="i" style="width:13px;height:13px"><use href="#i-github"/></svg><span class="n" x-text="form.github_repo"></span><button type="button" class="x" @click="form.github_repo=''" :title="t('Remove')">✕</button></span>
-            <label class="btn ghost sm uploadbtn"><span class="spin" x-show="uploadingContext"></span><svg class="i" x-show="!uploadingContext"><use href="#i-clip"/></svg><span x-t>Add context files</span>
-              <input type="file" multiple :accept="contextAccept" @change="addFormContext($event)"></label>
-            <button type="button" class="btn ghost sm" @click="suggestHooks()" :disabled="hooks.loading || form.topic.trim().length < 3 || !status.claude?.ok" :title="t('Claude suggests 3 opening lines')"><span class="spin" x-show="hooks.loading"></span><svg class="i" x-show="!hooks.loading"><use href="#i-star"/></svg><span x-t>Suggest hooks</span></button>
-            <button type="button" class="btn ghost sm ghbtn" aria-haspopup="listbox" :aria-expanded="String(ghPick.open)" @click="ghOpen($el)"><svg class="i"><use href="#i-github"/></svg><span x-text="form.github_repo ? t('Change repository') : t('GitHub repository')"></span></button>
-            <span class="small muted" x-show="!form.context.length && !form.github_repo"><span x-t>Optional: articles, notes, product docs or transcripts — or a GitHub repository — for Claude to base the script on.</span></span>
+          <div class="cprompt">
+            <textarea id="topic" x-model="form.topic" :aria-label="t('What is the video about?')" :placeholder="t('What is the video about? e.g. 5 surprising facts about the human brain — or “Turn the attached article into a 45-second explainer”')" @keydown.enter="($event.metaKey || $event.ctrlKey) && canCreate() && create()"></textarea>
+            <div class="files" x-show="form.context.length || form.github_repo">
+              <template x-for="f in form.context" :key="f.id">
+                <span class="filechip" :title="`${f.name} · ${fmtChars(f.chars)}`"><svg class="i" style="width:13px;height:13px"><use href="#i-clip"/></svg><span class="n" x-text="f.name"></span><span class="muted" x-text="fmtChars(f.chars)"></span><button type="button" class="x" @click="removeFormContext(f)" :title="t('Remove')">✕</button></span>
+              </template>
+              <span class="filechip" x-show="form.github_repo"><svg class="i" style="width:13px;height:13px"><use href="#i-github"/></svg><span class="n" x-text="form.github_repo"></span><button type="button" class="x" @click="form.github_repo=''" :title="t('Remove')">✕</button></span>
+            </div>
+            <div class="cbar">
+              <label class="btn ghost sm uploadbtn" :title="t('Optional: articles, notes, product docs or transcripts — or a GitHub repository — for Claude to base the script on.')"><span class="spin" x-show="uploadingContext"></span><svg class="i" x-show="!uploadingContext"><use href="#i-clip"/></svg><span x-t>Add context files</span>
+                <input type="file" multiple :accept="contextAccept" @change="addFormContext($event)"></label>
+              <button type="button" class="btn ghost sm" @click="suggestHooks()" :disabled="hooks.loading || form.topic.trim().length < 3 || !status.claude?.ok" :title="t('Claude suggests 3 opening lines')"><span class="spin" x-show="hooks.loading"></span><svg class="i" x-show="!hooks.loading"><use href="#i-star"/></svg><span x-t>Suggest hooks</span></button>
+              <button type="button" class="btn ghost sm ghbtn" aria-haspopup="listbox" :aria-expanded="String(ghPick.open)" @click="ghOpen($el)"><svg class="i"><use href="#i-github"/></svg><span x-text="form.github_repo ? t('Change repository') : t('GitHub repository')"></span></button>
+              <span class="grow"></span>
+              <button type="button" class="mpchip" aria-haspopup="menu" :aria-expanded="String(mp.open && mp.key==='form')" :title="t('Claude model and effort for this video')" @click="mpOpen('form', $el)"><span x-text="modelShort(mpModel('form'))"></span><span class="e" x-text="effortShort(mpEffort('form'))"></span><svg class="i"><use href="#i-down"/></svg></button>
+              <button class="btn primary" @click="create()" :disabled="!canCreate()" :title="t('Create video') + ' (⌘/Ctrl + Enter)'">
+                <span class="spin" x-show="creating"></span><span x-text="creating ? t('Creating…') : t('Create video')"></span></button>
+            </div>
           </div>
+          <p class="hint" x-show="missingSetup().length"><span x-t>Finish setup in Connections to create videos</span></p>
           <div class="hooks" x-show="hooks.list.length">
             <div class="lbl"><span x-t>Opening hook</span> <span class="muted small"><span x-t>— the first line viewers hear</span></span></div>
             <template x-for="(h, i) in hooks.list" :key="i">
@@ -549,103 +585,122 @@
             <svg class="i" style="margin-top:2px"><use href="#i-link"/></svg>
             <div x-text="brandForDomain(topicDomain()) ? t('Uses the {name} brand kit for {site}.', {name: brandForDomain(topicDomain()).name, site: topicDomain()}) : t('Claude will read {site} and build its brand kit (colors, fonts, logo, product images) before designing the video.', {site: topicDomain()})"></div>
           </div>
-          <div class="field" style="margin-top:12px">
-            <label><span x-t>Engine</span></label>
-            <div class="options" style="flex-direction:row;flex-wrap:wrap">
-              <button type="button" class="option" style="flex:1;min-width:240px;text-align:left;cursor:pointer;background:var(--surface);color:var(--text);font:inherit" :class="form.engine==='motion'&&'rec'" @click="form.engine='motion'" :disabled="['node','ffmpeg'].includes(motionInfo.code)">
-                <div class="grow"><div class="t"><span x-t>Claude Motion</span> <span class="chip ok" style="margin-left:4px" x-show="form.engine==='motion'"><span x-t>Selected</span></span></div>
-                  <div class="d"><span x-t>Claude designs and animates every scene as code — kinetic type, diagrams, charts, transitions. 10–20 min.</span></div></div></button>
-              <button type="button" class="option" style="flex:1;min-width:240px;text-align:left;cursor:pointer;background:var(--surface);color:var(--text);font:inherit" :class="form.engine==='classic'&&'rec'" @click="form.engine='classic'">
-                <div class="grow"><div class="t"><span x-t>Quick</span> <span class="chip ok" style="margin-left:4px" x-show="form.engine==='classic'"><span x-t>Selected</span></span></div>
-                  <div class="d"><span x-t>Voice-over with captions over stock clips or animated backgrounds. About 1 minute, editable scene by scene.</span></div></div></button>
+
+          <section class="csec">
+            <h3><span x-t>Engine</span></h3>
+            <div>
+              <div class="engines" role="radiogroup" :aria-label="t('Engine')">
+                <button type="button" class="engine" role="radio" :aria-checked="String(form.engine==='motion')" :class="form.engine==='motion'&&'on'" @click="form.engine='motion'" :disabled="['node','ffmpeg'].includes(motionInfo.code)">
+                  <span class="radio"></span><span class="grow"><span class="t"><span x-t>Claude Motion</span><span class="time" x-t>10–20 min</span></span>
+                  <span class="d" x-t>Claude designs and animates every scene as code — kinetic type, diagrams, charts, transitions.</span></span></button>
+                <button type="button" class="engine" role="radio" :aria-checked="String(form.engine==='classic')" :class="form.engine==='classic'&&'on'" @click="form.engine='classic'">
+                  <span class="radio"></span><span class="grow"><span class="t"><span x-t>Quick</span><span class="time" x-t>~1 min</span></span>
+                  <span class="d" x-t>Voice-over with captions over stock clips or animated backgrounds, editable scene by scene.</span></span></button>
+              </div>
+              <p class="hint" x-show="['node','ffmpeg'].includes(motionInfo.code)" x-text="t('Claude Motion needs setup: ') + t(motionInfo.detail || '')"></p>
             </div>
-            <p class="hint" x-show="['node','ffmpeg'].includes(motionInfo.code)" x-text="t('Claude Motion needs setup: ') + t(motionInfo.detail || '')"></p>
-          </div>
-          <div class="grid-3" style="margin-top:12px">
-            <div class="field"><label><span x-t>Language</span></label>
-              <select x-select x-model="form.language" @change="form.voice = form.voice==='none' ? 'none' : ''; loadVoices(form.language)"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===form.language"></option></template></select></div>
-            <div class="field"><label><span x-t>Format</span></label>
-              <select x-select x-model="form.format"><option value="shorts" x-t>Vertical 9:16 · Shorts, TikTok, Reels</option><option value="youtube" x-t>Landscape 16:9 · YouTube</option><option value="square" x-t>Square 1:1</option></select></div>
-            <div class="field"><label><span x-t>Length</span></label>
-              <select x-select x-model.number="form.duration"><template x-for="d in [15,30,45,60,90,120,180]"><option :value="d" x-text="d<60 ? d+t(' seconds') : (d/60)+t(' min')" :selected="d===form.duration"></option></template></select></div>
-          </div>
-          <div class="field" style="margin-top:12px">
-            <label><span x-t>Video type</span></label>
-            <button type="button" class="stylepick" @click="openPlaybooks()">
-              <span class="sthumb"><template x-if="curPlaybook()?.poster"><img :src="curPlaybook().poster" alt=""></template>
-                <template x-if="!curPlaybook()?.poster"><svg class="i"><use href="#i-layers"/></svg></template></span>
-              <span class="grow"><span class="t" x-text="curPlaybook() ? t(curPlaybook().name) : t('Any — Claude decides the structure')"></span>
-                <span class="d" x-text="curPlaybook() ? t(curPlaybook().tagline) : t('Explainer, how-to, top list, myth vs fact, product launch, timeline…')"></span></span>
-              <svg class="i chev"><use href="#i-right"/></svg>
-            </button>
-          </div>
-          <div class="field" style="margin-top:12px" x-show="form.engine==='motion'">
-            <label><span x-t>Visual style</span></label>
-            <button type="button" class="stylepick" @click="openStyles()">
-              <span class="sthumb"><template x-if="curStyle()?.poster"><img :src="curStyle().poster" alt=""></template>
-                <template x-if="curStyle() && !curStyle().poster"><span class="stpal"><template x-for="c in curStyle().palette" :key="c"><i :style="`background:${c}`"></i></template></span></template>
-                <template x-if="!curStyle()"><svg class="i"><use href="#i-star"/></svg></template></span>
-              <span class="grow"><span class="t" x-text="curStyle()?.name || t('Claude picks the look')"></span>
-                <span class="d" x-text="curStyle() ? curStyle().tagline : t('Or choose from {n} styles from open-source projects', {n: styleList.length || 40})"></span></span>
-              <svg class="i chev"><use href="#i-right"/></svg>
-            </button>
-          </div>
-          <div class="field" style="margin-top:12px" x-show="brandList.length">
-            <label><span x-t>Brand kit</span></label>
-            <div class="pickchips">
-              <button type="button" class="pickchip" :class="!form.brand_id&&'on'" @click="form.brand_id=null" style="padding-left:12px"><span x-t>No brand</span></button>
-              <template x-for="b in brandList" :key="b.id">
-                <button type="button" class="pickchip" :class="form.brand_id===b.id&&'on'" @click="form.brand_id=b.id">
-                  <span class="avatar" :style="`background:${b.colors.primary};color:#fff`"><img x-show="b.logo" :src="b.logo && brandUrl(b, b.logo.file)" alt="" style="object-fit:contain;background:#fff"><span x-show="!b.logo" x-text="initial(b.name)"></span></span>
-                  <span x-text="b.name"></span></button>
-              </template>
+          </section>
+
+          <section class="csec">
+            <h3><span x-t>Video</span></h3>
+            <div class="cstack">
+              <div class="crow3">
+                <div class="field"><label><span x-t>Language</span></label>
+                  <select x-select x-model="form.language" @change="form.voice = form.voice==='none' ? 'none' : ''; loadVoices(form.language)"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===form.language"></option></template></select></div>
+                <div class="field"><label><span x-t>Format</span></label>
+                  <div class="seg full" role="radiogroup" :aria-label="t('Format')">
+                    <template x-for="f in [['shorts','9:16','Vertical 9:16 · Shorts, TikTok, Reels'],['youtube','16:9','Landscape 16:9 · YouTube'],['square','1:1','Square 1:1']]" :key="f[0]">
+                      <button type="button" role="radio" :aria-checked="String(form.format===f[0])" :class="form.format===f[0]&&'on'" :title="t(f[2])" @click="form.format=f[0]"><span class="ar" :class="f[0]"></span><span x-text="f[1]"></span></button>
+                    </template>
+                  </div></div>
+                <div class="field"><label><span x-t>Length</span></label>
+                  <select x-select x-model.number="form.duration"><template x-for="d in [15,30,45,60,90,120,180]"><option :value="d" x-text="d<60 ? d+t(' seconds') : (d/60)+t(' min')" :selected="d===form.duration"></option></template></select></div>
+              </div>
+              <div class="crow2" :class="form.engine!=='motion' && 'one'">
+                <div class="field"><label><span x-t>Video type</span></label>
+                  <button type="button" class="stylepick" @click="openPlaybooks()">
+                    <span class="sthumb"><template x-if="curPlaybook()?.poster"><img :src="curPlaybook().poster" alt=""></template>
+                      <template x-if="!curPlaybook()?.poster"><svg class="i"><use href="#i-layers"/></svg></template></span>
+                    <span class="grow"><span class="t" x-text="curPlaybook() ? t(curPlaybook().name) : t('Any — Claude decides the structure')"></span>
+                      <span class="d" x-text="curPlaybook() ? t(curPlaybook().tagline) : t('Explainer, how-to, top list, myth vs fact, product launch, timeline…')"></span></span>
+                    <svg class="i chev"><use href="#i-right"/></svg>
+                  </button></div>
+                <div class="field" x-show="form.engine==='motion'"><label><span x-t>Visual style</span></label>
+                  <button type="button" class="stylepick" @click="openStyles()">
+                    <span class="sthumb"><template x-if="curStyle()?.poster"><img :src="curStyle().poster" alt=""></template>
+                      <template x-if="curStyle() && !curStyle().poster"><span class="stpal"><template x-for="c in curStyle().palette" :key="c"><i :style="`background:${c}`"></i></template></span></template>
+                      <template x-if="!curStyle()"><svg class="i"><use href="#i-star"/></svg></template></span>
+                    <span class="grow"><span class="t" x-text="curStyle()?.name || t('Claude picks the look')"></span>
+                      <span class="d" x-text="curStyle() ? curStyle().tagline : t('Or choose from {n} styles from open-source projects', {n: styleList.length || 40})"></span></span>
+                    <svg class="i chev"><use href="#i-right"/></svg>
+                  </button></div>
+              </div>
+              <div class="field"><label><span x-t>Style / tone</span></label><input x-model="form.style" :placeholder="t('funny, storytelling, educational…')"></div>
             </div>
-            <p class="hint" x-show="form.brand_id"><span x-t>Claude follows the kit's tone and call to action; the video uses its colors, font, logo, intro/outro, music and b-roll.</span></p>
-          </div>
-          <div class="grid-3" style="margin-top:12px">
-            <div class="field"><label><span x-t>Style / tone</span></label><input x-model="form.style" :placeholder="t('funny, storytelling, educational…')"></div>
-            <div class="field"><label><span x-t>Voice</span></label>
-              <div class="actions" style="flex-wrap:nowrap"><div style="flex:1;min-width:0">
-              <select x-select x-model="form.voice">
-                <option value="" x-text="t(status.voice?.provider==='elevenlabs' ? 'Default ElevenLabs voice' : 'Default for the language')"></option>
-                <option value="none" x-t>No voice-over (music and captions only)</option>
-                <template x-for="v in (voices[form.language]||[])"><option :value="v.name" x-text="voiceLabel(v)"></option></template>
-              </select></div>
-              <button type="button" class="btn icon" :title="t('Listen')" :aria-label="t('Listen')" @click="previewVoice(form.voice, form.language, form.voice_rate, 'form')" :disabled="form.voice==='none' || (previewing && previewing!=='form')"><span class="spin" x-show="previewing==='form'"></span><svg class="i" x-show="previewing!=='form'"><use href="#i-play"/></svg></button></div></div>
-            <div class="field"><label><span x-text="t(form.voice==='none' ? 'Caption speed' : 'Voice speed')"></span> <span x-text="form.voice_rate.toFixed(2)+'×'"></span></label>
-              <input type="range" min="0.7" max="1.4" step="0.05" x-model.number="form.voice_rate"></div>
-          </div>
-          <div class="grid-2" style="margin-top:12px;align-items:end">
-            <div class="field"><label><span x-t>Background music</span></label>
-              <div class="actions" style="flex-wrap:nowrap"><div style="flex:1;min-width:0">
-                <select x-select x-model="form.music">
-                  <option value="" x-t>Automatic (brand kit music, else the library)</option>
-                  <option value="none" x-t>No music</option>
-                  <template x-for="m in musicList" :key="m.file"><option :value="m.file" x-text="m.name + (m.mood && m.mood !== m.name ? ' · ' + m.mood : '')"></option></template>
-                </select></div>
-                <button type="button" class="btn icon" x-show="form.music && form.music!=='none'" :title="t('Listen')" :aria-label="t('Listen')" @click="playTrack(form.music)"><svg class="i"><use :href="playing===form.music ? '#i-pause' : '#i-play'"/></svg></button>
-                <button type="button" class="btn ghost sm" @click="nav('/connections'); openConn('audio')"><span x-t>Library</span></button></div></div>
-            <label class="toggle small" style="margin-bottom:8px"><input type="checkbox" :checked="form.sfx !== false" @change="form.sfx = $event.target.checked">
-              <span x-t>Sound effects (whooshes on cuts; Claude Motion adds pops, risers and impacts)</span></label>
-          </div>
-          <div class="field" style="margin-top:12px"><label><span x-t>Publish to</span></label>
-            <template x-if="!channels.length"><p class="small muted"><span x-t>No accounts connected.</span> <a href="/connections" @click.prevent="nav('/connections')"><span x-t>Connect YouTube, TikTok or Facebook</span></a> <span x-t>to publish from here.</span></p></template>
-            <div class="pickchips">
-              <template x-for="c in channels" :key="c.id">
-                <button type="button" class="pickchip" :class="form.channelIds.includes(c.id)&&'on'" @click="toggle(form.channelIds, c.id)">
-                  <span class="avatar"><img x-show="c.avatar" :src="c.avatar" alt=""><span x-show="!c.avatar" x-text="initial(c.name)"></span></span>
-                  <span x-text="c.name"></span><span class="small muted" x-text="platformLabel(c)"></span></button>
-              </template>
+          </section>
+
+          <section class="csec" x-show="brandList.length">
+            <h3><span x-t>Brand kit</span></h3>
+            <div>
+              <div class="pickchips">
+                <button type="button" class="pickchip" :class="!form.brand_id&&'on'" @click="form.brand_id=null" style="padding-left:12px"><span x-t>No brand</span></button>
+                <template x-for="b in brandList" :key="b.id">
+                  <button type="button" class="pickchip" :class="form.brand_id===b.id&&'on'" @click="form.brand_id=b.id">
+                    <span class="avatar" :style="`background:${b.colors.primary};color:#fff`"><img x-show="b.logo" :src="b.logo && brandUrl(b, b.logo.file)" alt="" style="object-fit:contain;background:#fff"><span x-show="!b.logo" x-text="initial(b.name)"></span></span>
+                    <span x-text="b.name"></span></button>
+                </template>
+              </div>
+              <p class="hint" x-show="form.brand_id"><span x-t>Claude follows the kit's tone and call to action; the video uses its colors, font, logo, intro/outro, music and b-roll.</span></p>
             </div>
-            <label class="toggle small" style="margin-top:10px" x-show="channels.length" :style="{ opacity: form.channelIds.length ? 1 : .5 }">
-              <input type="checkbox" x-model="form.auto_publish" :disabled="!form.channelIds.length"> <span x-t>Publish automatically when the first render is ready</span></label>
-          </div>
-          <div class="actions" style="margin-top:16px; justify-content:flex-end">
-            <span class="small muted" x-show="missingSetup().length"><span x-t>Finish setup in Connections to create videos</span></span>
-            <button type="button" class="mpchip" aria-haspopup="menu" :aria-expanded="String(mp.open && mp.key==='form')" :title="t('Claude model and effort for this video')" @click="mpOpen('form', $el)"><span x-text="modelShort(mpModel('form'))"></span><span class="e" x-text="effortShort(mpEffort('form'))"></span><svg class="i"><use href="#i-down"/></svg></button>
-            <button class="btn primary" @click="create()" :disabled="creating || (form.topic.trim().length < 3 && !form.github_repo) || missingSetup().length > 0">
-              <span class="spin" x-show="creating"></span><span x-text="creating ? t('Creating…') : t('Create video')"></span></button>
-          </div>
+          </section>
+
+          <section class="csec">
+            <h3><span x-t>Sound</span></h3>
+            <div class="cstack">
+              <div class="crow2">
+                <div class="field"><label><span x-t>Voice</span></label>
+                  <div class="actions" style="flex-wrap:nowrap"><div style="flex:1;min-width:0">
+                    <select x-select x-model="form.voice">
+                      <option value="" x-text="t(status.voice?.provider==='elevenlabs' ? 'Default ElevenLabs voice' : 'Default for the language')"></option>
+                      <option value="none" x-t>No voice-over (music and captions only)</option>
+                      <template x-for="v in (voices[form.language]||[])"><option :value="v.name" x-text="voiceLabel(v)"></option></template>
+                    </select></div>
+                    <button type="button" class="btn icon" :title="t('Listen')" :aria-label="t('Listen')" @click="previewVoice(form.voice, form.language, form.voice_rate, 'form')" :disabled="form.voice==='none' || (previewing && previewing!=='form')"><span class="spin" x-show="previewing==='form'"></span><svg class="i" x-show="previewing!=='form'"><use href="#i-play"/></svg></button></div></div>
+                <div class="field"><label><span x-text="t(form.voice==='none' ? 'Caption speed' : 'Voice speed')"></span> <span class="muted" x-text="form.voice_rate.toFixed(2)+'×'"></span></label>
+                  <input type="range" min="0.7" max="1.4" step="0.05" x-model.number="form.voice_rate" class="crange"></div>
+              </div>
+              <div class="crow2">
+                <div class="field"><label><span x-t>Background music</span></label>
+                  <div class="actions" style="flex-wrap:nowrap"><div style="flex:1;min-width:0">
+                    <select x-select x-model="form.music">
+                      <option value="" x-t>Automatic (brand kit music, else the library)</option>
+                      <option value="none" x-t>No music</option>
+                      <template x-for="m in musicList" :key="m.file"><option :value="m.file" x-text="m.name + (m.mood && m.mood !== m.name ? ' · ' + m.mood : '')"></option></template>
+                    </select></div>
+                    <button type="button" class="btn icon" x-show="form.music && form.music!=='none'" :title="t('Listen')" :aria-label="t('Listen')" @click="playTrack(form.music)"><svg class="i"><use :href="playing===form.music ? '#i-pause' : '#i-play'"/></svg></button>
+                    <button type="button" class="btn sm" @click="nav('/connections'); openConn('audio')"><span x-t>Library</span></button></div></div>
+                <div class="field"><label><span x-t>Sound effects</span></label>
+                  <label class="toggle cswitch"><input type="checkbox" :checked="form.sfx !== false" @change="form.sfx = $event.target.checked">
+                    <span class="small" x-t>Whooshes on cuts; Claude Motion adds pops, risers and impacts</span></label></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="csec">
+            <h3><span x-t>Publish to</span></h3>
+            <div>
+              <template x-if="!channels.length"><p class="small muted" style="margin:6px 0 0"><span x-t>No accounts connected.</span> <a href="/connections" @click.prevent="nav('/connections')"><span x-t>Connect YouTube, TikTok or Facebook</span></a> <span x-t>to publish from here.</span></p></template>
+              <div class="pickchips">
+                <template x-for="c in channels" :key="c.id">
+                  <button type="button" class="pickchip" :class="form.channelIds.includes(c.id)&&'on'" @click="toggle(form.channelIds, c.id)">
+                    <span class="avatar"><img x-show="c.avatar" :src="c.avatar" alt=""><span x-show="!c.avatar" x-text="initial(c.name)"></span></span>
+                    <span x-text="c.name"></span><span class="small muted" x-text="platformLabel(c)"></span></button>
+                </template>
+              </div>
+              <label class="toggle small" style="margin-top:10px" x-show="channels.length" :style="{ opacity: form.channelIds.length ? 1 : .5 }">
+                <input type="checkbox" x-model="form.auto_publish" :disabled="!form.channelIds.length"> <span x-t>Publish automatically when the first render is ready</span></label>
+            </div>
+          </section>
         </fieldset>
       </div>
 
@@ -2463,6 +2518,7 @@ function app() {
       }
       return this.t({ expired:'Needs sign-in', disconnected:'Not connected · required to make videos' }[c.state] || 'Checking…');
     },
+    canCreate() { return !this.creating && (this.form.topic.trim().length >= 3 || !!this.form.github_repo) && !this.missingSetup().length; },
     composerChoices() { return Object.fromEntries(COMPOSER_KEYS.map(k => [k, this.form[k]])); },
     async loadComposer() {
       const saved = await this.api('/api/composer').catch(() => ({}));
