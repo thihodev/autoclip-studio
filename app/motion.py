@@ -28,7 +28,7 @@ from claude_agent_sdk import (
     TextBlock, ToolUseBlock, create_sdk_mcp_server, query, tool,
 )
 
-from . import activity, audio, brands, claude, context, playbooks, render, settings, styles, tts, usage
+from . import activity, audio, brands, claude, context, gsap, playbooks, render, settings, styles, tts, usage
 from .config import DATA_DIR
 
 log = logging.getLogger("motion")
@@ -148,8 +148,9 @@ def _brief(req: dict, brand: dict | None, resolution: str, root: Path | None = N
     lines += ["", "## Notes", "",
               f"- Narration and all on-screen text are in {req.get('language', 'English')}.",
               "- Fully autonomous run inside AutoClip Studio: no questions, no review pauses.",
-              "- Narration comes from the host's `voiceover` tool (see the run instructions), not audio.mjs.",
-              "- No sound effects (no SFX catalog is available)."]
+              "- Narration comes from the host's `voiceover` tool (see the run instructions), not audio.mjs."]
+    if req.get("sfx", True) is False:
+        lines.append("- No sound effects in this video.")
     if req.get("context"):
         lines.append("- Source material from the user is in `source/` — base the facts on it.")
     if brand:
@@ -181,6 +182,8 @@ def _brief(req: dict, brand: dict | None, resolution: str, root: Path | None = N
         lines += audio.motion_brief(root)
     if root and req.get("style_id"):
         lines += styles.brief_lines(req["style_id"], root, bool(brand))
+    if root:
+        lines += gsap.brief_lines()
     return "\n".join(lines) + "\n"
 
 
@@ -198,6 +201,7 @@ async def prepare(pid: str, req: dict, brand: dict | None) -> Path:
         dest = skills / src.name
         if src.is_dir() and not dest.exists():
             dest.symlink_to(src.resolve(), target_is_directory=True)
+    gsap.install(root)
     if not (root / "BRIEF.md").exists():
         if req.get("sfx", True) is not False:
             await audio.sfx_pack()
@@ -320,7 +324,10 @@ Hard rules:
 DESIGNER = """You design and animate ONE HyperFrames frame for AutoClip Studio, from the `_role.md` and frame packet you
 are given. Follow them exactly (look, timing, Vietnamese typography rules, safe margins). Write only your frame's
 composition file, inside the project folder. Run `npx hyperframes lint` on it when done and fix real problems. Keep
-command output short (`| tail -n 40`) and don't re-read files. Reply with one line: the file you wrote and what it shows."""
+command output short (`| tail -n 40`) and don't re-read files.
+When your packet uses a GSAP plugin or `gsap.utils` helper, check its API in `.claude/skills/gsap-plugins/SKILL.md`
+(or `gsap-utils`): grep the heading and read only that section. Load the plugin inside your `<template>` right after
+GSAP, at the same version, and register it. HyperFrames' seek-safe rules override anything in the GSAP skills. Reply with one line: the file you wrote and what it shows."""
 
 # Only the tools the workflow uses: every tool's definition is re-sent on every turn.
 ORCHESTRATOR_TOOLS = ["Bash", "Read", "Write", "Edit", "MultiEdit", "Glob", "Grep", "TodoWrite", "Agent", "Task", "Skill"]
@@ -541,10 +548,12 @@ async def edit(pid: str, req: dict, instruction: str, out: Path, report, model: 
     if not (root / "STORYBOARD.md").exists():
         raise RuntimeError("This video has no motion project to edit — retry it first")
     (root / "renders" / "video.mp4").unlink(missing_ok=True)
+    gsap.install(root)
     report(5, "Reading your request")
     task = (f"Edit this existing HyperFrames project (an explainer made with /{WORKFLOW}). Change only what this asks, "
             f"keep everything else:\n\n{instruction}\n\nIf narration changes, update SCRIPT.md and call the voiceover tool "
-            f"for the changed frames only, then sync durations and reassemble. Re-run lint/check, then render to "
-            f"renders/video.mp4.")
+            f"for the changed frames only, then sync durations and reassemble. GSAP plugins (SplitText, DrawSVG, MorphSVG…): "
+            f"check the API in `.claude/skills/gsap-plugins/SKILL.md`, HyperFrames' seek-safe rules first. Re-run "
+            f"lint/check, then render to renders/video.mp4.")
     await _agent(pid, root, req, brand, task, report, "motion-edit", model, effort)
     return await _finish(pid, root, brand, out)
