@@ -1,4 +1,9 @@
-# AutoClip Studio
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
+    <img alt="AutoClip Studio" src="docs/logo-light.svg" width="440">
+  </picture>
+</h1>
 
 **Open-source studio that turns a topic, a website or a GitHub repo into a finished short video — written, voiced, designed, animated and published by Claude — with a web UI for everything.**
 
