@@ -213,7 +213,10 @@ async def prepare(pid: str, req: dict, brand: dict | None) -> Path:
 
 def _voiceover_server(pid: str, root: Path, req: dict, brand: dict | None):
     language = req.get("language", "English")
-    edge_voice = render.DEFAULT_VOICES.get(language, render.DEFAULT_VOICES["English"])
+    voice = req.get("voice") or ""  # the video's pick (edge name or "eleven:<id>"); empty = default
+    if not voice and brand and brand.get("voice_name") and brand.get("language") in ("", None, language):
+        voice = brand["voice_name"]
+    voice = re.sub(r"-(Male|Female)$", "", voice)
     rate = float(req.get("voice_rate", 1.0))
 
     @tool(
@@ -238,7 +241,7 @@ def _voiceover_server(pid: str, root: Path, req: dict, brand: dict | None):
                 continue
             mp3 = root / "assets" / "voice" / f"{frame:02d}.mp3"
             wav = mp3.with_suffix(".wav")
-            words = await tts.synthesize(text, language, edge_voice, rate, mp3)
+            words = await tts.synthesize(text, language, voice, rate, mp3)
             await render._ffmpeg("-i", mp3, "-ac", "1", "-ar", "44100", wav)
             mp3.unlink(missing_ok=True)
             dur = await render.media_duration(wav)

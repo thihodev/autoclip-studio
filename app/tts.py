@@ -105,9 +105,9 @@ def _words_from_alignment(al: dict) -> list[list]:
     return words
 
 
-async def _eleven(text: str, language: str, rate: float, dest: Path) -> list[list]:
+async def _eleven(text: str, language: str, rate: float, dest: Path, voice_id: str | None = None) -> list[list]:
     c = cfg()
-    voice_id = c["elevenlabs_voice_id"]
+    voice_id = voice_id or c["elevenlabs_voice_id"]
     if not voice_id:
         voices = await eleven_voices()
         if not voices:
@@ -149,12 +149,24 @@ async def _edge(text: str, voice: str, rate: float, dest: Path) -> list[list]:
     return words
 
 
-async def synthesize(text: str, language: str, edge_voice: str, rate: float, dest: Path) -> list[list]:
-    """Write an mp3 to `dest`; return word timings."""
+ELEVEN_PREFIX = "eleven:"  # a voice picked from the ElevenLabs account: "eleven:<voice_id>"
+
+
+async def synthesize(text: str, language: str, voice: str, rate: float, dest: Path) -> list[list]:
+    """Write an mp3 to `dest`; return word timings.
+
+    `voice` is an edge-tts voice name or "eleven:<voice_id>". With ElevenLabs connected, an edge name falls
+    back to the account's default voice; without it, an ElevenLabs voice falls back to the language's edge voice.
+    """
+    from .render import DEFAULT_VOICES
+
     text = re.sub(r"\s+", " ", text).strip()
+    eleven_id = voice[len(ELEVEN_PREFIX):] if voice and voice.startswith(ELEVEN_PREFIX) else None
     if provider() == "elevenlabs":
-        return await _eleven(text, language, rate, dest)
-    return await _edge(text, edge_voice, rate, dest)
+        return await _eleven(text, language, rate, dest, eleven_id)
+    if eleven_id or not voice:
+        voice = DEFAULT_VOICES.get(language, DEFAULT_VOICES["English"])
+    return await _edge(text, voice, rate, dest)
 
 
 def cache_key() -> tuple:

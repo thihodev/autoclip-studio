@@ -961,6 +961,13 @@ _voices_cache: list | None = None
 
 @app.get("/api/voices")
 async def voices(language: str = "English"):
+    """Voices to pick for a video: the ElevenLabs account's voices when connected, else free edge-tts voices."""
+    if tts.provider() == "elevenlabs":
+        try:
+            return [{"name": tts.ELEVEN_PREFIX + v["id"], "provider": "elevenlabs", "label": v["name"],
+                     "gender": v.get("gender"), "accent": v.get("accent")} for v in await tts.eleven_voices()]
+        except Exception:
+            logging.warning("could not list ElevenLabs voices; offering free voices", exc_info=True)
     global _voices_cache
     if _voices_cache is None:
         try:

@@ -517,7 +517,7 @@
             <div class="field"><label><span x-t>Style / tone</span></label><input x-model="form.style" :placeholder="t('funny, storytelling, educational…')"></div>
             <div class="field"><label><span x-t>Voice</span></label>
               <select x-select x-model="form.voice">
-                <option value="" x-t>Default for the language</option>
+                <option value="" x-text="t(status.voice?.provider==='elevenlabs' ? 'Default ElevenLabs voice' : 'Default for the language')"></option>
                 <template x-for="v in (voices[form.language]||[])"><option :value="v.name" x-text="voiceLabel(v)"></option></template>
               </select></div>
             <div class="field"><label><span x-t>Voice speed</span> <span x-text="form.voice_rate.toFixed(2)+'×'"></span></label>
@@ -1956,7 +1956,7 @@ function app() {
     accountsFor(key) { return this.channels.filter(c => c.via === 'native' && c.provider === key); },
     missingSetup() { return this.status.claude && !this.status.claude.ok ? [this.t('connect Claude')] : []; },
     sourceText(s) { return this.t({ app:'Signed in here', system:"This computer's Claude Code login", api_key:'Anthropic API key' }[s] || ''); },
-    voiceLabel(v) { const n = v.name.split('-').slice(2).join('-').replace(/Neural$/, '').replace(/Multilingual$/, ' (multilingual)'); return `${n} · ${v.gender || ''} · ${v.locale}`; },
+    voiceLabel(v) { if (v.provider === 'elevenlabs') return [v.label, v.gender, v.accent].filter(Boolean).join(' · '); const n = v.name.split('-').slice(2).join('-').replace(/Neural$/, '').replace(/Multilingual$/, ' (multilingual)'); return `${n} · ${v.gender || ''} · ${v.locale}`; },
     isBusy(p) { return ['queued','scripting','designing','editing','rendering','publishing'].includes(p?.status); },
     isMotion(p) { return (p?.timeline?.engine || p?.request?.engine) === 'motion'; },
     stageVars(stage) { const m = (stage || '').match(/(\d+) of (\d+)/); return m ? { k: m[1], n: m[2] } : {}; },
@@ -2137,7 +2137,13 @@ function app() {
     },
     async refreshStatus() { this.status = await this.api('/api/status').catch(() => this.status); },
     async loadChannels() { this.channels = await this.api('/api/channels').catch(() => []); },
-    async loadVoices(lang) { if (!this.voices[lang]) { const v = await this.api(`/api/voices?language=${encodeURIComponent(lang)}`).catch(() => []); this.voices = { ...this.voices, [lang]: v }; } },
+    async loadVoices(lang) {
+      if (!this.voices[lang]) { const v = await this.api(`/api/voices?language=${encodeURIComponent(lang)}`).catch(() => []); this.voices = { ...this.voices, [lang]: v }; }
+      // A remembered voice from the other provider (or language) isn't offered: fall back to the default.
+      if (lang === this.form.language && this.form.voice && !this.voices[lang].some(v => v.name === this.form.voice)) this.form.voice = '';
+    },
+    // The voice list depends on whether ElevenLabs is connected: reload it after the key changes.
+    reloadVoices() { this.voices = {}; this.loadVoices(this.form.language); },
     async loadProjects() {
       this.projects = await this.api('/api/projects').catch(() => this.projects);
       if (this.route.page !== 'project' || !this.cur) return;
@@ -2517,7 +2523,7 @@ function app() {
       this.savingVoice = true;
       const ok = await this.run(() => this.api('/api/settings/voice', { method:'PUT', body:{ ...this.cfg.voice, elevenlabs_api_key: this.voiceKey.trim() } }), 'Key verified and saved');
       this.savingVoice = false;
-      if (ok) { this.voiceEdit = false; this.voiceKey = ''; await this.loadConnections(); this.loadElevenVoices(); }
+      if (ok) { this.voiceEdit = false; this.voiceKey = ''; await this.loadConnections(); this.loadElevenVoices(); this.reloadVoices(); }
     },
     async setElevenVoice(id) {
       const v = this.elevenVoices.find(x => x.id === id);
@@ -2525,7 +2531,7 @@ function app() {
     },
     removeVoiceKey() {
       this.confirm('Remove the ElevenLabs key?', 'Videos will use the free Microsoft voices.', 'Remove', async () => {
-        if (await this.run(() => this.api('/api/settings/voice', { method:'PUT', body:{ ...this.cfg.voice, elevenlabs_api_key: '' } }), 'Removed')) this.loadConnections();
+        if (await this.run(() => this.api('/api/settings/voice', { method:'PUT', body:{ ...this.cfg.voice, elevenlabs_api_key: '' } }), 'Removed')) { await this.loadConnections(); this.reloadVoices(); }
       });
     },
     async previewVoice() {
