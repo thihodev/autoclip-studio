@@ -1,94 +1,125 @@
 # AutoClip Studio
 
-An open-source tool that automatically creates short-form videos (YouTube Shorts, TikTok, Facebook Reels, 16:9 YouTube) and publishes them to social networks. The AI runs on **the Claude account you already use for Claude Code**.
+An open-source tool that creates short-form videos (YouTube Shorts, TikTok, Facebook Reels, 16:9 YouTube), lets you edit them by hand or with AI, and publishes them to your accounts. Everything is set up from the web UI: no `.env`, no Docker, no system ffmpeg.
 
 ```
- Topic / Niche ──► Claude (Agent SDK) ──► MoneyPrinterTurbo ──► Postiz ──► TikTok / YouTube / Facebook / Instagram / ...
-                   ideas, script,          stock footage,         channel OAuth,
-                   search terms, caption,  TTS, subtitles,        post now / schedule
-                   hashtags, SEO tags      music, compositing
+ Topic / Niche ─► Claude ─► scenes ─► edge-tts voice + stock clips ─► ffmpeg render ─► edit loop ─► YouTube / TikTok / Facebook
+                 (Agent SDK)          (word timings)   (Pexels/Pixabay)  (captions burned in)  │
+                                                                                         manual edits,
+                                                                                         "edit with AI",
+                                                                                         FrameJam frame comments
 ```
+
+## Quick start
+
+```bash
+git clone https://github.com/thihodev/autoclip-studio.git && cd autoclip-studio
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m app            # opens http://localhost:8000
+```
+
+The app opens on **Connections** until two things are set:
+
+1. **Claude**: if Claude Code is already logged in on this computer, it's used automatically. Otherwise click **Sign in with Claude**, approve in the browser, and paste the code back. You can also paste an Anthropic API key.
+2. **Stock footage**: paste a free [Pexels](https://www.pexels.com/api/) (or [Pixabay](https://pixabay.com/api/docs/)) API key.
+
+Social accounts, FrameJam and Postiz are optional and can be connected at any time from the same tab.
 
 ## Built on
 
 | Component | Project | Role |
 |---|---|---|
-| LLM | [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python) | Writes scripts and suggests ideas. Reuses your Claude Code login (Pro/Max/Team). |
-| Rendering | [MoneyPrinterTurbo](https://github.com/harry0703/MoneyPrinterTurbo) (MIT) | Pexels/Pixabay footage, edge-tts voice-over, subtitles, background music, MoviePy/FFmpeg compositing. |
-| Publishing | [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0) | Connects 20+ networks: TikTok, YouTube, Facebook, Instagram, Threads, X, LinkedIn... |
-| Web UI / API | FastAPI + Alpine.js | Create videos, browse ideas, run autopilot. |
-
-## Setup
-
-Requirements: Python 3.11+, Docker, and [Claude Code](https://claude.com/claude-code) logged in.
-
-```bash
-# 1. Render + publishing engines (Docker)
-./scripts/setup-engines.sh
-#    - Edit vendor/MoneyPrinterTurbo/config.toml: pexels_api_keys = ["..."]  (free)
-#    - Open http://localhost:4007, create a Postiz account, connect TikTok/YouTube/Facebook
-#      (each platform needs its own developer app — see https://docs.postiz.com/providers)
-#    - Postiz → Settings → Public API → copy the key
-
-# 2. App
-cp .env.example .env        # paste POSTIZ_API_KEY
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/uvicorn app.main:app --port 8000
-```
-
-Open http://localhost:8000 — the three status dots in the header (Claude / MoneyPrinterTurbo / Postiz) should be green.
-
-## Connecting your Claude subscription
-
-The app calls Claude through the **Claude Agent SDK**, which runs the Claude Code CLI under the hood, so it authenticates exactly like Claude Code:
-
-1. **Personal machine**: if you have run `claude` and logged in, there is nothing to configure.
-2. **Server / Docker / no browser**: run `claude setup-token` on your machine and paste the token into `CLAUDE_CODE_OAUTH_TOKEN` in `.env`.
-3. **API key instead of a subscription**: set `ANTHROPIC_API_KEY`.
-
-**Using a different Claude account than the one logged in to your terminal:**
-
-- Separate config directory: run `CLAUDE_CONFIG_DIR=~/.claude-autoclip claude`, log in with the second account, then set `CLAUDE_CONFIG_DIR=/Users/<you>/.claude-autoclip` in `.env`.
-- Or run `claude setup-token`, approve with the second account in the browser (use a private window), and paste the result into `CLAUDE_CODE_OAUTH_TOKEN`. This does not overwrite your existing login.
-
-Precedence: `ANTHROPIC_API_KEY` > `CLAUDE_CODE_OAUTH_TOKEN` > the login in `CLAUDE_CONFIG_DIR` (default `~/.claude`). Hover the **Claude** dot in the UI to see which account is in use.
-
-> ⚠️ Use your subscription for **yourself only**. Since June 15, 2026, Agent SDK usage on subscription plans draws from a monthly "Agent SDK credit", separate from your chat limits. Don't share your login or token with other people; if you deploy this for several users, each one should use their own account or an API key. See the [authentication docs](https://code.claude.com/docs/en/authentication).
+| LLM | [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python) | Ideas, scene-by-scene scripts, AI edits. Bundles the Claude Code CLI, so it signs in with your Claude subscription. |
+| Voice | [edge-tts](https://github.com/rany2/edge-tts) | Natural voices in many languages, with word timings for captions. |
+| Footage | Pexels / Pixabay APIs | Royalty-free stock clips per scene, swappable in the editor. |
+| Render | ffmpeg via [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg) | Crop, slow camera drift, word-by-word captions (libass), concat. Each scene is cached, so edits re-encode only what changed. |
+| Review | [FrameJam](https://github.com/moritzkremb/framejam) (MIT) | Comment on exact frames; Claude applies the comments and renders the next version. |
+| Publishing | YouTube Data API, TikTok Content Posting API, Facebook Graph API | Native OAuth from the UI. Optional [Postiz](https://github.com/gitroomhq/postiz-app) for more networks. |
+| Captions font | [Be Vietnam Pro](https://github.com/bettergui/BeVietnamPro) (OFL) | Covers Latin scripts including Vietnamese. |
+| Web UI / API | FastAPI + Alpine.js | |
 
 ## Features
 
-- **Create video**: enter a topic → Claude writes the script, caption and hashtags → render → preview → publish.
-- **Ideas**: enter a niche and Claude suggests topics likely to go viral, each with an opening hook.
-- **Autopilot**: every N hours, generate ideas → render → auto-publish to the selected channels.
-- **Multi-channel publishing** in one call through Postiz; TikTok supports `DIRECT_POST` or `UPLOAD` (sent to the inbox for manual review).
+- **Create**: topic → Claude splits the voice-over into scenes and picks a footage search for each → render.
+- **Editor** (per project):
+  - edit each scene's text and footage search, reorder, add or delete scenes;
+  - **swap footage** from search results or **upload your own clip**;
+  - caption style (bold with a highlighted word, box, minimal, none), colors, position, voice and speed, camera drift;
+  - **Edit with AI**: describe the change ("punchier hook, shorten scene 3, captions at the top") and Claude edits the timeline;
+  - **FrameJam review**: send the render to FrameJam, click frames and comment, then **Apply feedback**;
+  - every render is kept as a version (v1, v2, …) you can preview and compare.
+- **Ideas**: Claude suggests topics for a niche, each with an opening hook.
+- **Autopilot**: every N hours, generate ideas → render → optionally auto-publish.
+- **Publish** to YouTube, TikTok, Facebook Pages (and Postiz channels) in one click.
+
+## Connecting Claude
+
+| Option | When to use |
+|---|---|
+| This computer's Claude Code login | Default if `claude` is already logged in. |
+| **Sign in with Claude** (in the UI) | A separate login stored in `data/claude/`, so it can be a different account from your terminal. |
+| Anthropic API key | Pay-as-you-go instead of a subscription. |
+
+> ⚠️ Use your subscription for **yourself only**. Since June 15, 2026, Agent SDK usage on subscription plans draws from a monthly "Agent SDK credit", separate from your chat limits. Don't share your login with other people; for multi-user deployments, each user should connect their own account or use an API key. See the [authentication docs](https://code.claude.com/docs/en/authentication).
+
+Web sign-in drives `claude auth login` in a pseudo-terminal, so it works on macOS and Linux (on Windows, use this computer's login or an API key).
+
+## Connecting social accounts
+
+Each platform requires your own developer app. The Connections tab shows, for each platform, the exact **redirect URI** to register and where to paste the client ID and secret. Then click **Connect** and approve on the platform's own consent screen.
+
+| Platform | What to create | Notes |
+|---|---|---|
+| YouTube | Google Cloud project → YouTube Data API v3 → OAuth client (Web) | Unverified apps upload as private until Google audits the app; new projects have a small daily quota. |
+| TikTok | developers.tiktok.com app with Login Kit + Content Posting API | Needs an **HTTPS** redirect URI: set *Public URL* to a tunnel (e.g. `cloudflared tunnel --url http://localhost:8000`). Unaudited apps can post only privately (`SELF_ONLY`); "Send to inbox" mode drops the video into TikTok drafts. |
+| Facebook | Meta app (Business) with Facebook Login for Business | Permissions `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`. Every Page you manage becomes an account; vertical videos are posted as Reels. |
+| Others | [Postiz](https://github.com/gitroomhq/postiz-app) URL + API key | Instagram, LinkedIn, X, Threads, Pinterest… |
+
+AI-generated content is labeled where the platform supports it (`containsSyntheticMedia` on YouTube, `is_aigc` on TikTok).
+
+## FrameJam review loop
+
+```bash
+npx -y framejam start     # Node 22+, runs at http://localhost:2400
+```
+
+In the editor click **Open in FrameJam**, comment on frames in the review page, then **Apply feedback**. Claude maps each comment's timestamp to a scene, edits the timeline and renders a new version, which is pushed to the same FrameJam review automatically.
+
+## Configuration
+
+Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Optional environment variables (see `.env.example`): `HOST`, `PORT`, `DATA_DIR`. Run with `python -m app --no-browser` on a server.
+
+> The app has no login of its own. Keep it on `127.0.0.1` (the default), or put it behind your own authentication before exposing it.
 
 ## API
 
 | Method | Path | |
 |---|---|---|
-| GET | `/api/status` | Claude / MPT / Postiz status |
-| GET | `/api/integrations` | Channels connected in Postiz |
+| GET | `/api/status` | Claude / footage / accounts / FrameJam / Postiz status |
+| GET, PUT | `/api/settings`, `/api/settings/{section}` | Connections settings (secrets are masked on read) |
+| GET, POST | `/api/claude`, `/api/claude/login/{start,code,cancel}`, `/api/claude/{source,logout}` | Claude connection |
+| GET | `/oauth/{youtube,tiktok,facebook}/start` | Connect a social account |
+| GET | `/api/channels` | Connected accounts + Postiz channels |
 | POST | `/api/ideas` | `{niche, language, count}` |
-| POST | `/api/projects` | `{topic, language, duration, format, style, voice, auto_publish, integrations}` |
+| GET, POST | `/api/projects` | List / create `{topic, language, duration, format, style, voice, voice_rate, auto_publish, integrations}` |
+| PUT | `/api/projects/{id}/timeline` | Save a manual edit and re-render |
+| POST | `/api/projects/{id}/ai-edit` | `{instruction}` |
+| GET | `/api/projects/{id}/footage?q=` | Search stock footage |
+| POST | `/api/projects/{id}/upload` | Upload your own clip (multipart `file`) |
+| POST | `/api/projects/{id}/framejam`, `/api/projects/{id}/framejam/apply` | FrameJam review loop |
 | POST | `/api/projects/{id}/publish` | `{integrations, publish_options}` |
-| GET/PUT | `/api/autopilot` | Autopilot settings |
+| GET, PUT | `/api/autopilot` | Autopilot settings |
 
-`publish_options`: `youtube_visibility` (`public|unlisted|private`), `tiktok_privacy`, `tiktok_method` (`DIRECT_POST|UPLOAD`), `schedule_at` (ISO 8601).
-
-## Platform notes
-
-- **TikTok**: unaudited apps can only post as `SELF_ONLY` (private). To post publicly, submit your app for Content Posting API review.
-- **YouTube**: new Google Cloud projects have a limited quota (~6 uploads/day), and videos uploaded by unverified apps are locked to private until the app passes an audit.
-- **Facebook/Instagram**: requires a Meta app with `pages_manage_posts` / `instagram_content_publish` permissions.
-- Label AI-generated content according to each platform's policy (the TikTok settings already set `video_made_with_ai`).
+`publish_options`: `youtube_visibility` (`public|unlisted|private`), `tiktok_method` (`DIRECT_POST|UPLOAD`), `tiktok_privacy`, `schedule_at` (Postiz only).
 
 ## Roadmap ideas
 
-- More natural voices: [Kokoro TTS](https://github.com/hexgrad/kokoro), [F5-TTS](https://github.com/SWivid/F5-TTS) (voice cloning).
-- AI-generated video instead of stock footage: ComfyUI + Wan 2.x / LTX-Video.
-- Motion-graphics templates: [Remotion](https://github.com/remotion-dev/remotion) or Hyperframes.
-- Clip long videos into shorts: [faster-whisper](https://github.com/SYSTRAN/faster-whisper) + Claude picking the best moments.
+- Background music library and ducking.
+- More voices: [Kokoro TTS](https://github.com/hexgrad/kokoro), [F5-TTS](https://github.com/SWivid/F5-TTS) (voice cloning).
+- AI-generated shots instead of stock footage: ComfyUI + Wan 2.x / LTX-Video.
+- Clip long videos into shorts with [faster-whisper](https://github.com/SYSTRAN/faster-whisper) + Claude picking the best moments.
+- Fonts for non-Latin scripts (CJK, Thai, Devanagari).
 
 ## License
 
-[MIT](LICENSE). AutoClip Studio only talks to MoneyPrinterTurbo (MIT) and Postiz (AGPL-3.0) over their APIs and does not bundle their code. `scripts/setup-engines.sh` clones them into `vendor/` (not committed); each project keeps its own license.
+[MIT](LICENSE). The bundled Be Vietnam Pro font is under the [SIL Open Font License](app/assets/fonts/OFL.txt). FrameJam and Postiz are separate projects used over their APIs and keep their own licenses.

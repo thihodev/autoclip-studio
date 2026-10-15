@@ -1,29 +1,32 @@
-"""Client for the Postiz public API (https://docs.postiz.com/public-api).
+"""Optional: publish through Postiz (https://docs.postiz.com/public-api).
 
-Postiz holds the OAuth connections to TikTok, YouTube, Facebook, Instagram,
-LinkedIn, X, Threads, Pinterest... so this app never stores platform tokens.
+Useful for networks AutoClip doesn't support directly (Instagram, LinkedIn,
+X, Threads, Pinterest...). Configure its URL + API key in Connections.
 """
 from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
 
-from .config import POSTIZ_API_KEY, POSTIZ_URL
+from . import settings
 
-BASE = f"{POSTIZ_URL}/public/v1"
+
+def _base() -> str:
+    return f"{settings.get('postiz')['url'].rstrip('/')}/public/v1"
 
 
 def _headers():
-    return {"Authorization": POSTIZ_API_KEY}
+    return {"Authorization": settings.get("postiz")["api_key"]}
 
 
 def configured() -> bool:
-    return bool(POSTIZ_API_KEY)
+    cfg = settings.get("postiz")
+    return bool(cfg["url"] and cfg["api_key"])
 
 
 async def list_integrations() -> list[dict]:
     async with httpx.AsyncClient(timeout=20) as c:
-        r = await c.get(f"{BASE}/integrations", headers=_headers())
+        r = await c.get(f"{_base()}/integrations", headers=_headers())
     r.raise_for_status()
     items = r.json()
     return [
@@ -40,19 +43,19 @@ async def list_integrations() -> list[dict]:
 
 async def health() -> dict:
     if not configured():
-        return {"ok": False, "detail": "POSTIZ_API_KEY not set"}
+        return {"ok": False, "detail": "Not configured (optional)"}
     try:
         items = await list_integrations()
         return {"ok": True, "detail": f"{len(items)} channel(s) connected"}
     except Exception as e:
-        return {"ok": False, "detail": f"{BASE} → {e.__class__.__name__}: {e}"[:300]}
+        return {"ok": False, "detail": f"{_base()} → {e.__class__.__name__}: {e}"[:300]}
 
 
 async def upload(path: Path) -> dict:
     async with httpx.AsyncClient(timeout=None) as c:
         with open(path, "rb") as f:
             r = await c.post(
-                f"{BASE}/upload", headers=_headers(), files={"file": (path.name, f, "video/mp4")}
+                f"{_base()}/upload", headers=_headers(), files={"file": (path.name, f, "video/mp4")}
             )
     r.raise_for_status()
     data = r.json()
@@ -111,7 +114,7 @@ async def publish(video: Path, meta: dict, integrations: list[dict], opts: dict)
         ],
     }
     async with httpx.AsyncClient(timeout=120) as c:
-        r = await c.post(f"{BASE}/posts", headers=_headers(), json=body)
+        r = await c.post(f"{_base()}/posts", headers=_headers(), json=body)
     if r.status_code >= 400:
         raise RuntimeError(f"Postiz {r.status_code}: {r.text[:500]}")
     return {"media": media, "response": r.json()}
