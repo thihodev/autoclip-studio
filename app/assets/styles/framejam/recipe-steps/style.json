@@ -1,0 +1,78 @@
+{
+  "id": "recipe-steps",
+  "name": "Soft Outline",
+  "tagline": "Hand-drawn outlines on cream, a chunky red title and bouncy, elastic motion.",
+  "description": "Warm, illustrated look: flat drawings with a soft brown ink outline on cream paper, a chunky red rounded title, white cards, and bouncy, elastic motion in one continuous set where the drawing changes in place. Optional motifs: a step card and numbered progress dots. The preview makes an iced matcha latte step by step.",
+  "mood": [
+    "warm",
+    "friendly",
+    "hand-made"
+  ],
+  "pacing": "medium",
+  "format": "16:9",
+  "width": 1920,
+  "height": 1080,
+  "durationSeconds": 8.5,
+  "palette": {
+    "background": "#fbf6ec",
+    "ink": "#3b2f2f",
+    "red": "#e5484d",
+    "redSoft": "#f6c3c4",
+    "muted": "#6b5d55",
+    "inactive": "#c9c0b4",
+    "glassTint": "#e3f1f1",
+    "card": "#fffdf8",
+    "matcha": "#86b552",
+    "honey": "#f0a93b"
+  },
+  "fonts": {
+    "display": {
+      "family": "Baloo 2",
+      "weights": [
+        700,
+        800
+      ],
+      "source": "Google Fonts",
+      "usage": "Title 120px in red with a 4px ink stroke and a 6px soft-pink offset shadow; card quantity 104px, ingredient 50px, step labels 26–28px tracked 0.06–0.08em"
+    },
+    "body": {
+      "family": "Patrick Hand",
+      "weights": [
+        400
+      ],
+      "source": "Google Fonts",
+      "usage": "Subtitle 40px, card notes 30px, measurement tick labels 30px in muted brown"
+    }
+  },
+  "easing": {
+    "pour": "power2.inOut",
+    "level": "power1.inOut",
+    "wobble": "elastic.out(1, 0.3)",
+    "drop": "bounce.out",
+    "pop": "back.out(2)"
+  },
+  "transitions": [
+    "no scene cuts: one continuous illustrated set where only the main drawing, card and dots change",
+    "card content crossfades (out 0.15s up, in 0.25s from 16px below) with a 3% card bump on each step",
+    "props enter from the upper left, do their action, then leave the way they came"
+  ],
+  "textAnimations": [
+    "title letters rise from below at scale 2.2 with back.out, 0.04s stagger",
+    "card quantity and ingredient swap per step; progress bar scaleX fills over the step",
+    "step dot ring turns red and pops 1.25×, then fills red with a white check when the step ends",
+    "a tick label turns red when the growing element reaches it"
+  ],
+  "rhythm": {
+    "averageShotSeconds": 1.2,
+    "notes": "Beats of 0.9–1.5s, longer for actions that take time. Something always moves (a liquid surface's wave, a gentle sway)."
+  },
+  "tags": [
+    "how-to",
+    "recipe",
+    "illustrated",
+    "explainer",
+    "steps"
+  ],
+  "guide": "- Look only: build the user's own subject in this visual language; don't reuse the example's scene.\n- Cream #fbf6ec background with a faint dot grain (1px #3b2f2f dots at 7% on a 9px grid, 0.5 opacity). Every drawing is flat SVG with a 4–5px #3b2f2f round-joined outline and a flat light fill (#e3f1f1, #f6c3c4, #fffdf8, plus soft accents like #86b552 and #f0a93b), so it feels hand-drawn. Never use gradients or photos.\n- Title is red #e5484d Baloo 2 800 at 120px with a 4px ink stroke and a 6px #f6c3c4 offset shadow; letters rise from below at scale 2.2 with back.out, 0.04s stagger. Subtitles and notes are Patrick Hand 30–40px in muted #6b5d55.\n- One continuous illustrated set, no scene cuts: the main drawing sits centre-left (~360px wide) and changes in place step by step while the layout around it stays put.\n- Motion is soft and physical: things fill or grow with power1.inOut, settle with an elastic.out(1, 0.3) wobble, drop in with bounce.out, pop with back.out(2). Props enter from the upper left, do their action, and leave the way they came. Keep one element always moving (e.g. a sine-wave surface or gentle sway).\n- Optional motif: a white #fffdf8 step card at x≈1150 showing 'STEP N OF M' (red Baloo 2, tracked 0.06–0.08em), a big 104px quantity or value, a 50px label, a one-line note and a progress bar that fills over the step; content crossfades out 0.15s up and in 0.25s from 16px below with a 3% card bump.\n- Optional motif: numbered dots along y≈950: grey #c9c0b4 outline = upcoming, red ring = current (pop 1.25×), red fill with white check = done; connectors fill red as you advance.\n- Pacing: beats of 0.9–1.5s (longer actions get longer slots). A finish card can tilt -2.5° with back.out while red rays draw on around the main drawing.",
+  "example": "The preview makes an iced matcha latte: a hand-drawn glass fills layer by layer as jugs pour and ice drops in, while a step card and step dots count through the recipe to an 'ALL DONE!' card. Don't copy this scene unless asked."
+}

@@ -75,6 +75,7 @@ HyperFrames' own skill installer writes into your global agent folders (`~/.clau
 - **Usage** (`/usage`) shows the way Claude is connected now. On a Claude plan: how much of the 5-hour session and weekly limits (overall and per model) is used and when each resets — the same numbers as `/usage` in Claude Code, read from the Claude CLI without sending a message — plus tokens, runs and Claude time per day, model and task (no dollar amounts: a plan isn't billed per token). With an API key: what you pay, per day, model, task and run. Runs made the other way are left out; each video shows its own usage the same way.
 - **Context files** (optional): attach articles, notes, product docs or transcripts (TXT, MD, PDF, DOCX, HTML, CSV, JSON, SRT/VTT) when creating a video, or later in the editor. Claude uses them as source material for the script and for AI edits.
 - **GitHub repository** (optional): pick one of your repositories (connect GitHub to list private ones too) or paste any public `owner/repo`. Claude reads its description, README and latest release and bases the video on it; without a brand kit chosen, the repository's kit is reused or built from it first. The topic can stay empty — the repository is the topic.
+- **Visual styles** (Claude Motion): pick the look from a gallery of 43 styles gathered from open-source projects — 30 from [FrameJam](https://github.com/moritzkremb/framejam) (MIT; palette, fonts, easing, transitions, text animations and pacing, with a poster and an example, bundled in `app/assets/styles/framejam`) and the 13 frame presets of [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0, read from the installed skills). The agent builds the video's own subject in that look; a brand kit keeps its colors, logo and font.
 - **The composer remembers** its last language, format, length, style, voice, engine, model, effort, publishing targets and brand kit for the next video.
 - **Brand kits**: a design system for videos — see below.
 - **Ideas**: Claude suggests topics for a niche, each with an opening hook.
@@ -165,8 +166,9 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 | POST, DELETE | `/api/context`, `/api/context/{id}` | Upload a context file (multipart `file`) before creating a video; pass the ids as `context_ids` |
 | POST, DELETE | `/api/projects/{id}/context`, `/api/projects/{id}/context/{cid}` | Add / remove context files of a video |
 | POST | `/api/ideas` | `{niche, language, count}` |
-| GET, POST | `/api/projects` | List / create `{topic, language, duration, format, engine, model, effort, github_repo, style, voice, voice_rate, brand_id, context_ids, auto_publish, integrations}` |
+| GET, POST | `/api/projects` | List / create `{topic, language, duration, format, engine, model, effort, style_id, github_repo, style, voice, voice_rate, brand_id, context_ids, auto_publish, integrations}` |
 | GET, PUT | `/api/composer` | The composer's remembered choices |
+| GET | `/api/styles` | Visual styles (FrameJam + HyperFrames presets); posters under `/style-assets/` |
 | DELETE | `/api/projects/{id}` | Delete a video completely: stops its job, removes every version, its work files, Claude's session logs and context files only it uses |
 | GET, DELETE | `/api/leftovers`, `/api/leftovers?id=` | Files still on disk from videos deleted by earlier versions; delete one or all |
 | PUT | `/api/projects/{id}/timeline` | Save a manual edit and re-render |
@@ -201,4 +203,4 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 
 ## License
 
-[MIT](LICENSE). The bundled Be Vietnam Pro font is under the [SIL Open Font License](app/assets/fonts/OFL.txt). Postiz is a separate project used over its API and keeps its own license. The review page is inspired by [FrameJam](https://github.com/moritzkremb/framejam) (MIT).
+[MIT](LICENSE). The bundled Be Vietnam Pro font is under the [SIL Open Font License](app/assets/fonts/OFL.txt). Postiz is a separate project used over its API and keeps its own license. The review page is inspired by [FrameJam](https://github.com/moritzkremb/framejam) (MIT), whose style presets are bundled under its MIT license (`app/assets/styles/framejam/LICENSE`); HyperFrames presets are used from its installed skills (Apache-2.0).

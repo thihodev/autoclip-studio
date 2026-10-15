@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import activity, brands, claude, context, db, leftovers, motion, pipeline, platforms, postiz, render, settings, tts, usage
+from . import activity, brands, claude, context, db, leftovers, styles, motion, pipeline, platforms, postiz, render, settings, tts, usage
 from .config import DATA_DIR, ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -81,6 +81,7 @@ class ProjectIn(BaseModel):
     workspace_id: str | None = None
     model: str | None = None   # Claude model for this video (default: Connections setting for the engine)
     effort: str | None = None  # low | medium | high | xhigh | max (default: Connections setting)
+    style_id: str | None = None  # visual style for Claude Motion ("framejam:<id>" or "hyperframes:<id>")
     github_repo: str | None = None  # owner/repo: Claude bases the video on it (README, description, latest release)
 
 
@@ -364,8 +365,14 @@ def _require_setup():
 
 
 # The composer remembers its last choices (not the topic or files) for the next video.
-COMPOSER_KEYS = {"language", "format", "duration", "style", "voice", "voice_rate", "engine", "model", "effort",
+COMPOSER_KEYS = {"language", "format", "duration", "style", "style_id", "voice", "voice_rate", "engine", "model", "effort",
                  "channelIds", "auto_publish", "brand_id"}
+
+
+@app.get("/api/styles")
+def list_styles():
+    """Visual styles for Claude Motion, from open-source projects (FrameJam, HyperFrames)."""
+    return styles.list_all()
 
 
 @app.get("/api/composer")
@@ -1053,3 +1060,4 @@ def page(pid: str | None = None, section: str | None = None, bid: str | None = N
 
 
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
+app.mount("/style-assets", StaticFiles(directory=styles.ASSETS), name="style-assets")

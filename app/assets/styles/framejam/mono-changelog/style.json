@@ -1,0 +1,67 @@
+{
+  "id": "mono-changelog",
+  "name": "Mono Plex",
+  "tagline": "Black on white, IBM Plex type, rows that fade up one at a time.",
+  "description": "Calm, precise black-on-white look: IBM Plex Sans and Mono, thin grey rules, a strict left column, and rows that fade up one at a time, ending on a blinking caret. The preview is a release changelog with a version tag and numbered items.",
+  "mood": [
+    "minimal",
+    "calm",
+    "technical"
+  ],
+  "pacing": "slow",
+  "format": "16:9",
+  "width": 1920,
+  "height": 1080,
+  "durationSeconds": 7.5,
+  "palette": {
+    "background": "#fafafa",
+    "text": "#0a0a0a",
+    "muted": "#737373",
+    "rule": "#e5e5e5"
+  },
+  "fonts": {
+    "display": {
+      "family": "IBM Plex Sans",
+      "weights": [
+        600
+      ],
+      "source": "Google Fonts",
+      "usage": "Title 104px, items 44px"
+    },
+    "mono": {
+      "family": "IBM Plex Mono",
+      "weights": [
+        400,
+        500
+      ],
+      "source": "Google Fonts",
+      "usage": "Version tag, dates, kinds and issue numbers 24–30px"
+    }
+  },
+  "easing": {
+    "enter": "power2.out",
+    "exit": "power1.in"
+  },
+  "transitions": [
+    "fade",
+    "hard cut to end card"
+  ],
+  "textAnimations": [
+    "fade-up list stagger (0.55s apart)",
+    "rule lines fading in with their item",
+    "blinking caret"
+  ],
+  "rhythm": {
+    "averageShotSeconds": 3.7,
+    "holdAfterTextSeconds": 1.5,
+    "notes": "Give each item half a second alone before the next one appears."
+  },
+  "tags": [
+    "changelog",
+    "release notes",
+    "product",
+    "minimal"
+  ],
+  "guide": "- Look only: build the user's own subject in this visual language; don't reuse the example's scene.\n- Only black, white and two greys (#737373, #e5e5e5). No colour accents, no shadows, no rounded shapes except one 8px outlined tag.\n- Typography does the work: IBM Plex Sans for statements and titles, IBM Plex Mono for labels, dates and numbers, generous white space, a strict left-aligned column.\n- Structure everything as a calm list: small outlined mono tag → plain title → mono meta line → items separated by 2px #e5e5e5 rules, each with an uppercase mono label on the left, a short sentence, and a mono number or detail right-aligned.\n- Show the subject through these rows and, if needed, simple black line drawings or plain photos in hard rectangular frames, never decorative illustration.\n- Items fade up (y 30, 0.5s power2.out) 0.55s apart, with their rule fading in alongside. At most 4 items per scene.\n- Cuts are plain fades or a hard cut to a final card: one short imperative line with a blinking block caret and a grey mono URL.\n- Avoid colour, gradients, icons, motion flourishes and anything louder than black on white.",
+  "example": "The preview is a product changelog: a version tag, a title, and NEW / FIXED / IMPROVED items with issue numbers, ending on a caret call to action. Don't copy this scene unless asked."
+}

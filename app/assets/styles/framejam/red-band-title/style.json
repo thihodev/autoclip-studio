@@ -1,0 +1,75 @@
+{
+  "id": "red-band-title",
+  "name": "Red Band Title",
+  "tagline": "Anime-opening title: hard slams, a spinning sunburst and an RGB-split title that lands on a skewed red band.",
+  "description": "Anime-opening title style for launches, series intros and brand names. Charcoal, crimson and off-white, a giant word or glyph slamming onto a vignetted cream card with a shake, then a dark sunburst where the title drops in letter by letter with a red/cyan chromatic split, a skewed crimson band slides in behind it, and small letterspaced corner labels lock it up. The preview opens on a kanji.",
+  "mood": [
+    "dramatic",
+    "hype",
+    "cinematic"
+  ],
+  "pacing": "fast",
+  "format": "16:9",
+  "width": 1920,
+  "height": 1080,
+  "durationSeconds": 7,
+  "palette": {
+    "background": "#1b1b1d",
+    "red": "#e5173f",
+    "text": "#f7f5f2",
+    "splitRed": "#ff2a55",
+    "splitCyan": "#27e3ff",
+    "cream": "#f4f3ee",
+    "ink": "#141414"
+  },
+  "fonts": {
+    "display": {
+      "family": "Dela Gothic One",
+      "weights": [
+        400
+      ],
+      "source": "Google Fonts",
+      "usage": "Kanji 560px, Japanese title 180px"
+    },
+    "body": {
+      "family": "Oswald",
+      "weights": [
+        500,
+        700
+      ],
+      "source": "Google Fonts",
+      "usage": "Opening English word 230px; subline 42px tracking 0.34em; corner labels 22px tracking 0.24em"
+    }
+  },
+  "easing": {
+    "slam": "power4.in",
+    "drop": "back.out(2.5)",
+    "band": "power4.out",
+    "split": "power2.out",
+    "burst": "none"
+  },
+  "transitions": [
+    "hard cuts: dark word card → cream glyph card → dark sunburst",
+    "camera-shake on impact (6 × 40ms jitter)",
+    "glitch hit: band and split layers jump 14–22px then settle"
+  ],
+  "textAnimations": [
+    "per-character drop with back.out, 80ms apart, on all three layers",
+    "red and cyan copies start offset ±18px and converge (chromatic aberration)",
+    "opening word widens (scaleX 1 → 1.12) after its slam",
+    "subline rises under the band, a white rule draws beneath"
+  ],
+  "rhythm": {
+    "averageShotSeconds": 1.6,
+    "notes": "Two very short hits (~0.8s each) then one long title hold. Band lands ~1.4s after the title starts; one glitch hit near the end."
+  },
+  "tags": [
+    "title",
+    "japanese",
+    "anime",
+    "glitch",
+    "intro"
+  ],
+  "guide": "- Look only: build the user's own subject in this visual language; don't reuse the example's scene.\n- Charcoal #1b1b1d, crimson #e5173f and off-white #f7f5f2 only; red #ff2a55 and cyan #27e3ff appear just as chromatic split layers. Hit cards are cream with a vignette (radial #f4f3ee → #e4e2da → #9e9c94) and ink #141414 type.\n- Open with very short hard-cut hits (~0.8s each): one huge word or glyph per card (Oswald 700 uppercase 230px, or Dela Gothic One up to 560px) that slams from scale 2.1 with power4.in, then a camera shake (6 × 40ms jitter). A slammed word can widen scaleX 1 → 1.12 after impact.\n- Build the title as three stacked layers (red, cyan, white) of the same spans in Dela Gothic One ~180px; drop characters by index across all layers with back.out(2.5), 80ms apart, and converge the red/cyan offsets from ±18px to 0 with power2.out.\n- The band is a full-width crimson bar (~290px tall), skewY -4° and rotated -2°, sliding in behind the title with power4.out about 1.4s after the title starts. Dim the sunburst to ~35% when it lands.\n- Keep a slowly rotating (linear) repeating-conic sunburst behind the title: crimson at 22% opacity, 4° rays with 8° gaps on charcoal.\n- Lock up with an Oswald 500 subline (42px, tracking 0.34em) rising under the band, a thin white rule drawing beneath, and tiny 22px corner labels tracked 0.24em in #bdbab3.\n- One glitch hit near the end: the band and split layers jump 14–22px, then settle. Pacing is two quick hits, then one long title hold.\n- Optional motif: a single kanji or other bold glyph that echoes the subject as one of the opening hits. Avoid gradients beyond the sunburst, soft fades and extra colours.",
+  "example": "The preview is an anime-style opener for a slide-deck tool: the word SLIDES slams in, a giant 新 crashes onto a cream card, then a Japanese title drops in with red/cyan split onto a skewed crimson band. Don't copy this scene unless asked."
+}

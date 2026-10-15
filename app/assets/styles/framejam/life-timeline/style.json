@@ -1,0 +1,77 @@
+{
+  "id": "life-timeline",
+  "name": "Color Wipe",
+  "tagline": "A new solid colour wipes in for every beat, with a huge number and springy flat-vector shapes.",
+  "description": "Flat-vector look: a new solid colour wipes in for every beat, a huge number and a short bold headline sit beside a springy illustration built from circles, rectangles and simple people, and a thin progress bar can advance along the bottom. The preview tells one person's life milestone by milestone.",
+  "mood": [
+    "warm",
+    "narrative",
+    "clean"
+  ],
+  "pacing": "medium",
+  "format": "16:9",
+  "width": 1920,
+  "height": 1080,
+  "durationSeconds": 9,
+  "palette": {
+    "opener": "#0b0b0c",
+    "cream": "#f3e8cd",
+    "mustard": "#eab43a",
+    "sage": "#a8c69f",
+    "coral": "#f07d66",
+    "sky": "#80c4ea",
+    "charcoal": "#2a2d33",
+    "ink": "#1d1b19",
+    "paper": "#fff6e0",
+    "wood": "#d9a56c"
+  },
+  "fonts": {
+    "display": {
+      "family": "Bricolage Grotesque",
+      "weights": [
+        800
+      ],
+      "source": "Google Fonts",
+      "usage": "Year at 250px with -0.04em tracking, headlines 84px, line-height 1.02, max three lines"
+    },
+    "body": {
+      "family": "DM Sans",
+      "weights": [
+        500,
+        700
+      ],
+      "source": "Google Fonts",
+      "usage": "Captions 38px at 500, AGE pill and bar labels 24–34px at 700 with 0.16em tracking"
+    }
+  },
+  "easing": {
+    "wipe": "power3.inOut",
+    "spring": "back.out(1.8)",
+    "textIn": "expo.out",
+    "marker": "power3.inOut"
+  },
+  "transitions": [
+    "solid background colour wipes in from the right in 0.42s, led by a darker band 0.08s ahead",
+    "the previous scene is hidden only after the wipe covers it",
+    "progress marker travels to the next point in the same 0.6s while an arc draws behind it"
+  ],
+  "textAnimations": [
+    "big number rises 80px with expo.out, 0.45s, 0.3s after the wipe starts",
+    "label pill slides in from the left with back.out(2)",
+    "headline then caption rise 40px then 24px, staggered 0.12s",
+    "illustration parts pop from scale 0.15 at the base (transform-origin 50% 100%) with back.out(1.8), 0.06s stagger"
+  ],
+  "rhythm": {
+    "averageShotSeconds": 1.15,
+    "notes": "Beats of ~1.15s. Every beat: the wipe, the text cascade, the illustration spring, then one small secondary motion (a plane sliding, a chart line drawing, a ticket swaying)."
+  },
+  "tags": [
+    "biography",
+    "timeline",
+    "flat-vector",
+    "storytelling",
+    "illustrated"
+  ],
+  "guide": "- Look only: build the user's own subject in this visual language; don't reuse the example's scene.\n- Each beat gets its own solid colour field: cream #f3e8cd, mustard #eab43a, sage #a8c69f, coral #f07d66, sky #80c4ea, charcoal #2a2d33; black #0b0b0c for openers. Flat fills only.\n- Transition by wipe: a darker band leads, then the next colour, x 1920→0 in 0.42s power3.inOut; keep the old scene underneath until the wipe finishes. Never crossfade.\n- Layout: text column on the left (a huge number or year in Bricolage Grotesque 800 ~250px, an outlined label pill in DM Sans 700 34px with 0.16em tracking, an 84px headline of at most three lines, one 38px caption), one flat illustration on the right (~840×780).\n- Illustrate the subject from circles, rects and simple paths, no strokes except tiny details; people are a head circle, rounded torso, two leg bars and line arms.\n- Motion is springy: illustration parts pop from scale 0.15 at their base (transform-origin 50% 100%) with back.out(1.8), 0.06s stagger; the big number rises 80px with expo.out 0.3s after the wipe starts; headline then caption rise 40px then 24px.\n- Optional motif: a thin progress bar along the bottom (4px line, ticks, a circle marker and linking arcs) that advances in the same 0.6s as each wipe.\n- Keep beats short (~1.15s) and copy specific: numbers, counts, headlines under six words. Avoid gradients, shadows and photo textures.",
+  "example": "The preview is a biography: one person's milestones by year, each on a new colour with an age label and a flat illustration, along a year bar, ending on a quote card. Don't copy this scene unless asked."
+}

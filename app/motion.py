@@ -28,7 +28,7 @@ from claude_agent_sdk import (
     TextBlock, ToolUseBlock, create_sdk_mcp_server, query, tool,
 )
 
-from . import activity, brands, claude, context, render, settings, tts, usage
+from . import activity, brands, claude, context, render, settings, styles, tts, usage
 from .config import DATA_DIR
 
 log = logging.getLogger("motion")
@@ -131,7 +131,7 @@ def project_root(pid: str) -> Path:
     return render.project_dir(pid) / "motion"
 
 
-def _brief(req: dict, brand: dict | None, resolution: str) -> str:
+def _brief(req: dict, brand: dict | None, resolution: str, root: Path | None = None) -> str:
     lang = tts.LANGUAGE_CODES.get(req.get("language", "English"), "en")
     topic = req["topic"].strip()
     message = topic.splitlines()[0][:160].replace('"', "'")
@@ -173,6 +173,8 @@ def _brief(req: dict, brand: dict | None, resolution: str) -> str:
         guide = brands.prompt_context({**brand, "clips": []})
         if guide:
             lines += ["", "## Customizations", "", guide]
+    if root and req.get("style_id"):
+        lines += styles.brief_lines(req["style_id"], root, bool(brand))
     return "\n".join(lines) + "\n"
 
 
@@ -191,7 +193,7 @@ async def prepare(pid: str, req: dict, brand: dict | None) -> Path:
         if src.is_dir() and not dest.exists():
             dest.symlink_to(src.resolve(), target_is_directory=True)
     if not (root / "BRIEF.md").exists():
-        (root / "BRIEF.md").write_text(_brief(req, brand, resolution), encoding="utf-8")
+        (root / "BRIEF.md").write_text(_brief(req, brand, resolution, root), encoding="utf-8")
     if req.get("context"):
         (root / "source").mkdir(exist_ok=True)
         for m in req["context"]:

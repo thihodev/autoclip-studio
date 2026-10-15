@@ -1,0 +1,79 @@
+{
+  "id": "bauhaus-grid",
+  "name": "Bauhaus Grid",
+  "tagline": "Red, blue and black modules that pop, rotate in waves and swap colour on a cream page.",
+  "description": "Square design-poster style for events, studios and brand reels. A 4×4 grid of geometric modules (circles, arches, quarters, leaves) pops in from the centre, rotates in staggered waves, swaps colours, then a blue wipe reveals a bouncing lowercase wordmark. Small italic-serif and mono HUD labels frame every scene.",
+  "mood": [
+    "playful",
+    "crafted",
+    "modernist"
+  ],
+  "pacing": "medium",
+  "format": "1:1",
+  "width": 1080,
+  "height": 1080,
+  "durationSeconds": 7,
+  "palette": {
+    "background": "#ece6d6",
+    "red": "#f2542d",
+    "blue": "#2f4bf5",
+    "black": "#121212",
+    "text": "#121212",
+    "textOnBlue": "#ece6d6"
+  },
+  "fonts": {
+    "display": {
+      "family": "Outfit",
+      "weights": [
+        800
+      ],
+      "source": "Google Fonts",
+      "usage": "Lowercase wordmark 210px, tracking -0.04em"
+    },
+    "label": {
+      "family": "Instrument Serif",
+      "weights": [
+        400
+      ],
+      "source": "Google Fonts",
+      "usage": "Italic scene label top-left, 40px"
+    },
+    "body": {
+      "family": "JetBrains Mono",
+      "weights": [
+        500
+      ],
+      "source": "Google Fonts",
+      "usage": "Uppercase HUD meta and timecode, 17px, tracking 0.08em"
+    }
+  },
+  "easing": {
+    "pop": "back.out(1.8)",
+    "rotate": "power3.inOut",
+    "wipe": "expo.inOut",
+    "drop": "bounce.out"
+  },
+  "transitions": [
+    "circle ring scales past the frame to clear it",
+    "full-frame blue wipe from the bottom (scaleY 0→1)"
+  ],
+  "textAnimations": [
+    "per-letter rise with alternating ±14° rotation, back.out",
+    "a red dot drops onto the wordmark with bounce.out",
+    "letters wobble once in alternating directions",
+    "timecode counts frames in the corner"
+  ],
+  "rhythm": {
+    "averageShotSeconds": 2.3,
+    "notes": "Every ~0.8s the grid does one thing: pop, rotate wave, colour swap, rotate back, breathe. Waves use grid staggers from centre, start or end."
+  },
+  "tags": [
+    "geometric",
+    "poster",
+    "event",
+    "bauhaus",
+    "square"
+  ],
+  "guide": "- Look only: build the user's own subject in this visual language; don't reuse the example's scene.\n- Only cream #ece6d6, red #f2542d, blue #2f4bf5 and black #121212 (cream text on blue). Flat fills; no gradients, shadows, outlines or textures.\n- Build everything from geometric modules: ~168px squares shaped with border-radius only (circle 50%, arch, quarter-circle, leaf, drop). Lay them on a strict 4×4 grid with 16px gutters, or assemble the subject itself from the same modules.\n- Move modules with GSAP grid staggers ({ grid: [4,4], from: \"center\" | \"start\" | \"end\" }) so every move reads as a wave: pop in with back.out(1.8), rotate in 90° steps with power3.inOut.\n- Swap red and blue in one beat instead of fading. Something changes about every 0.8s: pop, rotate wave, colour swap, rotate back, breathe.\n- Frame every scene like a poster: an Instrument Serif italic label (40px) top-left, JetBrains Mono 500 uppercase meta (17px, tracking 0.08em) and a running frame timecode along the bottom.\n- Clear the frame with a ring that scales past the edges (power3.in) or a full-frame blue wipe from the bottom (scaleY 0→1, expo.inOut).\n- Titles are Outfit 800 lowercase, ~210px, tracking -0.04em: letters rise one by one with alternating ±14° rotation (back.out), wobble once, and a single red dot drops in with bounce.out as the only accent. Pair them with one short factual line.\n- Avoid photos, realistic illustration, extra colours and soft easing on colour changes.",
+  "example": "The preview shows a 4×4 grid of red, blue and black shapes popping, rotating in waves and swapping colours, then a blue wipe to a bouncing lowercase wordmark with open-studio dates. Don't copy this scene unless asked."
+}

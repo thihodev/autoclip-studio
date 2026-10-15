@@ -1,0 +1,81 @@
+{
+  "id": "dot-field-showreel",
+  "name": "Dot Field",
+  "tagline": "Viewfinder HUD, one-second colour cuts, kinetic type and a dot field that ripples on cue.",
+  "description": "Fast, graphic look: hard one-second cuts between near-black, electric blue, orange and lime, huge Archivo Black type with outline echoes and glitch slices, all framed by a camera-viewfinder HUD. The preview is a motion designer's reel with tumbling letters, a frame counter and a rippling dot field.",
+  "mood": [
+    "energetic",
+    "crafted",
+    "showy"
+  ],
+  "pacing": "fast",
+  "format": "16:9",
+  "width": 1920,
+  "height": 1080,
+  "durationSeconds": 7.5,
+  "palette": {
+    "background": "#0c0c0d",
+    "text": "#f4f4f0",
+    "orange": "#ff5a1f",
+    "blue": "#2b45ff",
+    "lime": "#d4ff3a",
+    "hud": "rgba(244,244,240,0.75)"
+  },
+  "fonts": {
+    "display": {
+      "family": "Archivo Black",
+      "weights": [
+        400
+      ],
+      "source": "Google Fonts",
+      "usage": "Uppercase words 200–300px; outline copies use -webkit-text-stroke 3px"
+    },
+    "accent": {
+      "family": "Instrument Serif",
+      "weights": [
+        400
+      ],
+      "source": "Google Fonts",
+      "usage": "Italic connecting words (\"with\", \"frame no.\") 90–130px"
+    },
+    "body": {
+      "family": "JetBrains Mono",
+      "weights": [
+        500
+      ],
+      "source": "Google Fonts",
+      "usage": "HUD 18px uppercase tracking 0.1em; counter 300px"
+    }
+  },
+  "easing": {
+    "tumble": "back.out(1.8)",
+    "slide": "power3.out",
+    "punch": "expo.out",
+    "glitch": "steps(3)",
+    "ripple": "power2.out (yoyo)"
+  },
+  "transitions": [
+    "hard cut with full background colour switch every ~1–2s",
+    "glitch slice: two clipped colour copies jump sideways for 4 frames"
+  ],
+  "textAnimations": [
+    "letters tumble in from above with alternating ±28° rotation",
+    "outline rows slide in from opposite sides around one filled word",
+    "counters tick up with a thin progress bar",
+    "dot grid ripples via grid stagger from centre, then from a corner",
+    "final word expands from scaleY 0.1 with outline echoes"
+  ],
+  "rhythm": {
+    "averageShotSeconds": 1.5,
+    "notes": "Short shots of ~1–1.2s with hard cuts; give the dot field ~2s so a wave can travel across it."
+  },
+  "tags": [
+    "showreel",
+    "hud",
+    "kinetic-type",
+    "dots",
+    "portfolio"
+  ],
+  "guide": "- Look only: build the user's own subject in this visual language; don't reuse the example's scene.\n- Frame everything in a camera-viewfinder HUD that stays on top: four thin corner brackets, a small label top-left, a frame timecode and a scene name in mono caps. Flip it from light to dark on light backgrounds.\n- Cut hard between near-black, electric blue #2b45ff, orange #ff5a1f and lime #d4ff3a every 1–2s; never two adjacent shots in the same colour, never a crossfade.\n- Each shot does one thing to the subject or one word about it and names that beat in the HUD in two or three caps words.\n- Type: Archivo Black for hero words, huge and tight; Instrument Serif italic for small connecting words; stacked outline copies of a word as echoes.\n- Motion is energetic and exact: letters tumble in with alternating ±28° rotation, outline rows slide in from opposite sides, glitch slices jump two clipped colour copies sideways for 4 frames, a final word expands from scaleY 0.1 with outline echoes.\n- Optional motif: a fixed grid of dots that ripples with grid staggers (from the centre, then a corner), so motion reads as a system; it can form or surround the subject.\n- Drive counters and HUD text from one clock tween's onUpdate so seeking stays deterministic. Avoid gradients, soft shadows and photos.",
+  "example": "The preview is a motion designer's showreel: tumbling letters, outline type on blue, a frame counter on orange, a rippling dot grid and a lime end card, all inside a viewfinder HUD. Don't copy this scene unless asked."
+}

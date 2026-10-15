@@ -1,0 +1,76 @@
+{
+  "id": "midnight-launch",
+  "name": "Midnight Glow",
+  "tagline": "A glowing hero, blur-in type and fanned cards on near-black, with one warm accent.",
+  "description": "Dark, polished launch look: near-black with a faint purple glow, a glowing centred hero that focuses in from blur, short lines that crossfade through blur, fans of cards flying out from behind, and one warm accent for the moment of action. The preview is an AI app launch with a prompt that types itself.",
+  "mood": [
+    "sleek",
+    "premium",
+    "calm"
+  ],
+  "pacing": "medium",
+  "format": "16:9",
+  "width": 1920,
+  "height": 1080,
+  "durationSeconds": 8,
+  "palette": {
+    "background": "#0a0a0b",
+    "glow": "#17131f",
+    "panel": "#151518",
+    "border": "#2a2a31",
+    "text": "#f2f2f3",
+    "muted": "#8b8b93",
+    "accent": "#ff5b3a",
+    "iconGradient": "linear-gradient(140deg, #ff7a45, #c04bff 55%, #4b6bff)"
+  },
+  "fonts": {
+    "display": {
+      "family": "Inter",
+      "weights": [
+        600
+      ],
+      "source": "Google Fonts",
+      "usage": "Centred lines 84–112px, tracking -0.03em"
+    },
+    "body": {
+      "family": "Inter",
+      "weights": [
+        400,
+        500
+      ],
+      "source": "Google Fonts",
+      "usage": "Prompt text 32px, URL line 34px muted"
+    }
+  },
+  "easing": {
+    "focus": "expo.out",
+    "blurIn": "power3.out",
+    "blurOut": "power2.in",
+    "fan": "expo.out",
+    "cursor": "power3.inOut"
+  },
+  "transitions": [
+    "blur crossfade: out to blur(14px) 0.3s, next line in from blur(18px)",
+    "card fans collapse back to centre before the next set flies out",
+    "no hard cuts; everything resolves through blur and opacity"
+  ],
+  "textAnimations": [
+    "hero focuses from scale 0.6 + blur(24px)",
+    "lines rise 20px while de-blurring",
+    "optional prompt types character by character (16ms each)",
+    "action click: cursor and button squash, eight rays burst"
+  ],
+  "rhythm": {
+    "averageShotSeconds": 1.6,
+    "notes": "Hero moments hold ~1.7s, short lines swap every ~0.9s, a moment of action gets ~2s and a closing lockup ~1.5s."
+  },
+  "tags": [
+    "launch",
+    "ai",
+    "dark",
+    "product",
+    "app"
+  ],
+  "guide": "- Look only: build the user's own subject in this visual language; don't reuse the example's scene.\n- Near-black #0a0a0b with a faint purple radial glow at the centre; no grids or textures. Everything centred and symmetrical.\n- The hero element (the subject itself, or its mark) is a soft, glowing object with a gradient fill and a coloured shadow; it focuses in from scale 0.6 and blur(24px).\n- Short lines of two or three words in Inter 600 swap with blur crossfades: out to blur(14px) in 0.3s, next line in from blur(18px) while rising 20px.\n- Depth comes from fans of cards or images that fly out from behind the centre with expo.out and collapse back before the next set; use them to show variants or results of the subject.\n- Show one concrete action happening, with a single warm accent #ff5b3a for the moment of action (a press, a spark of eight rays, a highlight); results de-blur in.\n- No hard cuts: everything resolves through blur and opacity. Optional motif: a prompt box that types a request character by character (16ms each) and a cursor click that squashes with a spark.\n- Avoid textures, bright backgrounds, more than one accent colour and busy layouts.",
+  "example": "The preview is an AI app launch: a gradient app icon, 'Generate …' lines with fans of media cards, a prompt typed and sent, and an icon-and-wordmark lockup. Don't copy this scene unless asked."
+}

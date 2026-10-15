@@ -1,0 +1,73 @@
+{
+  "id": "topo-credits",
+  "name": "Topo Credits",
+  "tagline": "Self-drawing topographic contours, a bloom of red ink and widely spaced serif type on black letterbox.",
+  "description": "Cinematic title-sequence style for films, documentaries, trailers and premium brand intros. Pale contour lines draw themselves on black letterbox while slowly turning, one contour traces in red, blurred red ink blooms grow inside a drawn ring, and wide-tracked serif type resolves from blur, settling over faint contours with a thin red rule. The preview is the opening credits of a mountain film.",
+  "mood": [
+    "cinematic",
+    "brooding",
+    "elegant"
+  ],
+  "pacing": "slow",
+  "format": "16:9",
+  "width": 1920,
+  "height": 1080,
+  "durationSeconds": 8,
+  "palette": {
+    "background": "#070707",
+    "letterbox": "#000000",
+    "contour": "#d9d6cf",
+    "red": "#c4161c",
+    "redDeep": "#8f0f14",
+    "text": "#e9e4da",
+    "muted": "#8d877d"
+  },
+  "fonts": {
+    "display": {
+      "family": "Cormorant Garamond",
+      "weights": [
+        600
+      ],
+      "source": "Google Fonts",
+      "usage": "Uppercase title 104px, tracking 0.24em"
+    },
+    "body": {
+      "family": "Cormorant Garamond",
+      "weights": [
+        500
+      ],
+      "source": "Google Fonts",
+      "usage": "Credit names 44px tracking 0.32em; roles 22px muted tracking 0.4em"
+    }
+  },
+  "easing": {
+    "contours": "power2.inOut",
+    "drift": "none",
+    "credit": "power2.out",
+    "bloom": "power2.out",
+    "rule": "power3.inOut"
+  },
+  "transitions": [
+    "hard cut to black between the map and the ink bloom",
+    "credits dissolve out through blur(6px)",
+    "letterbox bars stay fixed for the whole piece"
+  ],
+  "textAnimations": [
+    "credits resolve from blur(6px) while rising 14px",
+    "title resolves from blur(14px) and scale 1.04",
+    "thin red rule grows from the centre under the title"
+  ],
+  "rhythm": {
+    "averageShotSeconds": 2.7,
+    "notes": "Three long shots. Each credit holds at least 1.5s; nothing moves fast except the contour draw-on."
+  },
+  "tags": [
+    "title-sequence",
+    "film",
+    "credits",
+    "cinematic",
+    "topographic"
+  ],
+  "guide": "- Look only: build the user's own subject in this visual language; don't reuse the example's scene.\n- Black #070707 with permanent 110px #000 letterbox bars for the whole piece; the only colour is red #c4161c (deep #8f0f14 in blooms). Lines are pale #d9d6cf, text #e9e4da, secondary text muted #8d877d.\n- Topographic texture: 16–18 closed SVG contour paths built from layered sine wobbles around one centre point, stroke 1.2px with every fourth line at 2.2px, opacity fading outward (0.6 down). Draw them outward with pathLength dashoffset, power2.inOut over ~1.6s, 0.06s stagger. Contours can frame the subject or sit at ~0.22 opacity behind text.\n- Keep the contour layer slowly rotating (~4°) and scaling (1 → 1.1) linearly under the text; after the draw, trace one contour in red (3px).\n- Ink blooms: a few red ellipses blurred 40–50px that scale up from 0.1–0.2 at staggered times with power2.out over ~2.6s, inside a thin drawn ring (2px #d9d6cf at 0.6).\n- Type is uppercase Cormorant Garamond with very wide tracking: titles 600 at ~104px tracked 0.24em, names 500 at 44px tracked 0.32em, small muted labels 22px tracked 0.4em above them.\n- Text resolves from blur(6px) while rising 14px (0.9s power2.out) and leaves through blur(6px); titles resolve from blur(14px) and scale 1.04. Never slide far or bounce.\n- Three long shots of ~2.5–3.5s with hard cuts to black between them; each text holds at least 1.5s and nothing moves fast except line draw-ons.\n- Optional motif: close on the title over faint contours with a 200px red rule growing from the centre (power3.inOut) and one quiet muted line under it.",
+  "example": "The preview is the opening credits of a mountain film: contours draw outward from a summit behind 'A film by' credits, a red ink bloom grows inside a ring, and it settles on the title 'The High Country'. Don't copy this scene unless asked."
+}

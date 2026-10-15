@@ -1,0 +1,71 @@
+{
+  "id": "dot-matrix",
+  "name": "Dot Matrix",
+  "tagline": "Big numbers lit on a dot board that re-lights column by column, with hard cream-to-black cuts.",
+  "description": "Hardware dot-board look: everything is spelled or drawn in round dots on a fixed grid, re-lit column by column behind a hot-pink scan line while the background cuts between cream and black, with mono HUD corners and a timecode. The preview is a stat reel of big numbers for a status page.",
+  "mood": [
+    "precise",
+    "technical",
+    "confident"
+  ],
+  "pacing": "medium",
+  "format": "16:9",
+  "width": 1920,
+  "height": 1080,
+  "durationSeconds": 7.5,
+  "palette": {
+    "background": "#f1ede4",
+    "backgroundDark": "#0b0b0b",
+    "dot": "#161616",
+    "accent": "#ff2e88",
+    "dotOff": "rgba(22,22,22,0.08)",
+    "dotOffDark": "rgba(255,255,255,0.07)"
+  },
+  "fonts": {
+    "display": {
+      "family": "Dot grid (5×7 bitmap built from divs)",
+      "weights": [],
+      "source": "Generated in the composition",
+      "usage": "34px dots on a 44px pitch, 7 characters wide"
+    },
+    "body": {
+      "family": "JetBrains Mono",
+      "weights": [
+        500,
+        700
+      ],
+      "source": "Google Fonts",
+      "usage": "Uppercase captions 30px and HUD labels 18px, tracking 0.12–0.14em, in accent pink"
+    }
+  },
+  "easing": {
+    "pop": "back.out(3)",
+    "relight": "power2.out",
+    "shift": "power3.inOut",
+    "scan": "none"
+  },
+  "transitions": [
+    "hard background cut (cream ↔ black) on the scan line",
+    "column-ordered relight, 14.5ms per column",
+    "board shifts half a character to keep odd-width content centred"
+  ],
+  "textAnimations": [
+    "lit dots pop in with a seeded pseudo-random stagger (never Math.random)",
+    "whole board breathes +12% from the centre once per stat",
+    "caption swaps and rises 16px after each relight",
+    "frame timecode in the HUD"
+  ],
+  "rhythm": {
+    "averageShotSeconds": 2.4,
+    "notes": "One number per beat of ~2.4s. The relight itself takes ~0.6s; let each number sit for at least 1.5s before the next sweep."
+  },
+  "tags": [
+    "stats",
+    "numbers",
+    "led",
+    "status",
+    "hud"
+  ],
+  "guide": "- Look only: build the user's own subject in this visual language; don't reuse the example's scene.\n- Everything is drawn on a fixed board of round dots (e.g. 41×7 or larger), like hardware: unlit dots stay visible at 8% opacity and scale 0.55; lit dots are ink on cream #f1ede4 or hot pink #ff2e88 on black.\n- Words and numbers use a 5×7 bitmap font on that grid; simple shapes or icons of the subject are drawn as dot bitmaps too. Never swap in a text font for the hero element.\n- Change what the board shows by re-colouring dots column by column (~14.5ms per column) behind a hot-pink scan line, and cut the background between cream and black on the same frame.\n- Lit dots pop in with a seeded pseudo-random stagger (index math, never Math.random) so parallel render workers agree; the board breathes +12% from the centre once per beat.\n- Every big element gets a small uppercase JetBrains Mono caption saying exactly what it is, rising 16px after each relight.\n- Frame with thin pink corner ticks, a section label top-left, a name top-right and a frame timecode bottom-left.\n- Avoid gradients, soft glows, photos and smooth morphs; changes are hard and clicky.",
+  "example": "The preview is a status-page stat reel: big numbers lit on a 41×7 dot board that re-lights column by column with captions like incidents caught. Don't copy this scene unless asked."
+}
