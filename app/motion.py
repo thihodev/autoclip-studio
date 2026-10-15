@@ -93,6 +93,11 @@ async def _run(cmd: list[str], cwd: Path, env: dict | None = None, timeout: int 
     except asyncio.TimeoutError:
         proc.kill()
         raise RuntimeError(f"{' '.join(cmd[:4])} timed out")
+    except asyncio.CancelledError:
+        if proc.returncode is None:
+            proc.kill()
+            await proc.wait()
+        raise
     text = out.decode(errors="replace")
     if proc.returncode != 0:
         raise RuntimeError(f"{' '.join(cmd[:4])} failed: {text[-800:]}")

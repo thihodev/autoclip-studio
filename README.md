@@ -159,6 +159,8 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 | POST, DELETE | `/api/projects/{id}/context`, `/api/projects/{id}/context/{cid}` | Add / remove context files of a video |
 | POST | `/api/ideas` | `{niche, language, count}` |
 | GET, POST | `/api/projects` | List / create `{topic, language, duration, format, engine, model, effort, style, voice, voice_rate, brand_id, context_ids, auto_publish, integrations}` |
+| DELETE | `/api/projects/{id}` | Delete a video completely: stops its job, removes every version, its work files, Claude's session logs and context files only it uses |
+| GET, DELETE | `/api/leftovers`, `/api/leftovers?id=` | Files still on disk from videos deleted by earlier versions; delete one or all |
 | PUT | `/api/projects/{id}/timeline` | Save a manual edit and re-render |
 | POST | `/api/projects/{id}/ai-edit` | `{instruction, model?, effort?}` |
 | GET | `/api/projects/{id}/footage?q=` | Search stock footage |

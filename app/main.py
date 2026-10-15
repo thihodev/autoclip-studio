@@ -15,8 +15,8 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import activity, brands, claude, context, db, framejam, motion, pipeline, platforms, postiz, render, settings, tts, usage
-from .config import ROOT, VIDEOS_DIR
+from . import activity, brands, claude, context, db, framejam, leftovers, motion, pipeline, platforms, postiz, render, settings, tts, usage
+from .config import DATA_DIR, ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
 
@@ -196,6 +196,7 @@ async def put_settings(section: str, value=Body(...)):
     return {"ok": True}
 
 
+
 # ------------------------------------------------------------------ Claude connection
 
 @app.get("/api/claude")
@@ -355,14 +356,34 @@ def get_project(pid: str):
 
 
 @app.delete("/api/projects/{pid}")
-def delete_project(pid: str):
-    for m in (db.get_project(pid) or {"request": {}})["request"].get("context") or []:
-        context.remove(m["id"])
-    for f in VIDEOS_DIR.glob(f"{pid}_v*.mp4"):
+async def delete_project(pid: str):
+    """Delete a video completely: stop its jobs, then remove every file and record it owns."""
+    p = _project(pid)
+    await pipeline.cancel(pid)
+    for f in VIDEOS_DIR.glob(f"{pid}_v*"):  # every version + its thumbnail
         f.unlink(missing_ok=True)
-    render.clear_cache(pid)
+    for d in claude.transcript_dirs(DATA_DIR / "projects" / pid):  # Claude's session transcripts for this video
+        shutil.rmtree(d, ignore_errors=True)
+    render.clear_cache(pid)  # scenes, footage, voice, captions, the Claude Motion project
+    activity.clear(pid)
+    own = [m["id"] for m in p["request"].get("context") or []]
     db.delete_project(pid)
+    db.detach_usage(pid)  # usage history is account consumption; it stays, without the link
+    in_use = _context_in_use()  # files shared with the project (workspace) or other videos stay
+    for cid in own:
+        if cid not in in_use:
+            context.remove(cid)
     return {"ok": True}
+
+@app.get("/api/leftovers")
+def list_leftovers():
+    """Files still on disk from videos deleted by earlier versions."""
+    return leftovers.list_all()
+
+
+@app.delete("/api/leftovers")
+def delete_leftovers(id: str | None = None):
+    return {"removed": leftovers.remove([id] if id else None)}
 
 
 @app.post("/api/projects/{pid}/retry")
@@ -428,7 +449,7 @@ async def save_timeline(pid: str, body: TimelineIn):
         raise HTTPException(400, "Video has no timeline yet")
     if pipeline.is_motion(p):
         raise HTTPException(400, "Claude Motion videos are edited with Claude (AI & review)")
-    _bg(pipeline.manual_edit(pid, body.timeline, body.title))
+    pipeline.spawn(pid, pipeline.manual_edit(pid, body.timeline, body.title))
     return {"ok": True}
 
 
@@ -437,7 +458,7 @@ async def ai_edit(pid: str, body: InstructionIn):
     p = _project(pid)
     if not p.get("timeline"):
         raise HTTPException(400, "Video has no timeline yet")
-    _bg(pipeline.ai_edit(pid, body.instruction, model=body.model or None, effort=body.effort or None))
+    pipeline.spawn(pid, pipeline.ai_edit(pid, body.instruction, model=body.model or None, effort=body.effort or None))
     return {"ok": True}
 
 
@@ -532,7 +553,7 @@ def video(name: str):
 
 @app.get("/media/{pid}/{name}")
 def media(pid: str, name: str):
-    path = render.project_dir(Path(pid).name) / "media" / Path(name).name
+    path = DATA_DIR / "projects" / Path(pid).name / "media" / Path(name).name  # never re-create a deleted video's folder
     if not path.exists():
         raise HTTPException(404)
     return FileResponse(path)

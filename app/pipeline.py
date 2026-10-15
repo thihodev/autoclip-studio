@@ -193,8 +193,29 @@ def source_material(req: dict) -> str:
     )
 
 
+# Running jobs per video, so a delete can stop them.
+_jobs: dict[str, set] = {}
+
+
+def spawn(pid: str, coro):
+    task = asyncio.get_running_loop().create_task(coro)
+    _jobs.setdefault(pid, set()).add(task)
+    task.add_done_callback(lambda t: _jobs.get(pid, set()).discard(t))
+    return task
+
+
+async def cancel(pid: str):
+    """Stop everything running for this video (Claude agent, renders)."""
+    tasks = list(_jobs.pop(pid, set()))
+    for t in tasks:
+        t.cancel()
+    if tasks:
+        await asyncio.wait(tasks, timeout=15)
+    STAGES.pop(pid, None)
+
+
 def start(pid: str):
-    asyncio.get_running_loop().create_task(run_project(pid))
+    spawn(pid, run_project(pid))
 
 
 # ---------- editing ----------
@@ -319,7 +340,7 @@ async def apply_framejam_feedback(pid: str) -> dict:
         "Apply this reviewer feedback from FrameJam. Each comment has a timestamp (seconds) or range; "
         "map it to the scene whose start/end contains it.\n" + comments[:12000]
     )
-    asyncio.get_running_loop().create_task(ai_edit(pid, instruction, source="framejam"))
+    spawn(pid, ai_edit(pid, instruction, source="framejam"))
     return {"applied": True}
 
 
@@ -406,5 +427,5 @@ async def _autopilot_run(cfg: dict):
             "engine": cfg.get("engine") or default_engine(),
             "source": "autopilot",
         })
-        await run_project(p["id"])
+        await asyncio.wait([spawn(p["id"], run_project(p["id"]))])  # a delete may cancel it
     db.set_setting("autopilot_used_topics", list(used)[-500:])

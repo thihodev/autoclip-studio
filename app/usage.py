@@ -53,8 +53,9 @@ class Meter:
         self.saved = True
         models = (self.last.model_usage if self.last else None) or {}
         tok = lambda k: sum(int(m.get(k) or 0) for m in models.values())  # noqa: E731
+        pid = self.project_id if self.project_id and db.get_project(self.project_id) else None  # video deleted meanwhile
         db.add_usage({
-            "at": time.time(), "project_id": self.project_id, "kind": self.kind, "model": self.model,
+            "at": time.time(), "project_id": pid, "kind": self.kind, "model": self.model,
             "effort": self.effort or "", "source": settings.get("claude")["source"],
             "models": {name: {k: m.get(k) for k in ("inputTokens", "outputTokens", "cacheReadInputTokens",
                                                      "cacheCreationInputTokens", "costUSD")} for name, m in models.items()},

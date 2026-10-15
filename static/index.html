@@ -11,7 +11,7 @@
     --bg:#f6f7f9; --surface:#ffffff; --surface-2:#f1f3f6; --border:#e3e6eb; --border-strong:#cfd4dc;
     --text:#14171c; --text-2:#5b6472; --text-3:#8a93a1;
     --accent:#e8385a; --accent-hover:#d22a4c; --accent-soft:#fde8ec; --on-accent:#fff;
-    --ok:#12805c; --ok-soft:#e3f5ee; --warn:#a15c00; --warn-soft:#fdf1df; --err:#c62d3f; --err-soft:#fde7ea;
+    --ok:#12805c; --ok-soft:#e3f5ee; --warn:#a15c00; --warn-soft:#fdf1df; --err:#c62d3f; --err-soft:#fde7ea; --on-err:#fff;
     --shadow:0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
     --radius:12px; --radius-sm:8px; --chart:#e8385a;
   }
@@ -20,7 +20,7 @@
       --bg:#0e1013; --surface:#16191e; --surface-2:#1d2128; --border:#262b33; --border-strong:#353b45;
       --text:#e8eaee; --text-2:#a2a9b5; --text-3:#6f7784;
       --accent:#ff4d6d; --accent-hover:#ff6a85; --accent-soft:#3a1a22; --on-accent:#fff;
-      --ok:#3ccf91; --ok-soft:#10291f; --warn:#f0b04f; --warn-soft:#2d2210; --err:#ff6b7d; --err-soft:#341519;
+      --ok:#3ccf91; --ok-soft:#10291f; --warn:#f0b04f; --warn-soft:#2d2210; --err:#ff6b7d; --err-soft:#341519; --on-err:#2a0a10;
       --shadow:none; --chart:#f0436a;
     }
   }
@@ -28,7 +28,7 @@
       --bg:#0e1013; --surface:#16191e; --surface-2:#1d2128; --border:#262b33; --border-strong:#353b45;
       --text:#e8eaee; --text-2:#a2a9b5; --text-3:#6f7784;
       --accent:#ff4d6d; --accent-hover:#ff6a85; --accent-soft:#3a1a22; --on-accent:#fff;
-      --ok:#3ccf91; --ok-soft:#10291f; --warn:#f0b04f; --warn-soft:#2d2210; --err:#ff6b7d; --err-soft:#341519;
+      --ok:#3ccf91; --ok-soft:#10291f; --warn:#f0b04f; --warn-soft:#2d2210; --err:#ff6b7d; --err-soft:#341519; --on-err:#2a0a10;
       --shadow:none;
     }
   * { box-sizing:border-box; }
@@ -94,6 +94,8 @@
   .btn.ghost { border-color:transparent; background:none; color:var(--text-2); }
   .btn.ghost:hover { background:var(--surface-2); color:var(--text); }
   .btn.danger { color:var(--err); }
+  .btn.danger-solid { background:var(--err); border-color:var(--err); color:var(--on-err); }
+  .btn.danger-solid:hover { filter:brightness(1.08); background:var(--err); }
   .btn.sm { padding:5px 10px; font-size:13px; }
   .btn.icon { padding:6px; }
   .btn:disabled, .btn[aria-disabled=true] { opacity:.45; cursor:not-allowed; pointer-events:none; }
@@ -152,6 +154,17 @@
   .pthumb { aspect-ratio:9/12; background:var(--surface-2); position:relative; display:flex; align-items:center; justify-content:center; color:var(--text-3); }
   .pthumb img { width:100%; height:100%; object-fit:cover; }
   .pthumb .chip { position:absolute; top:8px; left:8px; }
+  .pthumb .pdel { position:absolute; top:6px; right:6px; padding:6px; border:0; border-radius:var(--radius-sm); background:var(--surface); color:var(--err); box-shadow:var(--shadow); cursor:pointer; opacity:0; transition:opacity .15s; }
+  .pcard:hover .pdel, .pdel:focus-visible { opacity:1; }
+  @media (hover: none) { .pthumb .pdel { opacity:1; } }
+  .lolist { margin-top:14px; display:grid; gap:8px; }
+  .lorow { display:flex; gap:12px; align-items:center; padding:8px; border:1px solid var(--border); border-radius:var(--radius-sm); }
+  .lothumb { width:44px; height:58px; flex:none; border-radius:6px; overflow:hidden; background:var(--surface-2); display:flex; align-items:center; justify-content:center; color:var(--text-3); }
+  .lothumb img { width:100%; height:100%; object-fit:cover; }
+  .lomain { flex:1; min-width:0; } .lomain .ptitle { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  @media (max-width:560px) { .lorow { flex-wrap:wrap; } .lorow .lomain { flex-basis:calc(100% - 60px); } }
+  .dlist { margin:12px 0 0; padding-left:18px; display:grid; gap:4px; }
+  .dnote { margin-top:12px; font-size:13px; }
   .pbody { padding:10px 12px 12px; display:flex; flex-direction:column; gap:6px; flex:1; }
   .ptitle { font-weight:600; font-size:13px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .perr { font-size:12px; color:var(--err); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
@@ -493,6 +506,11 @@
       </div>
 
       <div class="page-head" style="margin:28px 0 12px"><h2 x-text="t('Videos') + ' · ' + visibleProjects().length"></h2></div>
+      <div class="notice" x-show="!ws() && leftovers.length" style="margin-bottom:12px;align-items:center">
+        <svg class="i"><use href="#i-alert"/></svg>
+        <div style="flex:1" x-text="t('Files from {n} deleted video(s) are still on this computer ({size}). Older versions did not remove them completely.', {n: leftovers.length, size: fmtBytes(leftovers.reduce((a, l) => a + l.size, 0))})"></div>
+        <button class="btn sm" @click="leftoverOpen=true"><span x-t>Review</span></button>
+      </div>
       <template x-if="!visibleProjects().length">
         <div class="card empty"><h2><span x-t>No videos yet</span></h2><p><span x-t>Your first video will appear here while it renders.</span></p></div>
       </template>
@@ -503,6 +521,7 @@
               <template x-if="projThumb(p)"><img :src="projThumb(p)" alt="" loading="lazy"></template>
               <template x-if="!projThumb(p)"><svg class="i" style="width:28px;height:28px"><use href="#i-film"/></svg></template>
               <span class="chip" :class="statusTone(p)" x-text="statusText(p)"></span>
+              <button type="button" class="pdel" :title="t('Delete video')" :aria-label="t('Delete video')" @click.prevent.stop="askDelete(p)"><svg class="i"><use href="#i-trash"/></svg></button>
             </div>
             <div class="pbody">
               <div class="ptitle" x-text="p.script?.title || p.request.topic"></div>
@@ -537,7 +556,7 @@
             <div class="actions">
               <a class="btn" x-show="cur.video_path" :href="videoUrl(cur)" download><svg class="i"><use href="#i-download"/></svg><span x-t>Download</span></a>
               <button class="btn" x-show="cur.status==='failed'" @click="retry(cur)" :disabled="missingSetup().length > 0"><svg class="i"><use href="#i-retry"/></svg><span x-t>Retry</span></button>
-              <button class="btn ghost danger" :title="t('Delete video')" @click="askDelete(cur)" :disabled="isBusy(cur)"><svg class="i"><use href="#i-trash"/></svg></button>
+              <button class="btn ghost danger" :title="t('Delete video')" @click="askDelete(cur)"><svg class="i"><use href="#i-trash"/></svg></button>
             </div>
           </div>
 
@@ -1563,13 +1582,42 @@
     </div>
   </div>
 
+  <div class="modal" x-show="leftoverOpen" x-transition.opacity @click.self="leftoverOpen=false" @keydown.escape.window="!dialog.open && (leftoverOpen=false)">
+    <div class="card wide">
+      <h2><span x-t>Leftovers of deleted videos</span></h2>
+      <p class="muted" style="margin-top:6px"><span x-t>These videos were deleted, but some of their files are still on this computer. Deleting them here removes them for good.</span></p>
+      <div class="lolist">
+        <template x-for="l in leftovers" :key="l.id">
+          <div class="lorow">
+            <div class="lothumb"><template x-if="l.thumb"><img :src="l.thumb" alt="" loading="lazy"></template><template x-if="!l.thumb"><svg class="i"><use href="#i-film"/></svg></template></div>
+            <div class="lomain">
+              <div class="ptitle" :title="l.title" x-text="l.title || t('Unknown video')"></div>
+              <div class="small muted" x-text="leftoverParts(l)"></div>
+              <div class="small muted" x-text="`${l.id} · ${ago(l.modified)}`"></div>
+            </div>
+            <div class="small" style="white-space:nowrap" x-text="fmtBytes(l.size)"></div>
+            <button class="btn ghost sm danger" @click="askRemoveLeftovers(l)"><svg class="i"><use href="#i-trash"/></svg><span x-t>Delete</span></button>
+          </div>
+        </template>
+      </div>
+      <div class="actions" style="margin-top:16px;justify-content:flex-end">
+        <button class="btn" @click="leftoverOpen=false"><span x-t>Close</span></button>
+        <button class="btn danger-solid" @click="askRemoveLeftovers()" :disabled="!leftovers.length"><span x-t>Delete all</span></button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" x-show="dialog.open" x-transition.opacity @click.self="dialog.open=false" @keydown.escape.window="dialog.open=false">
     <div class="card">
       <h2 x-text="dialog.title"></h2>
       <p class="muted" style="margin-top:6px" x-text="dialog.body"></p>
+      <template x-if="dialog.items?.length">
+        <ul class="dlist"><template x-for="it in dialog.items" :key="it"><li x-text="it"></li></template></ul>
+      </template>
+      <template x-if="dialog.note"><p class="dnote muted" x-text="dialog.note"></p></template>
       <div class="actions" style="margin-top:16px;justify-content:flex-end">
         <button class="btn" @click="dialog.open=false"><span x-t>Cancel</span></button>
-        <button class="btn primary" @click="dialog.open=false; dialog.action()" x-text="dialog.confirm"></button>
+        <button class="btn" :class="dialog.danger ? 'danger-solid' : 'primary'" @click="dialog.open=false; dialog.action()" x-text="dialog.confirm"></button>
       </div>
     </div>
   </div>
@@ -1635,6 +1683,7 @@ function app() {
     suggestions: ['Make the hook punchier', 'Shorten every scene', 'Use calmer footage', 'Captions near the top', 'Speak a bit faster', 'Stronger call to action'],
     picker: { open:false, scene:null, q:'', results:[], loading:false, error:'' },
     dialog: { open:false, title:'', body:'', confirm:'OK', action(){} },
+    leftovers: [], leftoverOpen: false,
     toast: '', toastErr: false,
 
     // ------------------------------------------------ language & theme
@@ -1670,7 +1719,7 @@ function app() {
     },
     async run(fn, okMsg) { try { const r = await fn(); if (okMsg) this.say(okMsg); return r ?? true; } catch (e) { this.say(e.message, true); return null; } },
     say(m, err=false) { this.toast = this.t(String(m)).slice(0, 300); this.toastErr = err; clearTimeout(this._t); this._t = setTimeout(() => this.toast = '', err ? 7000 : 3500); },
-    confirm(title, body, confirm, action) { this.dialog = { open:true, title: this.t(title), body: this.t(body), confirm: this.t(confirm), action }; },
+    confirm(title, body, confirm, action, extra = {}) { this.dialog = { open:true, title: this.t(title), body: this.t(body), confirm: this.t(confirm), action, ...extra }; },
     toggle(arr, id) { const i = arr.indexOf(id); i < 0 ? arr.push(id) : arr.splice(i, 1); },
     initial(s) { return (s || '?').trim().charAt(0).toUpperCase(); },
     platformLabel(c) { if (!c || !c.provider) return ''; return c.via === 'postiz' ? this.t('{name} via Postiz', {name: c.provider}) : (PLATFORM_LABELS[c.provider] || c.provider); },
@@ -1707,6 +1756,7 @@ function app() {
     positionLabel(v) { v = +v; return this.t(v < 0.35 ? 'top' : v > 0.65 ? 'bottom' : 'middle'); },
     ago(ts) { const s = Date.now()/1000 - ts; if (s < 60) return this.t('just now'); if (s < 3600) return this.t('{n} min ago', {n: Math.floor(s/60)}); if (s < 86400) return this.t('{n} h ago', {n: Math.floor(s/3600)}); return new Date(ts*1000).toLocaleDateString(this.lang); },
     when(ts) { return new Date(ts*1000).toLocaleString(this.lang, { dateStyle:'medium', timeStyle:'short' }); },
+    fmtBytes(n) { const u = ['B', 'KB', 'MB', 'GB']; let i = 0; while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; } return `${n.toFixed(i && n < 10 ? 1 : 0)} ${u[i]}`; },
     fmtChars(n) { const w = Math.round((n || 0) / 6); return w >= 1000 ? this.t('~{n}k words', {n: (w/1000).toFixed(1)}) : this.t('~{n} words', {n: w}); },
     async uploadEach(ev, fn) {
       const files = [...ev.target.files]; ev.target.value = '';
@@ -1775,7 +1825,7 @@ function app() {
       });
       window.addEventListener('beforeunload', e => { if (this.dirty || this.brandDirty) { e.preventDefault(); e.returnValue = ''; } });
       try { this.form.brand_id = localStorage.getItem('autoclip.brand') || null; } catch {}
-      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces()]);
+      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers()]);
       if (['node','ffmpeg'].includes(this.motionInfo.code)) this.form.engine = 'classic';
       if (this.form.brand_id && !this.brandById(this.form.brand_id)) this.form.brand_id = null;
       this.ready = true;
@@ -1814,12 +1864,34 @@ function app() {
       this.creating = false;
       if (p) { this.form.topic = ''; this.form.context = []; await this.loadProjects(); this.nav(`/projects/${p.id}`); }
     },
+    async loadLeftovers() { this.leftovers = await this.api('/api/leftovers').catch(() => this.leftovers); if (!this.leftovers.length) this.leftoverOpen = false; },
+    leftoverParts(l) {
+      const n = (k, one, many) => l[k] === 1 ? this.t(one) : this.t(many, {n: l[k]});
+      return [l.renders && n('renders', '1 render', '{n} renders'), l.thumbnails && n('thumbnails', '1 thumbnail', '{n} thumbnails'),
+              l.work_folder && this.t('work files'), l.claude_sessions && n('claude_sessions', '1 Claude session log', '{n} Claude session logs')]
+        .filter(Boolean).join(' · ');
+    },
+    askRemoveLeftovers(l) {
+      const body = l ? this.t('Everything left of “{title}” is removed from this computer. This cannot be undone.', {title: l.title || l.id})
+                     : this.t('Everything left of {n} deleted video(s) is removed from this computer. This cannot be undone.', {n: this.leftovers.length});
+      this.confirm(l ? 'Delete these leftovers?' : 'Delete all leftovers?', body, 'Delete permanently', async () => {
+        if (await this.run(() => this.api(`/api/leftovers${l ? '?id=' + l.id : ''}`, { method:'DELETE' }), 'Leftovers deleted')) this.loadLeftovers();
+      }, { danger: true });
+    },
     async retry(p) { if (await this.run(() => this.api(`/api/projects/${p.id}/retry`, { method:'POST' }))) this.loadProjects(); },
     askDelete(p) {
-      this.confirm('Delete this video?', 'The project, all its versions and downloaded footage will be removed. This cannot be undone.', 'Delete', async () => {
-        if (!await this.run(() => this.api(`/api/projects/${p.id}`, { method:'DELETE' }), 'Deleted')) return;
-        this.loadTimeline(); await this.loadProjects(); this.cur = null; this.nav('/');
-      });
+      const items = [
+        ...(this.isBusy(p) ? ['The job running now is stopped first'] : []),
+        'Every version and its downloads', 'The script, scenes, voice-over and footage cache',
+        "Claude Motion files and Claude's session logs for this video", 'Context files attached only to this video',
+      ].map(x => this.t(x));
+      this.confirm('Delete this video permanently?', this.t('“{title}” and everything made for it is removed from this computer. This cannot be undone.', {title: p.script?.title || p.request.topic}), 'Delete permanently', async () => {
+        if (!await this.run(() => this.api(`/api/projects/${p.id}`, { method:'DELETE' }), 'Video deleted')) return;
+        const open = this.cur?.id === p.id;
+        if (open) { this.loadTimeline(); this.cur = null; }
+        await this.loadProjects();
+        if (open) this.nav(p.workspace_id ? `/w/${p.workspace_id}` : '/');
+      }, { danger: true, items, note: this.t('Posts already published stay on YouTube, TikTok and Facebook, FrameJam keeps its review, and Usage keeps the Claude usage this video consumed.') });
     },
 
     // ------------------------------------------------ editor

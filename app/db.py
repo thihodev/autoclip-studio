@@ -309,3 +309,13 @@ def delete_workspace(wid: str):
     with conn() as c:
         c.execute("UPDATE projects SET workspace_id=NULL WHERE workspace_id=?", (wid,))
         c.execute("DELETE FROM workspaces WHERE id=?", (wid,))
+
+
+def project_ids() -> set[str]:
+    with conn() as c:
+        return {r[0] for r in c.execute("SELECT id FROM projects")}
+
+
+def detach_usage(project_id: str):
+    with conn() as c:
+        c.execute("UPDATE usage SET project_id=NULL WHERE project_id=?", (project_id,))

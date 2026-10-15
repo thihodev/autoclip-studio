@@ -22,7 +22,7 @@ import claude_agent_sdk
 from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
 
 from . import settings, usage
-from .config import CLAUDE_CONFIG_DIR
+from .config import CLAUDE_CONFIG_DIR, DATA_DIR
 
 SCRIPT_SYSTEM = """You are a senior short-form video producer for YouTube Shorts, TikTok and Facebook Reels.
 You write voice-over scripts that hook in the first 2 seconds, keep a fast pace and end with a call to action.
@@ -108,6 +108,17 @@ def _extract_json(text: str) -> dict:
     return json.loads(text[start : end + 1])
 
 
+def transcript_dirs(folder: Path) -> list[Path]:
+    """Claude Code keeps session transcripts per working directory: the ones for runs inside `folder`."""
+    bases = {re.sub(r"[^A-Za-z0-9]", "-", str(p)) for p in (folder, folder.resolve())}
+    out = []
+    for root in (CLAUDE_CONFIG_DIR / "projects", Path.home() / ".claude" / "projects"):
+        if root.is_dir():
+            out += [d for d in root.iterdir()
+                    if d.is_dir() and any(d.name == b or d.name.startswith(b + "-") for b in bases)]
+    return out
+
+
 async def ask_json(prompt: str, system: str = SCRIPT_SYSTEM, *, kind: str = "script", project_id: str | None = None,
                    model: str | None = None, effort: str | None = None, tools: list[str] | None = None,
                    cwd: str | None = None, max_turns: int = 1) -> dict:
@@ -115,6 +126,10 @@ async def ask_json(prompt: str, system: str = SCRIPT_SYSTEM, *, kind: str = "scr
         raise RuntimeError("Claude is not connected — open Connections and choose how to sign in")
     model, effort = usage.choose("script", model, effort)
     meter = usage.Meter(kind, project_id, model, effort)
+    if cwd is None and project_id:
+        # Run inside the video's folder so its transcripts can be deleted with it.
+        cwd = DATA_DIR / "projects" / project_id
+        cwd.mkdir(parents=True, exist_ok=True)
     options = ClaudeAgentOptions(
         system_prompt=system,
         model=model,

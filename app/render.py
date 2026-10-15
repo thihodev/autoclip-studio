@@ -86,6 +86,11 @@ async def _ffmpeg(*args, cwd: Path | None = None) -> str:
     _running.add(proc)
     try:
         _, err = await proc.communicate()
+    except asyncio.CancelledError:
+        if proc.returncode is None:
+            proc.kill()
+            await proc.wait()
+        raise
     finally:
         _running.discard(proc)
     if proc.returncode != 0:
