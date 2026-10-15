@@ -49,9 +49,29 @@ async def eleven_check(key: str) -> str | None:
             r = await c.get(f"{API}/voices", headers=_headers(key), params={"page_size": 1})
     except httpx.HTTPError as e:
         return f"Could not reach ElevenLabs ({e.__class__.__name__})"
+    return None if r.status_code < 400 else eleven_error(r)
+
+
+def eleven_error(r: httpx.Response) -> str:
+    """ElevenLabs' own reason for a failed request, in plain words."""
+    try:
+        detail = r.json().get("detail")
+    except ValueError:
+        detail = None
+    status = detail.get("status") if isinstance(detail, dict) else ""
+    message = (detail.get("message") if isinstance(detail, dict) else detail) or ""
+    known = {
+        "invalid_api_key": "ElevenLabs doesn't recognise this API key — copy it again (it's shown only once when created)",
+        "missing_permissions": "This API key lacks a permission AutoClip needs — edit the key and allow Text to Speech and Voices (Read)",
+        "detected_unusual_activity": "ElevenLabs paused free-plan API access for this account (unusual activity — often a VPN or proxy). "
+                                     "Turn off the VPN and try again, or use a paid plan",
+        "quota_exceeded": "This ElevenLabs account has used up its characters for the month",
+    }
+    if status in known:
+        return known[status] + (f" ({message})" if message and status == "missing_permissions" else "")
     if r.status_code in (401, 403):
-        return "ElevenLabs rejected this API key"
-    return None if r.status_code < 400 else f"ElevenLabs error {r.status_code}"
+        return f"ElevenLabs rejected this API key{': ' + str(message)[:200] if message else ''}"
+    return f"ElevenLabs error {r.status_code}{': ' + str(message)[:200] if message else ''}"
 
 
 async def eleven_voices() -> list[dict]:
@@ -109,7 +129,7 @@ async def _eleven(text: str, language: str, rate: float, dest: Path) -> list[lis
                 dest.write_bytes(base64.b64decode(data["audio_base64"]))
                 al = data.get("alignment") or data.get("normalized_alignment")
                 return _words_from_alignment(al) if al else []
-            last = f"ElevenLabs {r.status_code}: {r.text[:300]}"
+            last = eleven_error(r)
             if r.status_code in (401, 403) and "model" not in r.text.lower():
                 break  # bad key or quota — another model won't help
     raise RuntimeError(last or "ElevenLabs failed")
