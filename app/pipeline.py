@@ -3,12 +3,14 @@ import asyncio
 import json
 import logging
 import random
+import shutil
+import tempfile
 import time
 import uuid
 from pathlib import Path
 
 from . import activity, brands, claude, context, db, framejam, motion, platforms, postiz, render, settings, usage
-from .config import VIDEOS_DIR
+from .config import DATA_DIR, VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
 
@@ -89,6 +91,9 @@ async def prepare_request(pid: str) -> dict:
         req["website"] = req.get("website") or d.get("website") or ""
         req["_workspace_applied"] = True
         changed = True
+    if req.get("github_repo") and not req.get("_github_applied"):
+        await _apply_github(pid, req)
+        changed = True
     if not req.get("brand_id"):
         domain = brands.find_domain(req.get("website") or "") or brands.find_domain(req.get("topic", ""))
         if domain:
@@ -110,6 +115,45 @@ async def prepare_request(pid: str) -> dict:
     if changed:
         db.update_project(pid, request=req)
     return req
+
+
+async def _apply_github(pid: str, req: dict):
+    """A repository chosen for the video: its README, description and latest release become source material,
+    and (without a brand kit chosen) its kit is reused or built from the repository."""
+    repo = req["github_repo"]
+    req["_github_applied"] = True
+    STAGES[pid] = f"Reading {repo}"
+    activity.add(pid, f"Reading {repo} on GitHub")
+    try:
+        material = await brands.github_material(repo)
+        tmp = Path(tempfile.mkdtemp(dir=DATA_DIR))
+        try:
+            path = tmp / f"{repo.replace('/', '-')}-github.md"
+            path.write_text(material["text"])
+            meta = context.save(path, path.name)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        req["context"] = [*(req.get("context") or []), meta]
+        activity.add(pid, f"Using {repo}: description, README and latest release as source material", "done")
+    except Exception as e:
+        log.warning("github material failed for %s", repo, exc_info=True)
+        activity.add(pid, f"Couldn't read {repo} ({str(e)[:120] or e.__class__.__name__}) — continuing without it", "warn")
+        return
+    if req.get("brand_id"):
+        return
+    brand = brands.find_by_repo(repo)
+    if brand:
+        activity.add(pid, f"Using the {brand['name']} brand kit from {repo}")
+    else:
+        activity.add(pid, f"No brand kit for {repo} yet — building one from the repository")
+        STAGES[pid] = f"Building a brand kit from {repo}"
+        try:
+            brand = await brands.import_github(repo)
+        except Exception as e:
+            log.warning("github brand import failed for %s", repo, exc_info=True)
+            activity.add(pid, f"Couldn't build a brand kit from {repo} ({e.__class__.__name__}) — continuing without one", "warn")
+    if brand:
+        req["brand_id"] = brand["id"]
 
 
 def is_motion(p: dict) -> bool:

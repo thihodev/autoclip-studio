@@ -296,6 +296,42 @@ async def github_repos() -> list[dict]:
              "default_branch": x.get("default_branch")} for x in r.json()]
 
 
+async def github_material(repo: str) -> dict:
+    """What a video about a repository needs: description, homepage, topics, the README and the latest release."""
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as c:
+        r = await c.get(f"https://api.github.com/repos/{repo}", headers=_gh_headers())
+        if r.status_code == 404:
+            raise ValueError(f"Repository {repo} not found — for a private repo, connect GitHub in Connections first")
+        r.raise_for_status()
+        info = r.json()
+        readme = await c.get(f"https://api.github.com/repos/{repo}/readme",
+                             headers={**_gh_headers(), "Accept": "application/vnd.github.raw+json"})
+        release = await c.get(f"https://api.github.com/repos/{repo}/releases/latest", headers=_gh_headers())
+    lines = [f"# {info['full_name']}", "", f"GitHub: {info.get('html_url')}"]
+    for label, value in [("Description", info.get("description")), ("Website", info.get("homepage")),
+                         ("Topics", ", ".join(info.get("topics") or [])), ("Main language", info.get("language")),
+                         ("License", (info.get("license") or {}).get("name")),
+                         ("Stars", info.get("stargazers_count")), ("Forks", info.get("forks_count"))]:
+        if value not in (None, ""):
+            lines.append(f"{label}: {value}")
+    if release.status_code == 200:
+        rel = release.json()
+        lines += ["", f"## Latest release: {rel.get('name') or rel.get('tag_name')} ({(rel.get('published_at') or '')[:10]})",
+                  (rel.get("body") or "")[:6000]]
+    if readme.status_code == 200 and readme.text.strip():
+        lines += ["", "## README", readme.text[:40000]]
+    return {"text": "\n".join(lines).strip(), "homepage": info.get("homepage") or "", "name": info.get("name") or repo}
+
+
+def find_by_repo(repo: str) -> dict | None:
+    """A brand kit already imported from this repository."""
+    for b in list_all():
+        src = b.get("source") or {}
+        if src.get("type") == "github" and (src.get("repo") or "").lower() == repo.lower():
+            return b
+    return None
+
+
 def parse_repo(url: str) -> str:
     url = url.strip().removesuffix(".git").rstrip("/")
     m = re.search(r"(?:github\.com[/:])?([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)$", url)

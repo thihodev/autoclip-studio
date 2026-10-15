@@ -82,6 +82,7 @@ class ProjectIn(BaseModel):
     model: str | None = None   # Claude model for this video (default: Connections setting for the engine)
     effort: str | None = None  # low | medium | high | xhigh | max (default: Connections setting)
     framejam: bool | None = None  # send renders to FrameJam for review (default: Connections setting)
+    github_repo: str | None = None  # owner/repo: Claude bases the video on it (README, description, latest release)
 
 
 class PublishIn(BaseModel):
@@ -390,6 +391,11 @@ async def create_project(body: ProjectIn):
     if body.workspace_id and not db.get_workspace(body.workspace_id):
         raise HTTPException(400, "That project no longer exists")
     req = body.model_dump(exclude={"context_ids", "workspace_id"})
+    if body.github_repo:
+        try:
+            req["github_repo"] = brands.parse_repo(body.github_repo)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
     req["context"] = [m for cid in body.context_ids if (m := context.get(cid))]
     req["engine"] = body.engine or pipeline.default_engine()
     if req["engine"] == "motion" and (st := motion.status())["code"] in ("node", "ffmpeg"):

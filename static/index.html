@@ -446,11 +446,17 @@
             <template x-for="f in form.context" :key="f.id">
               <span class="filechip" :title="`${f.name} · ${fmtChars(f.chars)}`"><svg class="i" style="width:13px;height:13px"><use href="#i-clip"/></svg><span class="n" x-text="f.name"></span><span class="muted" x-text="fmtChars(f.chars)"></span><button type="button" class="x" @click="removeFormContext(f)" :title="t('Remove')">✕</button></span>
             </template>
+            <span class="filechip" x-show="form.github_repo"><svg class="i" style="width:13px;height:13px"><use href="#i-github"/></svg><span class="n" x-text="form.github_repo"></span><button type="button" class="x" @click="form.github_repo=''" :title="t('Remove')">✕</button></span>
             <label class="btn ghost sm uploadbtn"><span class="spin" x-show="uploadingContext"></span><svg class="i" x-show="!uploadingContext"><use href="#i-clip"/></svg><span x-t>Add context files</span>
               <input type="file" multiple :accept="contextAccept" @change="addFormContext($event)"></label>
-            <span class="small muted" x-show="!form.context.length"><span x-t>Optional: articles, notes, product docs or transcripts for Claude to base the script on.</span></span>
+            <button type="button" class="btn ghost sm ghbtn" aria-haspopup="listbox" :aria-expanded="String(ghPick.open)" @click="ghOpen($el)"><svg class="i"><use href="#i-github"/></svg><span x-text="form.github_repo ? t('Change repository') : t('GitHub repository')"></span></button>
+            <span class="small muted" x-show="!form.context.length && !form.github_repo"><span x-t>Optional: articles, notes, product docs or transcripts — or a GitHub repository — for Claude to base the script on.</span></span>
           </div>
-          <div class="notice info" style="margin-top:10px" x-show="topicDomain() && !form.brand_id && !(ws()?.brand_id)">
+          <div class="notice info" style="margin-top:10px" x-show="form.github_repo">
+            <svg class="i" style="margin-top:2px"><use href="#i-github"/></svg>
+            <div x-text="t('Claude reads {repo} on GitHub (description, README, latest release) and bases the video on it.', {repo: form.github_repo}) + (form.brand_id || ws()?.brand_id ? '' : ' ' + (brandForRepo(form.github_repo) ? t('Uses the {name} brand kit.', {name: brandForRepo(form.github_repo).name}) : t('Its brand kit (logo, colors, fonts) is built from the repository first.')))"></div>
+          </div>
+          <div class="notice info" style="margin-top:10px" x-show="topicDomain() && !form.brand_id && !(ws()?.brand_id) && !form.github_repo">
             <svg class="i" style="margin-top:2px"><use href="#i-link"/></svg>
             <div x-text="brandForDomain(topicDomain()) ? t('Uses the {name} brand kit for {site}.', {name: brandForDomain(topicDomain()).name, site: topicDomain()}) : t('Claude will read {site} and build its brand kit (colors, fonts, logo, product images) before designing the video.', {site: topicDomain()})"></div>
           </div>
@@ -515,7 +521,7 @@
           <div class="actions" style="margin-top:16px; justify-content:flex-end">
             <span class="small muted" x-show="missingSetup().length"><span x-t>Finish setup in Connections to create videos</span></span>
             <button type="button" class="mpchip" aria-haspopup="menu" :aria-expanded="String(mp.open && mp.key==='form')" :title="t('Claude model and effort for this video')" @click="mpOpen('form', $el)"><span x-text="modelShort(mpModel('form'))"></span><span class="e" x-text="effortShort(mpEffort('form'))"></span><svg class="i"><use href="#i-down"/></svg></button>
-            <button class="btn primary" @click="create()" :disabled="creating || form.topic.trim().length < 3 || missingSetup().length > 0">
+            <button class="btn primary" @click="create()" :disabled="creating || (form.topic.trim().length < 3 && !form.github_repo) || missingSetup().length > 0">
               <span class="spin" x-show="creating"></span><span x-text="creating ? t('Creating…') : t('Create video')"></span></button>
           </div>
         </fieldset>
@@ -1627,6 +1633,30 @@
     </div>
   </div>
 
+  <!-- GitHub repository picker -->
+  <div class="mp" x-show="ghPick.open" :style="ghPick.pos" @click.outside="if (!$event.target.closest('.ghbtn')) ghPick.open=false"
+       @keydown.escape.window="ghPick.open && (ghPick.open=false)" @resize.window="ghPick.open && (ghPick.open=false)">
+    <div class="mpmenu" style="width:min(380px, calc(100vw - 16px))" role="listbox" :aria-label="t('GitHub repository')">
+      <input id="gh-q" x-model="ghPick.q" :placeholder="t(github.connected ? 'Search your repositories or paste owner/repo' : 'owner/repo or a GitHub link')" autocomplete="off"
+             @keydown.enter.prevent="ghTyped() ? ghChoose(ghTyped()) : (ghMatches()[0] && ghChoose(ghMatches()[0].full_name))" style="margin-bottom:6px">
+      <div style="max-height:320px;overflow:auto">
+        <template x-if="ghTyped()">
+          <button type="button" class="mpi" @click="ghChoose(ghTyped())"><svg class="i"><use href="#i-github"/></svg><span class="grow" x-text="t('Use {repo}', {repo: ghTyped()})"></span></button>
+        </template>
+        <template x-for="r in ghMatches()" :key="r.full_name">
+          <button type="button" class="mpi" role="option" :aria-selected="String(form.github_repo===r.full_name)" @click="ghChoose(r.full_name)" style="align-items:flex-start">
+            <span class="grow" style="min-width:0"><span style="display:flex;gap:6px;align-items:center"><span x-text="r.full_name" style="font-weight:600"></span><span class="badge" x-show="r.private"><span x-t>Private</span></span></span>
+              <span class="small muted" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" x-show="r.description" x-text="r.description"></span></span>
+            <svg class="i ck" :style="form.github_repo===r.full_name ? '' : 'visibility:hidden'"><use href="#i-check"/></svg>
+          </button>
+        </template>
+        <p class="mphead" x-show="ghPick.loading"><span class="spin"></span></p>
+        <p class="mphead" x-show="github.connected && !ghPick.loading && !ghMatches().length && !ghTyped()"><span x-t>No matching repositories.</span></p>
+        <p class="mphead" x-show="!github.connected"><span x-t>Type a public repository, or</span> <a href="/connections" @click.prevent="ghPick.open=false; nav('/connections')"><span x-t>connect GitHub</span></a> <span x-t>to pick from yours, including private ones.</span></p>
+      </div>
+    </div>
+  </div>
+
   <!-- model & effort menu, shared by every picker chip -->
   <div class="mp" x-show="mp.open" :style="mp.pos" :class="{ up: mp.up, left: mp.left }" @click.outside="if (!$event.target.closest('.mpchip')) mpClose()"
        @keydown.escape.window="mp.open && mpClose()" @resize.window="mp.open && mpClose()" @scroll.window="mp.open && mpClose()">
@@ -1818,10 +1848,11 @@ function app() {
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
     status: {}, cl: {}, cfg: { claude:{}, footage:{}, framejam:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
     channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] },
-    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'', framejam:null },
+    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'', framejam:null, github_repo:'' },
     models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, plan: {}, planLoading: false, showTable: false, hoverDay: null,
     projUsage: {}, editModel: '', editEffort: '',
     mp: { open:false, key:'form', sub:false, pos:{}, up:false, left:false, narrow:false },
+    ghPick: { open:false, q:'', pos:{}, loading:false },
     workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' }, siteImport: { open:false, url:'', busy:false },
     live: {}, dockOpen: true, startingFj: false,
     uploadingContext: false, motionInfo: {}, voiceEdit: false, voiceKey: '', savingVoice: false, elevenVoices: [], previewing: false, contextAccept: '.txt,.md,.markdown,.pdf,.docx,.html,.htm,.csv,.json,.srt,.vtt,.yaml,.yml',
@@ -1984,7 +2015,7 @@ function app() {
       });
       window.addEventListener('beforeunload', e => { if (this.dirty || this.brandDirty) { e.preventDefault(); e.returnValue = ''; } });
       await this.loadComposer();
-      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers(),
+      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers(), this.loadGithub(),
         this.api('/api/settings').then(s => { if (s) this.cfg = s; }).catch(() => {})]);
       // Plan limits move while videos render: keep the Usage page current.
       setInterval(() => { if (this.route.page === 'usage' && !document.hidden && !this.planLoading) this.loadPlan(); }, 60000);
@@ -1998,6 +2029,30 @@ function app() {
       setInterval(() => { this.loadProjects(); this.loadLive(); }, 2500);
       setInterval(() => this.refreshStatus(), 30000);
     },
+    async ghOpen(el) {
+      if (this.ghPick.open) { this.ghPick.open = false; return; }
+      const r = el.getBoundingClientRect(), H = window.innerHeight, up = r.top > H - r.bottom;
+      this.ghPick = { open:true, q:'', loading:false, pos: { left: `${Math.max(8, Math.min(r.left, window.innerWidth - 388))}px`, right:'auto',
+        top: up ? 'auto' : `${r.bottom + 6}px`, bottom: up ? `${H - r.top + 6}px` : 'auto' } };
+      this.$nextTick(() => document.getElementById('gh-q')?.focus());
+      await this.loadGithub();
+      if (this.github.connected && !this.githubRepos.length) {
+        this.ghPick.loading = true;
+        this.githubRepos = await this.api('/api/github/repos').catch(() => []);
+        this.ghPick.loading = false;
+      }
+    },
+    ghMatches() {
+      const q = this.ghPick.q.trim().toLowerCase();
+      return this.githubRepos.filter(r => !q || r.full_name.toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q)).slice(0, 50);
+    },
+    // A typed owner/repo or GitHub link that isn't in the list (public repositories work without connecting).
+    ghTyped() {
+      const m = this.ghPick.q.trim().match(/^(?:https?:\/\/)?(?:github\.com\/)?([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/i);
+      return m && !this.githubRepos.some(r => r.full_name.toLowerCase() === m[1].toLowerCase()) ? m[1] : null;
+    },
+    ghChoose(name) { this.form.github_repo = name; this.ghPick.open = false; },
+    brandForRepo(repo) { return this.brandList.find(b => b.source?.type === 'github' && (b.source.repo || '').toLowerCase() === (repo || '').toLowerCase()); },
     composerChoices() { return Object.fromEntries(COMPOSER_KEYS.map(k => [k, this.form[k]])); },
     async loadComposer() {
       const saved = await this.api('/api/composer').catch(() => ({}));
@@ -2037,9 +2092,9 @@ function app() {
       this.creating = true;
       const { channelIds, ...f } = this.form;
       const { context, ...rest } = f;
-      const p = await this.run(() => this.api('/api/projects', { method:'POST', body:{ ...rest, workspace_id: this.ws()?.id || null, model: rest.model || null, effort: rest.effort || null, context_ids: context.map(c => c.id), auto_publish: f.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }));
+      const p = await this.run(() => this.api('/api/projects', { method:'POST', body:{ ...rest, topic: rest.topic.trim() || `A short video introducing the GitHub project ${rest.github_repo}`, github_repo: rest.github_repo || null, workspace_id: this.ws()?.id || null, model: rest.model || null, effort: rest.effort || null, context_ids: context.map(c => c.id), auto_publish: f.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }));
       this.creating = false;
-      if (p) { this.form.topic = ''; this.form.context = []; await this.loadProjects(); this.nav(`/projects/${p.id}`); }
+      if (p) { this.form.topic = ''; this.form.context = []; this.form.github_repo = ''; await this.loadProjects(); this.nav(`/projects/${p.id}`); }
     },
     async loadLeftovers() { this.leftovers = await this.api('/api/leftovers').catch(() => this.leftovers); if (!this.leftovers.length) this.leftoverOpen = false; },
     leftoverParts(l) {
