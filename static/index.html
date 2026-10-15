@@ -264,7 +264,9 @@
   .cselect:disabled { opacity:.5; cursor:not-allowed; }
   .cmenu { position:fixed; z-index:45; overflow:auto; }
   /* Connections: one row per connection, details in a dialog */
-  .conns { max-width:760px; }
+  .conns { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 24px; align-items:start; }
+  @media (max-width:1100px) { .conns { grid-template-columns:minmax(0, 1fr); max-width:760px; } }
+  .ccol .chead:first-child { margin-top:8px; }
   .chead { margin:24px 0 8px; font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--text-3); }
   .conns .chead:first-child { margin-top:8px; }
   .clist { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
@@ -1266,67 +1268,68 @@
       <div class="page-head"><div><h1><span x-t>Connections</span></h1><p class="sub"><span x-t>Only Claude is required. Everything else is optional.</span></p></div></div>
 
       <div class="conns">
-        <h3 class="chead"><span x-t>Claude</span></h3>
-        <div class="clist">
-          <button type="button" class="crow" @click="openConn('claude')">
-            <span class="ctile"><svg class="i"><use href="#i-star"/></svg></span>
-            <span class="grow"><span class="t"><span x-t>Claude</span></span><span class="d" x-text="connClaudeStatus()"></span></span>
-            <span class="dot" :class="{ok: cl.state==='connected', warn: cl.state==='expired', err: cl.state==='disconnected'}"></span><svg class="i chev"><use href="#i-right"/></svg>
-          </button>
-        </div>
-
-        <h3 class="chead"><span x-t>Making videos</span></h3>
-        <div class="clist">
-          <button type="button" class="crow" @click="openConn('motion')">
-            <span class="ctile"><svg class="i"><use href="#i-layers"/></svg></span>
-            <span class="grow"><span class="t"><span x-t>Claude Motion</span></span><span class="d" x-text="motionInfo.ok ? t('Ready') + ' · ' + t(motionInfo.detail || '') : (motionInfo.installing ? t('Installing…') : t('Not installed — videos use the Quick engine'))"></span></span>
-            <span class="dot" :class="{ok: motionInfo.ok, warn: motionInfo.installing}"></span><svg class="i chev"><use href="#i-right"/></svg>
-          </button>
-          <button type="button" class="crow" @click="openConn('voice')">
-            <span class="ctile"><svg class="i"><use href="#i-play"/></svg></span>
-            <span class="grow"><span class="t"><span x-t>Voice-over</span></span><span class="d" x-text="status.voice?.provider==='elevenlabs' ? 'ElevenLabs' + (cfg.voice?.elevenlabs_voice_name ? ' · ' + cfg.voice.elevenlabs_voice_name : '') : t('Free Microsoft voices · add ElevenLabs for natural voices')"></span></span>
-            <span class="dot" :class="{ok: status.voice?.provider==='elevenlabs'}"></span><svg class="i chev"><use href="#i-right"/></svg>
-          </button>
-          <button type="button" class="crow" @click="openConn('footage')">
-            <span class="ctile"><svg class="i"><use href="#i-film"/></svg></span>
-            <span class="grow"><span class="t"><span x-t>Stock footage</span></span><span class="d" x-text="status.footage?.ok ? (cfg.footage?.provider==='pexels' ? 'Pexels' : 'Pixabay') : t('Off · scenes use animated backgrounds')"></span></span>
-            <span class="dot" :class="{ok: status.footage?.ok}"></span><svg class="i chev"><use href="#i-right"/></svg>
-          </button>
-          <button type="button" class="crow" @click="openConn('framejam')">
-            <span class="ctile"><svg class="i"><use href="#i-send"/></svg></span>
-            <span class="grow"><span class="t">FrameJam</span><span class="d" x-text="(status.framejam?.ok ? t('Running') : t('Not running')) + ' · ' + (cfg.framejam?.auto !== false ? t('every render is sent for review') : t('send renders yourself'))"></span></span>
-            <span class="dot" :class="{ok: status.framejam?.ok}"></span><svg class="i chev"><use href="#i-right"/></svg>
-          </button>
-        </div>
-
-        <h3 class="chead"><span x-t>Publish videos</span></h3>
-        <div class="clist">
-          <template x-for="pl in (cfg.platforms||[])" :key="pl.key">
-            <button type="button" class="crow" @click="openConn('pl:' + pl.key)">
-              <span class="ctile" x-text="pl.label[0]"></span>
-              <span class="grow"><span class="t" x-text="t(pl.label)"></span><span class="d" x-text="accountsFor(pl.key).length ? accountsFor(pl.key).map(a => a.name).join(', ') : (pl.configured ? t('Ready to connect') : t('Needs a developer app (one-time setup)'))"></span></span>
-              <span class="dot" :class="{ok: accountsFor(pl.key).length, warn: pl.configured && !accountsFor(pl.key).length}"></span><svg class="i chev"><use href="#i-right"/></svg>
+        <div class="ccol">
+          <h3 class="chead"><span x-t>Claude</span></h3>
+          <div class="clist">
+            <button type="button" class="crow" @click="openConn('claude')">
+              <span class="ctile"><svg class="i"><use href="#i-star"/></svg></span>
+              <span class="grow"><span class="t"><span x-t>Claude</span></span><span class="d" x-text="connClaudeStatus()"></span></span>
+              <span class="dot" :class="{ok: cl.state==='connected', warn: cl.state==='expired', err: cl.state==='disconnected'}"></span><svg class="i chev"><use href="#i-right"/></svg>
             </button>
-          </template>
-          <button type="button" class="crow" @click="openConn('postiz')">
-            <span class="ctile"><svg class="i"><use href="#i-send"/></svg></span>
-            <span class="grow"><span class="t">Postiz</span><span class="d" x-text="status.postiz?.ok ? status.postiz.detail : t('Instagram, LinkedIn, X, Threads and more')"></span></span>
-            <span class="dot" :class="{ok: status.postiz?.ok}"></span><svg class="i chev"><use href="#i-right"/></svg>
-          </button>
+          </div>
+          <h3 class="chead"><span x-t>Making videos</span></h3>
+          <div class="clist">
+            <button type="button" class="crow" @click="openConn('motion')">
+              <span class="ctile"><svg class="i"><use href="#i-layers"/></svg></span>
+              <span class="grow"><span class="t"><span x-t>Claude Motion</span></span><span class="d" x-text="motionInfo.ok ? t('Ready') + ' · ' + t(motionInfo.detail || '') : (motionInfo.installing ? t('Installing…') : t('Not installed — videos use the Quick engine'))"></span></span>
+              <span class="dot" :class="{ok: motionInfo.ok, warn: motionInfo.installing}"></span><svg class="i chev"><use href="#i-right"/></svg>
+            </button>
+            <button type="button" class="crow" @click="openConn('voice')">
+              <span class="ctile"><svg class="i"><use href="#i-play"/></svg></span>
+              <span class="grow"><span class="t"><span x-t>Voice-over</span></span><span class="d" x-text="status.voice?.provider==='elevenlabs' ? 'ElevenLabs' + (cfg.voice?.elevenlabs_voice_name ? ' · ' + cfg.voice.elevenlabs_voice_name : '') : t('Free Microsoft voices · add ElevenLabs for natural voices')"></span></span>
+              <span class="dot" :class="{ok: status.voice?.provider==='elevenlabs'}"></span><svg class="i chev"><use href="#i-right"/></svg>
+            </button>
+            <button type="button" class="crow" @click="openConn('footage')">
+              <span class="ctile"><svg class="i"><use href="#i-film"/></svg></span>
+              <span class="grow"><span class="t"><span x-t>Stock footage</span></span><span class="d" x-text="status.footage?.ok ? (cfg.footage?.provider==='pexels' ? 'Pexels' : 'Pixabay') : t('Off · scenes use animated backgrounds')"></span></span>
+              <span class="dot" :class="{ok: status.footage?.ok}"></span><svg class="i chev"><use href="#i-right"/></svg>
+            </button>
+            <button type="button" class="crow" @click="openConn('framejam')">
+              <span class="ctile"><svg class="i"><use href="#i-send"/></svg></span>
+              <span class="grow"><span class="t">FrameJam</span><span class="d" x-text="(status.framejam?.ok ? t('Running') : t('Not running')) + ' · ' + (cfg.framejam?.auto !== false ? t('every render is sent for review') : t('send renders yourself'))"></span></span>
+              <span class="dot" :class="{ok: status.framejam?.ok}"></span><svg class="i chev"><use href="#i-right"/></svg>
+            </button>
+          </div>
         </div>
-
-        <h3 class="chead"><span x-t>Other</span></h3>
-        <div class="clist">
-          <button type="button" class="crow" @click="openConn('github')">
-            <span class="ctile"><svg class="i"><use href="#i-github"/></svg></span>
-            <span class="grow"><span class="t">GitHub</span><span class="d" x-text="github.connected ? github.login + ' · ' + t('private repositories too') : t('Public repositories work without connecting')"></span></span>
-            <span class="dot" :class="{ok: github.connected}"></span><svg class="i chev"><use href="#i-right"/></svg>
-          </button>
-          <button type="button" class="crow" @click="openConn('url')">
-            <span class="ctile"><svg class="i"><use href="#i-link"/></svg></span>
-            <span class="grow"><span class="t"><span x-t>Public URL</span></span><span class="d" x-text="cfg.public_url || t('This page\'s address · set one for TikTok (HTTPS)')"></span></span>
-            <span class="dot" :class="{ok: !!cfg.public_url}"></span><svg class="i chev"><use href="#i-right"/></svg>
-          </button>
+        <div class="ccol">
+          <h3 class="chead"><span x-t>Publish videos</span></h3>
+          <div class="clist">
+            <template x-for="pl in (cfg.platforms||[])" :key="pl.key">
+              <button type="button" class="crow" @click="openConn('pl:' + pl.key)">
+                <span class="ctile" x-text="pl.label[0]"></span>
+                <span class="grow"><span class="t" x-text="t(pl.label)"></span><span class="d" x-text="accountsFor(pl.key).length ? accountsFor(pl.key).map(a => a.name).join(', ') : (pl.configured ? t('Ready to connect') : t('Needs a developer app (one-time setup)'))"></span></span>
+                <span class="dot" :class="{ok: accountsFor(pl.key).length, warn: pl.configured && !accountsFor(pl.key).length}"></span><svg class="i chev"><use href="#i-right"/></svg>
+              </button>
+            </template>
+            <button type="button" class="crow" @click="openConn('postiz')">
+              <span class="ctile"><svg class="i"><use href="#i-send"/></svg></span>
+              <span class="grow"><span class="t">Postiz</span><span class="d" x-text="status.postiz?.ok ? status.postiz.detail : t('Instagram, LinkedIn, X, Threads and more')"></span></span>
+              <span class="dot" :class="{ok: status.postiz?.ok}"></span><svg class="i chev"><use href="#i-right"/></svg>
+            </button>
+          </div>
+          <h3 class="chead"><span x-t>Other</span></h3>
+          <div class="clist">
+            <button type="button" class="crow" @click="openConn('github')">
+              <span class="ctile"><svg class="i"><use href="#i-github"/></svg></span>
+              <span class="grow"><span class="t">GitHub</span><span class="d" x-text="github.connected ? github.login + ' · ' + t('private repositories too') : t('Public repositories work without connecting')"></span></span>
+              <span class="dot" :class="{ok: github.connected}"></span><svg class="i chev"><use href="#i-right"/></svg>
+            </button>
+            <button type="button" class="crow" @click="openConn('url')">
+              <span class="ctile"><svg class="i"><use href="#i-link"/></svg></span>
+              <span class="grow"><span class="t"><span x-t>Public URL</span></span><span class="d" x-text="cfg.public_url || t('This page\'s address · set one for TikTok (HTTPS)')"></span></span>
+              <span class="dot" :class="{ok: !!cfg.public_url}"></span><svg class="i chev"><use href="#i-right"/></svg>
+            </button>
+          </div>
         </div>
       </div>
     </section>
