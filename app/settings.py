@@ -2,7 +2,8 @@
 from . import db
 
 DEFAULTS = {
-    "claude": {"source": "", "api_key": "", "model": "sonnet", "motion_model": "opus"},  # source: "" until the user picks
+    # source: "" until the user picks. effort "" = the model's default.
+    "claude": {"source": "", "api_key": "", "model": "sonnet", "effort": "", "motion_model": "opus", "motion_effort": "high"},
     "footage": {"provider": "pixabay", "pexels_api_key": "", "pixabay_api_key": ""},
     "framejam": {"url": "http://localhost:2400"},
     "voice": {"elevenlabs_api_key": "", "elevenlabs_voice_id": "", "elevenlabs_voice_name": "", "elevenlabs_model": ""},

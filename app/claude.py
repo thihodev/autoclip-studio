@@ -21,7 +21,7 @@ from pathlib import Path
 import claude_agent_sdk
 from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
 
-from . import settings
+from . import settings, usage
 from .config import CLAUDE_CONFIG_DIR
 
 SCRIPT_SYSTEM = """You are a senior short-form video producer for YouTube Shorts, TikTok and Facebook Reels.
@@ -108,12 +108,16 @@ def _extract_json(text: str) -> dict:
     return json.loads(text[start : end + 1])
 
 
-async def ask_json(prompt: str, system: str = SCRIPT_SYSTEM) -> dict:
+async def ask_json(prompt: str, system: str = SCRIPT_SYSTEM, *, kind: str = "script", project_id: str | None = None,
+                   model: str | None = None, effort: str | None = None) -> dict:
     if not settings.get("claude")["source"]:
         raise RuntimeError("Claude is not connected — open Connections and choose how to sign in")
+    model, effort = usage.choose("script", model, effort)
+    meter = usage.Meter(kind, project_id, model, effort)
     options = ClaudeAgentOptions(
         system_prompt=system,
-        model=settings.get("claude")["model"],
+        model=model,
+        effort=effort,
         max_turns=1,
         allowed_tools=[],
         setting_sources=[],  # don't load the user's CLAUDE.md / project settings
@@ -121,18 +125,25 @@ async def ask_json(prompt: str, system: str = SCRIPT_SYSTEM) -> dict:
         cli_path=cli_path(),
     )
     result = None
-    async for message in query(prompt=prompt, options=options):
-        if isinstance(message, ResultMessage):
-            if message.is_error:
-                raise RuntimeError(f"Claude error: {message.result}")
-            result = message.result
+    try:
+        async for message in query(prompt=prompt, options=options):
+            meter.see(message)
+            if isinstance(message, ResultMessage):
+                if message.is_error:
+                    raise RuntimeError(f"Claude error: {message.result}")
+                result = message.result
+    except Exception:
+        meter.save(ok=False)
+        raise
+    meter.save()
     if not result:
         raise RuntimeError("Claude returned no result")
     return _extract_json(result)
 
 
 async def write_script(topic: str, language: str, duration: int, style: str, notes: str, brand_context: str = "",
-                       source: str = "") -> dict:
+                       source: str = "", project_id: str | None = None, model: str | None = None,
+                       effort: str | None = None) -> dict:
     words = int(duration * 2.5)
     scenes = max(3, min(12, round(duration / 5)))
     data = await ask_json(
@@ -141,7 +152,8 @@ async def write_script(topic: str, language: str, duration: int, style: str, not
             style=style or "engaging, informative", notes=notes or "none",
             brand=f"\n{brand_context}\n" if brand_context else "",
             context=f"\n{source}\n" if source else "",
-        )
+        ),
+        kind="script", project_id=project_id, model=model, effort=effort,
     )
     if not data.get("title") or not data.get("scenes"):
         raise ValueError("Claude response is missing title or scenes")
@@ -150,7 +162,8 @@ async def write_script(topic: str, language: str, duration: int, style: str, not
 
 
 async def edit_timeline(timeline: dict, meta: dict, language: str, instruction: str, brand_context: str = "",
-                        source: str = "") -> dict:
+                        source: str = "", project_id: str | None = None, model: str | None = None,
+                        effort: str | None = None) -> dict:
     view = {
         "title": meta.get("title"),
         "captions": timeline["captions"],
@@ -165,12 +178,12 @@ async def edit_timeline(timeline: dict, meta: dict, language: str, instruction: 
         EDIT_PROMPT.format(language=language, timeline=json.dumps(view, ensure_ascii=False, indent=1),
                            instruction=instruction, brand=f"\n{brand_context}\n" if brand_context else "",
                            context=f"\n{source}\n" if source else ""),
-        system=EDIT_SYSTEM,
+        system=EDIT_SYSTEM, kind="edit", project_id=project_id, model=model, effort=effort,
     )
 
 
 async def suggest_ideas(niche: str, language: str, count: int = 8) -> list[dict]:
-    data = await ask_json(IDEAS_PROMPT.format(niche=niche, language=language, count=count))
+    data = await ask_json(IDEAS_PROMPT.format(niche=niche, language=language, count=count), kind="ideas")
     return data.get("ideas", [])
 
 

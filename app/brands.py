@@ -415,6 +415,7 @@ async def _analyze_with_claude(repo: str, scan: dict, description: str) -> dict:
     return await claude.ask_json(
         ANALYZE_PROMPT.format(repo=repo, description=description or "(none)", texts=texts, candidates=cands),
         system="You are a brand designer. Reply with ONE JSON object only, no markdown fences, no commentary.",
+        kind="brand-import",
     )
 
 

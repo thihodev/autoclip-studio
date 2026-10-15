@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import brands, claude, context, db, framejam, motion, pipeline, platforms, postiz, render, settings, tts
+from . import brands, claude, context, db, framejam, motion, pipeline, platforms, postiz, render, settings, tts, usage
 from .config import ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -75,6 +75,8 @@ class ProjectIn(BaseModel):
     brand_id: str | None = None
     context_ids: list[str] = []
     engine: str | None = None  # motion | classic (default: motion when available)
+    model: str | None = None   # Claude model for this video (default: Connections setting for the engine)
+    effort: str | None = None  # low | medium | high | xhigh | max (default: Connections setting)
 
 
 class PublishIn(BaseModel):
@@ -111,6 +113,8 @@ class TimelineIn(BaseModel):
 
 class InstructionIn(BaseModel):
     instruction: str = Field(min_length=2)
+    model: str | None = None
+    effort: str | None = None
 
 
 class CodeIn(BaseModel):
@@ -421,7 +425,7 @@ async def ai_edit(pid: str, body: InstructionIn):
     p = _project(pid)
     if not p.get("timeline"):
         raise HTTPException(400, "Video has no timeline yet")
-    _bg(pipeline.ai_edit(pid, body.instruction))
+    _bg(pipeline.ai_edit(pid, body.instruction, model=body.model or None, effort=body.effort or None))
     return {"ok": True}
 
 
@@ -644,6 +648,27 @@ async def github_repos():
         raise HTTPException(502, f"GitHub: {e}")
 
 
+# ------------------------------------------------------------------ models & usage
+
+@app.get("/api/models")
+def models():
+    cfg = settings.get("claude")
+    return {"models": usage.MODELS, "efforts": usage.EFFORTS,
+            "defaults": {"script": {"model": cfg["model"], "effort": cfg["effort"]},
+                         "motion": {"model": cfg["motion_model"], "effort": cfg["motion_effort"]}}}
+
+
+@app.get("/api/usage")
+def usage_summary(days: int = 30):
+    return usage.summary(max(1, min(365, days)))
+
+
+@app.get("/api/projects/{pid}/usage")
+def project_usage(pid: str):
+    _project(pid)
+    return usage.project(pid)
+
+
 # ------------------------------------------------------------------ Claude Motion engine
 
 _install = {"running": False, "error": None}
@@ -740,6 +765,7 @@ INDEX = ROOT / "static" / "index.html"
 @app.get("/ideas", include_in_schema=False)
 @app.get("/autopilot", include_in_schema=False)
 @app.get("/connections", include_in_schema=False)
+@app.get("/usage", include_in_schema=False)
 @app.get("/brands", include_in_schema=False)
 @app.get("/brands/{bid}", include_in_schema=False)
 @app.get("/projects/{pid}", include_in_schema=False)

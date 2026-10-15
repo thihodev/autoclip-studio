@@ -7,7 +7,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import brands, claude, context, db, framejam, motion, platforms, postiz, render, settings
+from . import brands, claude, context, db, framejam, motion, platforms, postiz, render, settings, usage
 from .config import VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
@@ -31,18 +31,21 @@ def _reporter(pid: str):
     return report
 
 
-def _save_version(pid: str, out: Path, tl: dict, note: str) -> dict:
+def _save_version(pid: str, out: Path, tl: dict, note: str, model: str | None = None, effort: str | None = None) -> dict:
     p = db.get_project(pid)
     extra = _extra(p)
     version = (p.get("version") or 0) + 1
-    extra["versions"].append({"version": version, "file": out.name, "note": note, "at": time.time()})
+    extra["versions"].append({"version": version, "file": out.name, "note": note, "at": time.time(),
+                              "model": model, "effort": effort})
     db.update_project(pid, timeline=tl, video_path=str(out), version=version, extra=extra,
                       status="ready", progress=100, error=None, publish_result=None)
     return db.get_project(pid)
 
 
-async def _motion_version(pid: str, note: str, instruction: str | None = None) -> dict:
+async def _motion_version(pid: str, note: str, instruction: str | None = None, model: str | None = None,
+                          effort: str | None = None) -> dict:
     p = db.get_project(pid)
+    model, effort = usage.choose("motion", model or p["request"].get("model"), effort or p["request"].get("effort"))
     out = VIDEOS_DIR / f"{pid}_v{(p.get('version') or 0) + 1}.mp4"
     db.update_project(pid, status="queued", progress=0)
     async with _motion_lock:
@@ -50,15 +53,15 @@ async def _motion_version(pid: str, note: str, instruction: str | None = None) -
         try:
             report = _reporter(pid)
             if instruction:
-                tl = await motion.edit(pid, p["request"], instruction, out, report)
+                tl = await motion.edit(pid, p["request"], instruction, out, report, model, effort)
             else:
-                tl = await motion.create(pid, p["request"], out, report)
+                tl = await motion.create(pid, p["request"], out, report, model, effort)
         finally:
             STAGES.pop(pid, None)
     tl["format"] = p["request"].get("format", "shorts")
     tl["brand_id"] = p["request"].get("brand_id")
     await render.thumbnail(out)
-    saved = _save_version(pid, out, tl, note)
+    saved = _save_version(pid, out, tl, note, model, effort)
     if _extra(saved)["framejam"].get("review_id"):
         try:
             await send_to_framejam(pid, note)
@@ -121,7 +124,7 @@ async def run_project(pid: str):
                 topic=req["topic"], language=req.get("language", "English"),
                 duration=int(req.get("duration", 45)), style=req.get("style", ""), notes=req.get("notes", ""),
                 brand_context=brands.prompt_context(brand),
-                source=source_material(req),
+                source=source_material(req), project_id=pid, model=req.get("model"), effort=req.get("effort"),
             )
             db.update_project(pid, script=meta, timeline=render.new_timeline(meta, req, brand))
         await _render_version(pid, "First cut")
@@ -177,7 +180,8 @@ def apply_edit(tl: dict, meta: dict, edit: dict) -> tuple[dict, dict]:
     return tl, meta
 
 
-async def ai_edit(pid: str, instruction: str, source: str = "prompt"):
+async def ai_edit(pid: str, instruction: str, source: str = "prompt", model: str | None = None,
+                  effort: str | None = None):
     p = db.get_project(pid)
     if is_motion(p):
         try:
@@ -185,7 +189,7 @@ async def ai_edit(pid: str, instruction: str, source: str = "prompt"):
             extra["history"].append({"at": time.time(), "source": source, "instruction": instruction[:2000],
                                      "summary": instruction.splitlines()[0][:160] if source == "prompt" else "Applied FrameJam comments"})
             db.update_project(pid, extra=extra, error=None)
-            await _motion_version(pid, extra["history"][-1]["summary"], instruction)
+            await _motion_version(pid, extra["history"][-1]["summary"], instruction, model, effort)
         except Exception as e:
             _fail(pid, e, status="ready" if p.get("video_path") else "failed")
         return
@@ -194,7 +198,8 @@ async def ai_edit(pid: str, instruction: str, source: str = "prompt"):
         edit = await claude.edit_timeline(
             p["timeline"], p["script"], p["request"].get("language", "English"), instruction,
             brand_context=brands.prompt_context(brands.get(p["timeline"].get("brand_id"))),
-            source=source_material(p["request"]),
+            source=source_material(p["request"]), project_id=pid,
+            model=model or p["request"].get("model"), effort=effort or p["request"].get("effort"),
         )
         tl, meta = apply_edit(p["timeline"], p["script"], edit)
         extra = _extra(p)

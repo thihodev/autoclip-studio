@@ -26,6 +26,26 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS usage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at REAL NOT NULL,
+    project_id TEXT,
+    kind TEXT NOT NULL,            -- script | ideas | edit | motion | motion-edit | brand-import
+    model TEXT,                    -- requested model (alias or id)
+    effort TEXT,
+    source TEXT,                   -- app | system | api_key
+    models TEXT,                   -- JSON: per-model usage as reported by Claude
+    input_tokens INTEGER DEFAULT 0,
+    output_tokens INTEGER DEFAULT 0,
+    cache_read_tokens INTEGER DEFAULT 0,
+    cache_write_tokens INTEGER DEFAULT 0,
+    cost_usd REAL DEFAULT 0,
+    turns INTEGER DEFAULT 0,
+    duration_s REAL DEFAULT 0,
+    ok INTEGER DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS usage_at ON usage(at);
+CREATE INDEX IF NOT EXISTS usage_project ON usage(project_id);
 CREATE TABLE IF NOT EXISTS brands (
     id TEXT PRIMARY KEY,
     created_at REAL NOT NULL,
@@ -197,3 +217,56 @@ def list_brands():
 def delete_brand(bid: str):
     with conn() as c:
         c.execute("DELETE FROM brands WHERE id=?", (bid,))
+
+
+USAGE_FIELDS = ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "cost_usd", "turns", "duration_s")
+
+
+def add_usage(row: dict):
+    cols = ["at", "project_id", "kind", "model", "effort", "source", "models", *USAGE_FIELDS, "ok"]
+    vals = [row.get(c) for c in cols]
+    vals[cols.index("models")] = json.dumps(row.get("models") or {})
+    with conn() as c:
+        c.execute(f"INSERT INTO usage ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})", vals)
+
+
+def _sum_select():
+    return ", ".join(f"COALESCE(SUM({f}),0) AS {f}" for f in USAGE_FIELDS) + ", COUNT(*) AS runs"
+
+
+def usage_totals(since: float, project_id: str | None = None) -> dict:
+    q = f"SELECT {_sum_select()} FROM usage WHERE at >= ?"
+    args = [since]
+    if project_id:
+        q += " AND project_id = ?"
+        args.append(project_id)
+    with conn() as c:
+        return dict(c.execute(q, args).fetchone())
+
+
+def usage_grouped(since: float, key: str) -> list[dict]:
+    expr = {"day": "date(at, 'unixepoch', 'localtime')", "model": "COALESCE(model, '')", "kind": "kind"}[key]
+    with conn() as c:
+        rows = c.execute(f"SELECT {expr} AS k, {_sum_select()} FROM usage WHERE at >= ? GROUP BY k ORDER BY k", (since,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def usage_recent(limit: int = 30, project_id: str | None = None) -> list[dict]:
+    q = "SELECT u.*, p.script AS project_script, p.request AS project_request FROM usage u LEFT JOIN projects p ON p.id = u.project_id"
+    args = []
+    if project_id:
+        q += " WHERE u.project_id = ?"
+        args.append(project_id)
+    q += " ORDER BY u.at DESC LIMIT ?"
+    args.append(limit)
+    with conn() as c:
+        rows = c.execute(q, args).fetchall()
+    out = []
+    for r in rows:
+        d = dict(r)
+        d["models"] = json.loads(d["models"] or "{}")
+        script = json.loads(d.pop("project_script") or "null") or {}
+        req = json.loads(d.pop("project_request") or "null") or {}
+        d["project_title"] = script.get("title") or req.get("topic", "")[:80] or None
+        out.append(d)
+    return out

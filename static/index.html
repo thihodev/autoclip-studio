@@ -13,7 +13,7 @@
     --accent:#e8385a; --accent-hover:#d22a4c; --accent-soft:#fde8ec; --on-accent:#fff;
     --ok:#12805c; --ok-soft:#e3f5ee; --warn:#a15c00; --warn-soft:#fdf1df; --err:#c62d3f; --err-soft:#fde7ea;
     --shadow:0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
-    --radius:12px; --radius-sm:8px;
+    --radius:12px; --radius-sm:8px; --chart:#e8385a;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -21,10 +21,10 @@
       --text:#e8eaee; --text-2:#a2a9b5; --text-3:#6f7784;
       --accent:#ff4d6d; --accent-hover:#ff6a85; --accent-soft:#3a1a22; --on-accent:#fff;
       --ok:#3ccf91; --ok-soft:#10291f; --warn:#f0b04f; --warn-soft:#2d2210; --err:#ff6b7d; --err-soft:#341519;
-      --shadow:none;
+      --shadow:none; --chart:#f0436a;
     }
   }
-  :root[data-theme="dark"] {
+  :root[data-theme="dark"] { --chart:#f0436a;
       --bg:#0e1013; --surface:#16191e; --surface-2:#1d2128; --border:#262b33; --border-strong:#353b45;
       --text:#e8eaee; --text-2:#a2a9b5; --text-3:#6f7784;
       --accent:#ff4d6d; --accent-hover:#ff6a85; --accent-soft:#3a1a22; --on-accent:#fff;
@@ -192,6 +192,28 @@
   .savebar > div { pointer-events:auto; display:flex; align-items:center; gap:12px; background:var(--text); color:var(--bg); padding:8px 8px 8px 16px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
   .savebar .btn.ghost { color:var(--bg); } .savebar .btn.ghost:hover { background:rgba(127,127,127,.2); }
 
+  /* usage */
+  .tiles { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; }
+  @media (max-width: 860px) { .tiles { grid-template-columns:repeat(2, 1fr); } }
+  .tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); }
+  .tile .k { font-size:12px; color:var(--text-2); } .tile .v { font-size:24px; font-weight:700; letter-spacing:-.01em; margin-top:2px; font-variant-numeric:tabular-nums; }
+  .tile .s { font-size:12px; color:var(--text-3); margin-top:2px; }
+  .meter { height:8px; background:var(--surface-2); border-radius:99px; overflow:hidden; margin-top:6px; }
+  .meter i { display:block; height:100%; border-radius:99px; }
+  .bars { position:relative; height:180px; display:flex; align-items:flex-end; gap:2px; padding-top:8px; border-bottom:1px solid var(--border); }
+  .bars .b { flex:1; display:flex; align-items:flex-end; height:100%; cursor:default; }
+  .bars .b i { display:block; width:100%; background:var(--chart); border-radius:4px 4px 0 0; min-height:2px; }
+  .bars .b.zero i { background:var(--border); }
+  .bars .b:hover i { filter:brightness(1.1); }
+  .bars .tip { position:absolute; top:0; transform:translateX(-50%); background:var(--text); color:var(--bg); font-size:12px; padding:6px 8px; border-radius:6px; pointer-events:none; white-space:nowrap; z-index:2; }
+  .axis { display:flex; justify-content:space-between; font-size:11px; color:var(--text-3); margin-top:4px; font-variant-numeric:tabular-nums; }
+  table.data { width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
+  table.data th { text-align:left; font-weight:600; color:var(--text-2); font-size:12px; padding:6px 8px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  table.data td { padding:7px 8px; border-bottom:1px solid var(--border); vertical-align:top; }
+  table.data td.n, table.data th.n { text-align:right; }
+  .tablewrap { overflow-x:auto; }
+  .modelpick { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
   /* context files */
   .files { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
   .filechip { display:inline-flex; align-items:center; gap:6px; max-width:100%; padding:4px 4px 4px 10px; border:1px solid var(--border-strong); border-radius:8px; font-size:12px; background:var(--surface-2); }
@@ -258,6 +280,7 @@
   <symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></symbol>
   <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
   <symbol id="i-clip" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></symbol>
+  <symbol id="i-bar" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></symbol>
   <symbol id="i-retry" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></symbol>
 </svg>
 
@@ -272,6 +295,7 @@
       <span class="count" x-show="brandList.length" x-text="brandList.length" style="background:var(--surface-2);color:var(--text-2)"></span></a>
     <a class="nav" href="/autopilot" :class="route.page==='autopilot'&&'on'" @click.prevent="nav('/autopilot')"><svg class="i"><use href="#i-repeat"/></svg><span x-t>Autopilot</span>
       <span class="count" x-show="autopilot.enabled" style="background:var(--ok-soft);color:var(--ok)"><span x-t>on</span></span></a>
+    <a class="nav" href="/usage" :class="route.page==='usage'&&'on'" @click.prevent="nav('/usage')"><svg class="i"><use href="#i-bar"/></svg><span x-t>Usage</span></a>
     <a class="nav" href="/connections" :class="route.page==='connections'&&'on'" @click.prevent="nav('/connections')"><svg class="i"><use href="#i-link"/></svg><span x-t>Connections</span>
       <span class="count" x-show="missingSetup().length" x-text="missingSetup().length"></span></a>
     <div class="side-foot">
@@ -359,6 +383,18 @@
               <div class="field"><label><span x-t>Voice speed</span> <span x-text="form.voice_rate.toFixed(2)+'×'"></span></label>
                 <input type="range" min="0.7" max="1.4" step="0.05" x-model.number="form.voice_rate"></div>
             </div>
+            <div class="field" style="margin-top:12px"><label x-text="t('Claude for this video') + ' · ' + t(form.engine==='motion' ? 'Claude Motion' : 'Quick')"></label>
+              <div class="modelpick" style="max-width:520px">
+                <select x-model="form.model" :aria-label="t('Model')">
+                  <option value="" x-text="t('Default') + ' · ' + modelLabel(models.defaults?.[form.engine==='motion'?'motion':'script']?.model)"></option>
+                  <template x-for="m in models.models" :key="m.id"><option :value="m.id" x-text="t(m.label)"></option></template>
+                </select>
+                <select x-model="form.effort" :aria-label="t('Effort')">
+                  <option value="" x-text="t('Default') + ' · ' + effortLabel(models.defaults?.[form.engine==='motion'?'motion':'script']?.effort||'')"></option>
+                  <template x-for="e in models.efforts.filter(Boolean)" :key="e"><option :value="e" x-text="effortLabel(e)"></option></template>
+                </select>
+              </div>
+            </div>
             <div class="field" style="margin-top:12px"><label><span x-t>Publish to</span></label>
               <template x-if="!channels.length"><p class="small muted"><span x-t>No accounts connected.</span> <a href="/connections" @click.prevent="nav('/connections')"><span x-t>Connect YouTube, TikTok or Facebook</span></a> <span x-t>to publish from here.</span></p></template>
               <div class="pickchips">
@@ -368,7 +404,7 @@
                     <span x-text="c.name"></span><span class="small muted" x-text="platformLabel(c)"></span></button>
                 </template>
               </div>
-              <label class="toggle small" style="margin-top:10px" x-show="channels.length" :style="!form.channelIds.length && 'opacity:.5'">
+              <label class="toggle small" style="margin-top:10px" x-show="channels.length" :style="{ opacity: form.channelIds.length ? 1 : .5 }">
                 <input type="checkbox" x-model="form.auto_publish" :disabled="!form.channelIds.length"> <span x-t>Publish automatically when the first render is ready</span></label>
             </div>
           </details>
@@ -448,7 +484,8 @@
                   <div class="lbl" style="margin:4px 0"><span x-t>Versions</span></div>
                   <template x-for="v in versions()" :key="v.file">
                     <div class="ver" :class="(preview||latestFile())===v.file && 'on'" @click="preview = v.file===latestFile() ? null : v.file">
-                      <span class="n" x-text="'v'+v.version"></span><span class="note" x-text="v.note" :title="v.note"></span>
+                      <span class="n" x-text="'v'+v.version"></span><span class="note" x-text="v.note" :title="v.note + (v.model ? ' — ' + modelLabel(v.model) + (v.effort ? ' · ' + effortLabel(v.effort) : '') : '')"></span>
+                      <span class="small muted" x-show="v.model" x-text="modelShort(v.model)"></span>
                       <span class="small muted" x-show="v.file===latestFile()"><span x-t>latest</span></span>
                     </div>
                   </template>
@@ -576,7 +613,17 @@
                     <div class="suggest">
                       <template x-for="s in suggestions"><button type="button" @click="instruction = instruction.trim() ? instruction.trim() + '. ' + t(s) : t(s)" x-text="t(s)"></button></template>
                     </div>
-                    <div class="actions" style="margin-top:12px;justify-content:flex-end">
+                    <div class="actions" style="margin-top:12px;justify-content:space-between">
+                      <div class="modelpick" style="min-width:300px;flex:1;max-width:420px">
+                        <select x-model="editModel" :aria-label="t('Model')">
+                          <option value="" x-text="t('Default') + ' · ' + modelLabel(models.defaults?.[isMotion(cur)?'motion':'script']?.model)"></option>
+                          <template x-for="m in models.models" :key="m.id"><option :value="m.id" x-text="t(m.label)"></option></template>
+                        </select>
+                        <select x-model="editEffort" :aria-label="t('Effort')">
+                          <option value="" x-text="t('Default') + ' · ' + effortLabel(models.defaults?.[isMotion(cur)?'motion':'script']?.effort||'')"></option>
+                          <template x-for="e in models.efforts.filter(Boolean)" :key="e"><option :value="e" x-text="effortLabel(e)"></option></template>
+                        </select>
+                      </div>
                       <button class="btn primary" @click="aiEdit()" :disabled="instruction.trim().length<3"><svg class="i"><use href="#i-star"/></svg><span x-t>Apply with Claude</span></button>
                     </div>
                   </fieldset>
@@ -615,6 +662,21 @@
                       <p class="hint"><span x-t>New versions are sent to this review automatically.</span></p>
                     </div>
                   </template>
+                </div>
+
+                <div class="card" x-show="projUsage.total?.runs">
+                  <div class="card-head"><div class="grow"><h2><span x-t>Claude usage for this video</span></h2>
+                    <p x-text="t('{runs} runs · {tokens} tokens · {cost} · {time}', {runs: projUsage.total?.runs||0, tokens: fmtTokens(totalTokens(projUsage.total)), cost: fmtCost(projUsage.total?.cost_usd), time: fmtDur(projUsage.total?.duration_s)})"></p></div>
+                    <a class="btn ghost sm" href="/usage" @click.prevent="nav('/usage')"><span x-t>All usage</span></a></div>
+                  <div class="tablewrap"><table class="data">
+                    <thead><tr><th><span x-t>When</span></th><th><span x-t>Task</span></th><th><span x-t>Model</span></th><th class="n"><span x-t>Tokens</span></th><th class="n"><span x-t>Cost</span></th><th class="n"><span x-t>Time</span></th></tr></thead>
+                    <tbody><template x-for="r in projUsage.runs" :key="r.id"><tr>
+                      <td x-text="ago(r.at)"></td><td x-text="kindLabel(r.kind) + (r.ok ? '' : ' ✗')"></td>
+                      <td x-text="modelLabel(r.model) + (r.effort ? ' · ' + effortLabel(r.effort) : '')"></td>
+                      <td class="n" x-text="fmtTokens(totalTokens(r))"></td><td class="n" x-text="fmtCost(r.cost_usd)"></td><td class="n" x-text="fmtDur(r.duration_s)"></td>
+                    </tr></template></tbody>
+                  </table></div>
+                  <p class="hint" x-show="usageInfo.source!=='api_key'"><span x-t>Cost is the API-equivalent estimate; on a Claude plan you aren't billed per token — it shows how much of your usage a run took.</span></p>
                 </div>
 
                 <div class="card" x-show="(cur.extra?.history||[]).length">
@@ -883,6 +945,100 @@
       </template>
     </section>
 
+    <!-- ===================================================== USAGE -->
+    <section class="page" x-show="route.page==='usage'">
+      <div class="page-head">
+        <div><h1><span x-t>Usage</span></h1><p class="sub"><span x-t>Claude usage by your videos: models, effort, tokens and time.</span></p></div>
+        <div class="seg" role="group" :aria-label="t('Period')">
+          <template x-for="d in [7,30,90]" :key="d"><button type="button" :class="usageDays===d&&'on'" @click="usageDays=d; loadUsage()" x-text="t('{n} days', {n: d})"></button></template>
+        </div>
+      </div>
+
+      <!-- plan limits -->
+      <div class="card">
+        <div class="card-head"><div class="grow"><h2><span x-t>Plan limits</span></h2>
+          <p x-text="usageInfo.source==='api_key' ? t('You use an API key — usage is billed to your Anthropic account, without plan windows.') : t('Reported by Claude while your videos run; refreshed with every run.')"></p></div></div>
+        <template x-if="!Object.keys(usageInfo.rate_limits||{}).length"><p class="small muted"><span x-t>No limit information yet — it appears after the next Claude run.</span></p></template>
+        <div class="grid-2">
+          <template x-for="[type, rl] in Object.entries(usageInfo.rate_limits||{})" :key="type">
+            <div>
+              <div class="actions" style="justify-content:space-between">
+                <strong x-text="limitLabel(type)"></strong>
+                <span class="chip" :class="{allowed:'ok', allowed_warning:'warn', rejected:'err'}[rl.status]" x-text="t({allowed:'Within limit', allowed_warning:'Near the limit', rejected:'Limit reached'}[rl.status] || rl.status)"></span>
+              </div>
+              <div class="meter" x-show="rl.utilization != null"><i :style="`width:${Math.round((rl.utilization||0)*100)}%;background:${rl.status==='rejected'?'var(--err)':rl.status==='allowed_warning'?'var(--warn)':'var(--ok)'}`"></i></div>
+              <div class="small muted" style="margin-top:4px" x-text="(rl.utilization != null ? t('{n}% used', {n: Math.round(rl.utilization*100)}) + ' · ' : '') + (rl.resets_at ? t('resets {when}', {when: when(rl.resets_at)}) : '') + ' · ' + t('checked {ago}', {ago: ago(rl.at)})"></div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- tiles -->
+      <div class="tiles" style="margin-top:16px">
+        <div class="tile"><div class="k"><span x-t>Today</span></div><div class="v" x-text="fmtCost(usageInfo.today?.cost_usd)"></div><div class="s" x-text="t('{runs} runs · {tokens} tokens', {runs: usageInfo.today?.runs||0, tokens: fmtTokens(totalTokens(usageInfo.today))})"></div></div>
+        <div class="tile"><div class="k" x-text="t('Last {n} days', {n: usageDays})"></div><div class="v" x-text="fmtCost(usageInfo.period?.cost_usd)"></div><div class="s" x-text="t('{runs} runs · {tokens} tokens', {runs: usageInfo.period?.runs||0, tokens: fmtTokens(totalTokens(usageInfo.period))})"></div></div>
+        <div class="tile"><div class="k"><span x-t>Output tokens</span></div><div class="v" x-text="fmtTokens(usageInfo.period?.output_tokens)"></div><div class="s" x-text="t('{n} cached reads', {n: fmtTokens(usageInfo.period?.cache_read_tokens)})"></div></div>
+        <div class="tile"><div class="k"><span x-t>Claude time</span></div><div class="v" x-text="fmtDur(usageInfo.period?.duration_s)"></div><div class="s" x-text="t('{n} turns', {n: usageInfo.period?.turns||0})"></div></div>
+      </div>
+      <p class="hint" x-show="usageInfo.source && usageInfo.source!=='api_key'"><span x-t>Cost is the API-equivalent estimate; on a Claude plan you aren't billed per token — it shows how much of your usage a run took.</span></p>
+
+      <!-- daily chart -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-head"><div class="grow"><h2><span x-t>Cost per day</span></h2><p x-text="t('API-equivalent, last {n} days', {n: usageDays})"></p></div>
+          <button class="btn ghost sm" @click="showTable=!showTable" x-text="showTable ? t('Show chart') : t('Show table')"></button></div>
+        <template x-if="!showTable">
+          <div>
+            <div class="bars" @mouseleave="hoverDay=null" role="img" :aria-label="t('Cost per day')">
+              <template x-for="(d, i) in dailySeries()" :key="d.day">
+                <div class="b" :class="!d.cost_usd && 'zero'" @mouseenter="hoverDay=i"><i :style="`height:${barHeight(d.cost_usd)}%`"></i></div>
+              </template>
+              <div class="tip" x-show="hoverDay!=null" :style="{ left: ((hoverDay??0)+0.5)/dailySeries().length*100 + '%' }"
+                   x-text="hoverDay!=null ? (dayLabel(dailySeries()[hoverDay].day) + ' · ' + fmtCost(dailySeries()[hoverDay].cost_usd) + ' · ' + t('{runs} runs', {runs: dailySeries()[hoverDay].runs})) : ''"></div>
+            </div>
+            <div class="axis"><span x-text="dayLabel(dailySeries()[0]?.day)"></span><span x-text="t('max {v}', {v: fmtCost(maxDaily())})"></span><span x-text="dayLabel(dailySeries().at(-1)?.day)"></span></div>
+          </div>
+        </template>
+        <template x-if="showTable">
+          <div class="tablewrap"><table class="data">
+            <thead><tr><th><span x-t>Day</span></th><th class="n"><span x-t>Runs</span></th><th class="n"><span x-t>Tokens</span></th><th class="n"><span x-t>Cost</span></th></tr></thead>
+            <tbody><template x-for="d in usageInfo.by_day||[]" :key="d.k"><tr><td x-text="dayLabel(d.k)"></td><td class="n" x-text="d.runs"></td><td class="n" x-text="fmtTokens(totalTokens(d))"></td><td class="n" x-text="fmtCost(d.cost_usd)"></td></tr></template></tbody>
+          </table></div>
+        </template>
+      </div>
+
+      <div class="grid-2" style="margin-top:16px">
+        <div class="card" style="margin:0">
+          <div class="card-head"><div class="grow"><h2><span x-t>By model</span></h2></div></div>
+          <div class="tablewrap"><table class="data">
+            <thead><tr><th><span x-t>Model</span></th><th class="n"><span x-t>Runs</span></th><th class="n"><span x-t>Tokens</span></th><th class="n"><span x-t>Cost</span></th></tr></thead>
+            <tbody><template x-for="r in usageInfo.by_model||[]" :key="r.k"><tr><td x-text="modelLabel(r.k)"></td><td class="n" x-text="r.runs"></td><td class="n" x-text="fmtTokens(totalTokens(r))"></td><td class="n" x-text="fmtCost(r.cost_usd)"></td></tr></template></tbody>
+          </table></div>
+        </div>
+        <div class="card" style="margin:0">
+          <div class="card-head"><div class="grow"><h2><span x-t>By task</span></h2></div></div>
+          <div class="tablewrap"><table class="data">
+            <thead><tr><th><span x-t>Task</span></th><th class="n"><span x-t>Runs</span></th><th class="n"><span x-t>Time</span></th><th class="n"><span x-t>Cost</span></th></tr></thead>
+            <tbody><template x-for="r in usageInfo.by_kind||[]" :key="r.k"><tr><td x-text="kindLabel(r.k)"></td><td class="n" x-text="r.runs"></td><td class="n" x-text="fmtDur(r.duration_s)"></td><td class="n" x-text="fmtCost(r.cost_usd)"></td></tr></template></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-head"><div class="grow"><h2><span x-t>Recent runs</span></h2></div></div>
+        <template x-if="!(usageInfo.recent||[]).length"><p class="small muted"><span x-t>No Claude runs yet.</span></p></template>
+        <div class="tablewrap" x-show="(usageInfo.recent||[]).length"><table class="data">
+          <thead><tr><th><span x-t>When</span></th><th><span x-t>Task</span></th><th><span x-t>Video</span></th><th><span x-t>Model</span></th><th class="n"><span x-t>Tokens</span></th><th class="n"><span x-t>Cost</span></th><th class="n"><span x-t>Time</span></th></tr></thead>
+          <tbody><template x-for="r in usageInfo.recent" :key="r.id"><tr>
+            <td x-text="ago(r.at)"></td>
+            <td x-text="kindLabel(r.kind) + (r.ok ? '' : ' ✗')"></td>
+            <td><a x-show="r.project_id && r.project_title" :href="`/projects/${r.project_id}`" @click.prevent="nav(`/projects/${r.project_id}`)" x-text="r.project_title"></a><span x-show="!r.project_id" class="muted">—</span></td>
+            <td x-text="modelLabel(r.model) + (r.effort ? ' · ' + effortLabel(r.effort) : '')"></td>
+            <td class="n" x-text="fmtTokens(totalTokens(r))"></td><td class="n" x-text="fmtCost(r.cost_usd)"></td><td class="n" x-text="fmtDur(r.duration_s)"></td>
+          </tr></template></tbody>
+        </table></div>
+      </div>
+    </section>
+
     <!-- ===================================================== AUTOPILOT -->
     <section class="page" x-show="route.page==='autopilot'">
       <div class="page-head"><div><h1><span x-t>Autopilot</span></h1><p class="sub"><span x-t>On a schedule, Claude comes up with ideas for your niche, renders them and can publish them.</span></p></div>
@@ -918,7 +1074,7 @@
                   <span x-text="c.name"></span><span class="small muted" x-text="platformLabel(c)"></span></button>
               </template>
             </div>
-            <label class="toggle small" style="margin-top:10px" x-show="channels.length" :style="!autoForm.channelIds.length && 'opacity:.5'">
+            <label class="toggle small" style="margin-top:10px" x-show="channels.length" :style="{ opacity: autoForm.channelIds.length ? 1 : .5 }">
               <input type="checkbox" x-model="autoForm.auto_publish" :disabled="!autoForm.channelIds.length"> <span x-t>Publish automatically</span></label>
           </div>
         </div>
@@ -956,15 +1112,22 @@
                   <div class="grow"><div class="t" x-text="cl.current.email || cl.current.detail"></div>
                     <div class="d" x-text="sourceText(cl.current.source) + (cl.current.email && cl.current.detail.includes('·') ? t(' · ') + cl.current.detail.split('·').slice(1).join('·').trim() + t(' plan') : '')"></div></div>
                 </div>
-                <div class="grid-2" style="margin-top:14px;align-items:end">
-                  <div class="field"><label><span x-t>Model</span></label>
-                    <select @change="setModel($event.target.value)">
-                      <template x-for="m in [['sonnet','Sonnet · fast, recommended'],['opus','Opus · best quality'],['haiku','Haiku · fastest']]"><option :value="m[0]" x-text="t(m[1])" :selected="m[0]===cl.model"></option></template>
-                    </select></div>
-                  <div class="field"><label><span x-t>Claude Motion model</span></label>
-                    <select @change="setMotionModel($event.target.value)">
-                      <template x-for="m in [['opus','Opus · best design, recommended'],['sonnet','Sonnet · faster, uses less']]"><option :value="m[0]" x-text="t(m[1])" :selected="m[0]===(cfg.claude?.motion_model||'opus')"></option></template>
-                    </select></div>
+                <div class="stack" style="margin-top:14px">
+                  <template x-for="task in [['script','Scripts, ideas & quick edits'],['motion','Claude Motion videos']]" :key="task[0]">
+                    <div class="field"><label x-text="t(task[1])"></label>
+                      <div class="modelpick">
+                        <select :aria-label="t('Model')" @change="setDefault(task[0], 'model', $event.target.value)">
+                          <template x-for="m in models.models" :key="m.id"><option :value="m.id" :selected="m.id===models.defaults?.[task[0]]?.model" x-text="t(m.label) + ' · ' + t(m.note)"></option></template>
+                        </select>
+                        <select :aria-label="t('Effort')" @change="setDefault(task[0], 'effort', $event.target.value)">
+                          <template x-for="e in models.efforts" :key="e"><option :value="e" :selected="e===(models.defaults?.[task[0]]?.effort||'')" x-text="effortLabel(e)"></option></template>
+                        </select>
+                      </div>
+                    </div>
+                  </template>
+                  <p class="hint"><span x-t>Higher effort thinks longer: better results on hard work, more usage. You can override both for any video.</span></p>
+                </div>
+                <div class="grid-2" style="margin-top:4px">
                   <div class="actions" style="justify-content:flex-end;grid-column:1/-1">
                     <button class="btn" @click="switching=true"><span x-t>Switch account</span></button>
                     <button class="btn ghost danger" @click="cl.current.source==='app' ? claudeLogout() : claudeSource('')" x-text="cl.current.source==='app' ? t('Sign out') : t('Disconnect')"></button>
@@ -1285,7 +1448,7 @@ function parseRoute(pathname) {
   const p = pathname.split('/').filter(Boolean);
   if (p[0] === 'projects' && p[1]) return { page:'project', id:p[1], sub: EDITOR_TABS.includes(p[2]) ? p[2] : 'scenes' };
   if (p[0] === 'brands' && p[1]) return { page:'brand', id:p[1], sub:null };
-  if (['ideas','autopilot','connections','brands'].includes(p[0])) return { page:p[0], id:null, sub:null };
+  if (['ideas','autopilot','connections','brands','usage'].includes(p[0])) return { page:p[0], id:null, sub:null };
   return { page:'studio', id:null, sub:null };
 }
 
@@ -1295,7 +1458,9 @@ function app() {
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
     status: {}, cl: {}, cfg: { claude:{}, footage:{}, framejam:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
     channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] },
-    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion' },
+    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'' },
+    models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, showTable: false, hoverDay: null,
+    projUsage: {}, editModel: '', editEffort: '',
     uploadingContext: false, motionInfo: {}, voiceEdit: false, voiceKey: '', savingVoice: false, elevenVoices: [], previewing: false, contextAccept: '.txt,.md,.markdown,.pdf,.docx,.html,.htm,.csv,.json,.srt,.vtt,.yaml,.yml',
     brandList: [], brand: null, brandBase: '', brandMissing: false, syncing: false,
     importer: { open:false, url:'', ref:'', busy:false }, newBrand: { open:false, name:'' },
@@ -1334,7 +1499,7 @@ function app() {
       try { localStorage.setItem('autoclip.theme', theme); } catch {}
     },
     setTitle() {
-      const name = { studio:'Studio', project:'Editor', ideas:'Ideas', autopilot:'Autopilot', connections:'Connections', brands:'Brand kits', brand:'Brand kit' }[this.route.page];
+      const name = { studio:'Studio', project:'Editor', ideas:'Ideas', autopilot:'Autopilot', connections:'Connections', brands:'Brand kits', brand:'Brand kit', usage:'Usage' }[this.route.page];
       document.title = this.t(name) + ' · AutoClip Studio';
     },
 
@@ -1424,6 +1589,7 @@ function app() {
       const r = this.route = parseRoute(location.pathname);
       this.setTitle();
       if (r.page === 'brands') this.loadBrands();
+      if (r.page === 'usage') this.loadUsage();
       if (r.page === 'brand' && (prev.page !== 'brand' || prev.id !== r.id || !this.brand)) this.loadBrand(r.id);
       if (r.page === 'project' && (prev.page !== 'project' || prev.id !== r.id || !this.cur)) await this.openProject(r.id);
       if (r.page === 'connections') this.loadConnections();
@@ -1452,7 +1618,7 @@ function app() {
       });
       window.addEventListener('beforeunload', e => { if (this.dirty || this.brandDirty) { e.preventDefault(); e.returnValue = ''; } });
       try { this.form.brand_id = localStorage.getItem('autoclip.brand') || null; } catch {}
-      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion()]);
+      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage()]);
       if (['node','ffmpeg'].includes(this.motionInfo.code)) this.form.engine = 'classic';
       if (this.form.brand_id && !this.brandById(this.form.brand_id)) this.form.brand_id = null;
       this.ready = true;
@@ -1474,6 +1640,7 @@ function app() {
       if (gotTimeline || (finished && !this.dirty)) this.loadTimeline();
       if (finished) {
         this.preview = null;
+        this.loadProjectUsage();
         if (fresh.error) this.say(fresh.error, true);
         else if (fresh.status === 'ready') this.say(this.t('Version {v} is ready', {v: fresh.version}));
         else if (fresh.status === 'published') this.say('Published');
@@ -1486,7 +1653,7 @@ function app() {
       const { channelIds, ...f } = this.form;
       try { this.form.brand_id ? localStorage.setItem('autoclip.brand', this.form.brand_id) : localStorage.removeItem('autoclip.brand'); } catch {}
       const { context, ...rest } = f;
-      const p = await this.run(() => this.api('/api/projects', { method:'POST', body:{ ...rest, context_ids: context.map(c => c.id), auto_publish: f.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }));
+      const p = await this.run(() => this.api('/api/projects', { method:'POST', body:{ ...rest, model: rest.model || null, effort: rest.effort || null, context_ids: context.map(c => c.id), auto_publish: f.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }));
       this.creating = false;
       if (p) { this.form.topic = ''; this.form.context = []; await this.loadProjects(); this.nav(`/projects/${p.id}`); }
     },
@@ -1504,6 +1671,7 @@ function app() {
       const p = this.projects.find(x => x.id === id) || await this.api(`/api/projects/${id}`).catch(() => null);
       if (!p) { this.curMissing = true; return; }
       this.cur = p;
+      this.projUsage = {}; this.loadProjectUsage();
       this.loadTimeline();
       this.pubIds = (p.request.integrations || []).map(i => i.id).filter(i => this.channels.some(c => c.id === i));
       this.loadVoices(p.request.language || 'English');
@@ -1527,7 +1695,7 @@ function app() {
       this.say(empty ? this.t('Rendering — {n} empty scenes removed', {n: empty}) : 'Rendering a new version…');
     },
     async aiEdit() {
-      if (await this.run(() => this.api(`/api/projects/${this.cur.id}/ai-edit`, { method:'POST', body:{ instruction: this.instruction } }))) {
+      if (await this.run(() => this.api(`/api/projects/${this.cur.id}/ai-edit`, { method:'POST', body:{ instruction: this.instruction, model: this.editModel || null, effort: this.editEffort || null } }))) {
         this.cur = { ...this.cur, status:'editing', progress:0, error:null }; this.instruction = '';
       }
     },
@@ -1669,6 +1837,37 @@ function app() {
     },
     async githubDisconnect() { this.github = await this.api('/api/github', { method:'DELETE' }); this.githubRepos = []; this.say('GitHub disconnected'); },
 
+    // ------------------------------------------------ models & usage
+    async loadModels() { this.models = await this.api('/api/models').catch(() => this.models); },
+    async setDefault(task, field, value) {
+      const key = task === 'motion' ? (field === 'model' ? 'motion_model' : 'motion_effort') : field;
+      if (await this.run(() => this.api('/api/settings/claude', { method:'PUT', body:{ ...this.cfg.claude, [key]: value } }), 'Saved')) { await this.loadConnections(); this.loadModels(); }
+    },
+    async loadUsage() { this.usageInfo = await this.api(`/api/usage?days=${this.usageDays}`).catch(() => this.usageInfo); },
+    async loadProjectUsage() { if (this.cur) this.projUsage = await this.api(`/api/projects/${this.cur.id}/usage`).catch(() => ({})); },
+    modelLabel(id) { if (!id) return this.t('Default'); const m = (this.models.models || []).find(x => x.id === id); return m ? this.t(m.label) : id; },
+    modelShort(id) { const m = (this.models.models || []).find(x => x.id === id); return m ? m.label.replace('Claude ', '') : id; },
+    effortLabel(e) { return this.t({ '':'Model default', low:'Low effort', medium:'Medium effort', high:'High effort', xhigh:'Extra-high effort', max:'Max effort' }[e] ?? e); },
+    kindLabel(k) { return this.t({ script:'Script', ideas:'Ideas', edit:'AI edit', motion:'Claude Motion', 'motion-edit':'Claude Motion edit', 'brand-import':'Brand import' }[k] || k); },
+    limitLabel(k) { return this.t({ five_hour:'5-hour window', seven_day:'Weekly', seven_day_opus:'Weekly · Opus', seven_day_sonnet:'Weekly · Sonnet', overage:'Extra usage' }[k] || k); },
+    totalTokens(r) { return (r?.input_tokens||0) + (r?.output_tokens||0) + (r?.cache_read_tokens||0) + (r?.cache_write_tokens||0); },
+    fmtTokens(n) { n = +n || 0; if (n >= 1e6) return (n/1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M'; if (n >= 1e3) return (n/1e3).toFixed(n >= 1e4 ? 0 : 1) + 'k'; return String(n); },
+    fmtCost(v) { v = +v || 0; return '$' + (v >= 100 ? v.toFixed(0) : v >= 1 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(2) : v > 0 ? v.toFixed(4) : '0'); },
+    fmtDur(s) { s = Math.round(+s || 0); if (s < 60) return s + 's'; const m = Math.floor(s / 60); if (m < 60) return `${m}m ${String(s % 60).padStart(2, '0')}s`; return `${Math.floor(m / 60)}h ${m % 60}m`; },
+    dayLabel(d) { if (!d) return ''; const [y, mo, da] = d.split('-').map(Number); return new Date(y, mo - 1, da).toLocaleDateString(this.lang, { month:'short', day:'numeric' }); },
+    dailySeries() {
+      const by = Object.fromEntries((this.usageInfo.by_day || []).map(d => [d.k, d]));
+      const out = [];
+      for (let i = this.usageDays - 1; i >= 0; i--) {
+        const dt = new Date(); dt.setDate(dt.getDate() - i);
+        const k = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+        out.push({ day: k, cost_usd: by[k]?.cost_usd || 0, runs: by[k]?.runs || 0 });
+      }
+      return out;
+    },
+    maxDaily() { return Math.max(0, ...this.dailySeries().map(d => d.cost_usd)); },
+    barHeight(v) { const m = this.maxDaily(); return m ? Math.max(1.5, v / m * 100) : 1.5; },
+
     // ------------------------------------------------ Claude Motion & voice
     async loadMotion() { this.motionInfo = await this.api('/api/motion').catch(() => this.motionInfo); },
     async installMotion() {
@@ -1739,7 +1938,6 @@ function app() {
         this.apiKey = ''; this.switching = false; this.loadConnections();
       }
     },
-    async setMotionModel(model) { if (await this.run(() => this.api('/api/settings/claude', { method:'PUT', body:{ ...this.cfg.claude, motion_model: model } }), 'Model updated')) this.loadConnections(); },
     async setModel(model) { if (await this.run(() => this.api('/api/settings/claude', { method:'PUT', body:{ ...this.cfg.claude, model } }), 'Model updated')) this.loadConnections(); },
     async claudeLogout() { if (await this.run(() => this.api('/api/claude/logout', { method:'POST' }), 'Signed out')) this.loadConnections(); },
     async saveFootage() {

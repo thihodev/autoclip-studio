@@ -28,7 +28,7 @@ from claude_agent_sdk import (
     TextBlock, ToolUseBlock, create_sdk_mcp_server, query, tool,
 )
 
-from . import brands, claude, context, render, settings, tts
+from . import brands, claude, context, render, settings, tts, usage
 from .config import DATA_DIR
 
 log = logging.getLogger("motion")
@@ -338,13 +338,17 @@ class Progress:
         return p.read_text(errors="replace") if p.exists() else ""
 
 
-async def _agent(pid: str, root: Path, req: dict, brand: dict | None, task: str, report) -> str:
+async def _agent(pid: str, root: Path, req: dict, brand: dict | None, task: str, report, kind: str = "motion",
+                 model: str | None = None, effort: str | None = None) -> str:
     log_path = root / "agent.log"
+    model, effort = usage.choose("motion", model or req.get("model"), effort or req.get("effort"))
+    meter = usage.Meter(kind, pid, model, effort)
     options = ClaudeAgentOptions(
         cwd=str(root),
         cli_path=claude.cli_path(),
         env={**claude._env(), "HYPERFRAMES_SKIP_SKILLS": "1", "DO_NOT_TRACK": "1"},
-        model=settings.get("claude").get("motion_model") or "opus",
+        model=model,
+        effort=effort,
         setting_sources=["project"],  # project CLAUDE.md + the HyperFrames skills linked into .claude/skills
         skills="all",
         system_prompt={"type": "preset", "preset": "claude_code", "append": RULES},
@@ -361,11 +365,12 @@ async def _agent(pid: str, root: Path, req: dict, brand: dict | None, task: str,
     final = ""
     started = time.time()
     with open(log_path, "a", encoding="utf-8") as logf:
-        logf.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n{task}\n")
+        logf.write(f"\n===== {time.strftime('%Y-%m-%d %H:%M:%S')} · {model} · effort {effort or 'default'} =====\n{task}\n")
 
         async def consume():
             nonlocal final
             async for msg in query(prompt=prompt(), options=options):
+                meter.see(msg)
                 if isinstance(msg, AssistantMessage):
                     for block in msg.content:
                         if isinstance(block, ToolUseBlock):
@@ -377,11 +382,16 @@ async def _agent(pid: str, root: Path, req: dict, brand: dict | None, task: str,
                 elif isinstance(msg, ResultMessage):
                     final = msg.result or ""
                     logf.write(f"[result] error={msg.is_error} turns={getattr(msg, 'num_turns', '?')} "
-                               f"secs={time.time() - started:.0f}\n{final[:2000]}\n")
+                               f"cost=${msg.total_cost_usd or 0:.4f} secs={time.time() - started:.0f}\n{final[:2000]}\n")
                     if msg.is_error:
                         raise RuntimeError(f"Claude stopped: {final[:300]}")
 
-        await asyncio.wait_for(consume(), TIMEOUT)
+        try:
+            await asyncio.wait_for(consume(), TIMEOUT)
+        except BaseException:
+            meter.save(ok=False)
+            raise
+    meter.save()
     return final
 
 
@@ -439,7 +449,7 @@ async def _with_bumpers(pid: str, src: Path, brand: dict, out: Path):
                          "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", out)
 
 
-async def create(pid: str, req: dict, out: Path, report) -> dict:
+async def create(pid: str, req: dict, out: Path, report, model: str | None = None, effort: str | None = None) -> dict:
     if not status()["ok"]:
         await install()
     brand = brands.get(req.get("brand_id"))
@@ -448,11 +458,12 @@ async def create(pid: str, req: dict, out: Path, report) -> dict:
     task = (f"Make this video with the /{WORKFLOW} workflow, fully autonomous. BRIEF.md is confirmed — start at Step 0 "
             f"with the project already initialized (do not run init again). Follow the run instructions in your system "
             f"prompt for narration, checks and the final render.")
-    await _agent(pid, root, req, brand, task, report)
+    await _agent(pid, root, req, brand, task, report, "motion", model, effort)
     return await _finish(pid, root, brand, out)
 
 
-async def edit(pid: str, req: dict, instruction: str, out: Path, report) -> dict:
+async def edit(pid: str, req: dict, instruction: str, out: Path, report, model: str | None = None,
+               effort: str | None = None) -> dict:
     brand = brands.get(req.get("brand_id"))
     root = project_root(pid)
     if not (root / "STORYBOARD.md").exists():
@@ -463,5 +474,5 @@ async def edit(pid: str, req: dict, instruction: str, out: Path, report) -> dict
             f"keep everything else:\n\n{instruction}\n\nIf narration changes, update SCRIPT.md and call the voiceover tool "
             f"for the changed frames only, then sync durations and reassemble. Re-run lint/check, then render to "
             f"renders/video.mp4.")
-    await _agent(pid, root, req, brand, task, report)
+    await _agent(pid, root, req, brand, task, report, "motion-edit", model, effort)
     return await _finish(pid, root, brand, out)

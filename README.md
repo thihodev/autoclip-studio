@@ -69,6 +69,8 @@ HyperFrames' own skill installer writes into your global agent folders (`~/.clau
   - **Edit with AI**: describe the change ("punchier hook, shorten scene 3, captions at the top") and Claude edits the timeline;
   - **FrameJam review**: send the render to FrameJam, click frames and comment, then **Apply feedback**;
   - every render is kept as a version (v1, v2, …) you can preview and compare.
+- **Models & effort**: pick the Claude model (Opus 5.5, Sonnet 5.5, Haiku 5.5, Fable 5.1) and effort level (low → max) as defaults for scripts/edits and for Claude Motion in Connections, and override them per video or per AI edit. Each version records the model and effort that made it.
+- **Usage** (`/usage`): plan-limit windows as Claude reports them (5-hour, weekly), today and period totals, cost per day, breakdowns by model and task, and recent runs; each video shows its own Claude usage. Cost is the API-equivalent estimate reported by Claude — on a Claude plan you aren't billed per token.
 - **Context files** (optional): attach articles, notes, product docs or transcripts (TXT, MD, PDF, DOCX, HTML, CSV, JSON, SRT/VTT) when creating a video, or later in the editor. Claude uses them as source material for the script and for AI edits.
 - **Brand kits**: a design system for videos — see below.
 - **Ideas**: Claude suggests topics for a niche, each with an opening hook.
@@ -152,9 +154,9 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 | POST, DELETE | `/api/context`, `/api/context/{id}` | Upload a context file (multipart `file`) before creating a video; pass the ids as `context_ids` |
 | POST, DELETE | `/api/projects/{id}/context`, `/api/projects/{id}/context/{cid}` | Add / remove context files of a video |
 | POST | `/api/ideas` | `{niche, language, count}` |
-| GET, POST | `/api/projects` | List / create `{topic, language, duration, format, style, voice, voice_rate, brand_id, context_ids, auto_publish, integrations}` |
+| GET, POST | `/api/projects` | List / create `{topic, language, duration, format, engine, model, effort, style, voice, voice_rate, brand_id, context_ids, auto_publish, integrations}` |
 | PUT | `/api/projects/{id}/timeline` | Save a manual edit and re-render |
-| POST | `/api/projects/{id}/ai-edit` | `{instruction}` |
+| POST | `/api/projects/{id}/ai-edit` | `{instruction, model?, effort?}` |
 | GET | `/api/projects/{id}/footage?q=` | Search stock footage |
 | POST | `/api/projects/{id}/upload` | Upload your own clip (multipart `file`) |
 | POST | `/api/projects/{id}/framejam`, `/api/projects/{id}/framejam/apply` | FrameJam review loop |
@@ -165,6 +167,8 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 | POST | `/api/brands/import`, `/api/brands/{id}/sync` | Import / re-sync from GitHub `{url, ref}` |
 | GET, POST, DELETE | `/api/github`, `/api/github/repos` | GitHub connection and repo list |
 | GET, PUT | `/api/autopilot` | Autopilot settings |
+| GET | `/api/models` | Available models, effort levels and current defaults |
+| GET | `/api/usage?days=30`, `/api/projects/{id}/usage` | Usage totals, per day/model/task, recent runs, plan limits |
 
 `publish_options`: `youtube_visibility` (`public|unlisted|private`), `tiktok_method` (`DIRECT_POST|UPLOAD`), `tiktok_privacy`, `schedule_at` (Postiz only).
 
