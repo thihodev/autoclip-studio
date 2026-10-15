@@ -28,7 +28,7 @@ from claude_agent_sdk import (
     TextBlock, ToolUseBlock, create_sdk_mcp_server, query, tool,
 )
 
-from . import activity, brands, claude, context, playbooks, render, settings, styles, tts, usage
+from . import activity, audio, brands, claude, context, playbooks, render, settings, styles, tts, usage
 from .config import DATA_DIR
 
 log = logging.getLogger("motion")
@@ -177,6 +177,8 @@ def _brief(req: dict, brand: dict | None, resolution: str, root: Path | None = N
         lines += ["", "## Hook", f'The first spoken line — and the first frame\'s headline — is exactly: "{req["hook"]}"']
     if root and req.get("playbook_id"):
         lines += playbooks.brief_lines(req["playbook_id"], root)
+    if root and req.get("sfx", True) is not False:
+        lines += audio.motion_brief(root)
     if root and req.get("style_id"):
         lines += styles.brief_lines(req["style_id"], root, bool(brand))
     return "\n".join(lines) + "\n"
@@ -197,6 +199,8 @@ async def prepare(pid: str, req: dict, brand: dict | None) -> Path:
         if src.is_dir() and not dest.exists():
             dest.symlink_to(src.resolve(), target_is_directory=True)
     if not (root / "BRIEF.md").exists():
+        if req.get("sfx", True) is not False:
+            await audio.sfx_pack()
         (root / "BRIEF.md").write_text(_brief(req, brand, resolution, root), encoding="utf-8")
     if req.get("context"):
         (root / "source").mkdir(exist_ok=True)
@@ -257,13 +261,12 @@ def _voiceover_server(pid: str, root: Path, req: dict, brand: dict | None):
             done.append(f"frame {frame}: {dur:.2f}s, {len(words)} words")
             activity.add(pid, f"Scene {frame}: “{text[:140]}”", "say")
         bgm = meta.get("bgm")
-        tracks = [m for m in (brand or {}).get("music", []) if brands.asset_path(brand["id"], m["file"]).exists()]
-        if tracks and not bgm:
-            m = tracks[int(render._hash(pid), 16) % len(tracks)]
+        if not bgm and (m := audio.pick(req.get("music") or "", brand, pid)):
             (root / "assets" / "music").mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(brands.asset_path(brand["id"], m["file"]), root / "assets" / "music" / m["file"])
-            bgm = {"path": f"assets/music/{m['file']}", "source": "host", "volume": float(m.get("volume", 0.12)),
-                   "query": None, "duration_s": round(await render.media_duration(root / "assets" / "music" / m["file"]), 3)}
+            dest = root / "assets" / "music" / Path(m["path"]).name
+            shutil.copyfile(m["path"], dest)
+            bgm = {"path": f"assets/music/{dest.name}", "source": "host", "volume": m["volume"],
+                   "query": None, "duration_s": round(await render.media_duration(dest), 3)}
         meta = {"bgm": bgm, "bgm_pending": False, "voices": sorted(voices.values(), key=lambda v: v["frame"]),
                 "sfx": meta.get("sfx", [])}
         meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
@@ -284,7 +287,8 @@ Hard rules:
 - Never run `skills update`, `npx skills`, `npm install -g`, `pip install`, `curl`, `wget`, `heygen` or `hyperframes auth/publish/cloud`.
 - Narration: once SCRIPT.md is final, DO NOT run `scripts/audio.mjs` generate. Call the `mcp__autoclip__voiceover` tool
   with every narration line (frame number + exact spoken text). It writes the voice files and audio_meta.json in the
-  shape the workflow expects. Then continue with `audio.mjs sync-durations`. Skip `fetch-sfx` (no SFX catalog).
+  shape the workflow expects. Then continue with `audio.mjs sync-durations`. Skip `fetch-sfx`: sound effects
+  come from AutoClip's pack (see the brief), and when the brief has none, leave `sfx` empty.
 - Skip sign-in and preference recording steps (`hyperframes auth status`, `prefs.mjs`) — not available here.
 - Do Step 4 (time-coded shot sequence per frame) properly before building.
 - Step 5: dispatch ONE `frame-designer` sub-agent PER FRAME (Agent tool, subagent_type "frame-designer") with `_role.md`

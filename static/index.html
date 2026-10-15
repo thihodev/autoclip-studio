@@ -614,6 +614,19 @@
             <div class="field"><label><span x-t>Voice speed</span> <span x-text="form.voice_rate.toFixed(2)+'×'"></span></label>
               <input type="range" min="0.7" max="1.4" step="0.05" x-model.number="form.voice_rate"></div>
           </div>
+          <div class="grid-2" style="margin-top:12px;align-items:end">
+            <div class="field"><label><span x-t>Background music</span></label>
+              <div class="actions" style="flex-wrap:nowrap"><div style="flex:1;min-width:0">
+                <select x-select x-model="form.music">
+                  <option value="" x-t>Automatic (brand kit music, else the library)</option>
+                  <option value="none" x-t>No music</option>
+                  <template x-for="m in musicList" :key="m.file"><option :value="m.file" x-text="m.name + (m.mood && m.mood !== m.name ? ' · ' + m.mood : '')"></option></template>
+                </select></div>
+                <button type="button" class="btn icon" x-show="form.music && form.music!=='none'" :title="t('Listen')" :aria-label="t('Listen')" @click="playTrack(form.music)"><svg class="i"><use :href="playing===form.music ? '#i-pause' : '#i-play'"/></svg></button>
+                <button type="button" class="btn ghost sm" @click="nav('/connections'); openConn('audio')"><span x-t>Library</span></button></div></div>
+            <label class="toggle small" style="margin-bottom:8px"><input type="checkbox" :checked="form.sfx !== false" @change="form.sfx = $event.target.checked">
+              <span x-t>Sound effects (whooshes on cuts; Claude Motion adds pops, risers and impacts)</span></label>
+          </div>
           <div class="field" style="margin-top:12px"><label><span x-t>Publish to</span></label>
             <template x-if="!channels.length"><p class="small muted"><span x-t>No accounts connected.</span> <a href="/connections" @click.prevent="nav('/connections')"><span x-t>Connect YouTube, TikTok or Facebook</span></a> <span x-t>to publish from here.</span></p></template>
             <div class="pickchips">
@@ -1448,6 +1461,11 @@
               <span class="grow"><span class="t"><span x-t>Voice-over</span></span><span class="d" x-text="status.voice?.provider==='elevenlabs' ? 'ElevenLabs' + (cfg.voice?.elevenlabs_voice_name ? ' · ' + cfg.voice.elevenlabs_voice_name : '') : t('Free Microsoft voices · add ElevenLabs for natural voices')"></span></span>
               <span class="dot" :class="{ok: status.voice?.provider==='elevenlabs'}"></span><svg class="i chev"><use href="#i-right"/></svg>
             </button>
+            <button type="button" class="crow" @click="openConn('audio')">
+              <span class="ctile"><svg class="i"><use href="#i-star"/></svg></span>
+              <span class="grow"><span class="t"><span x-t>Music &amp; sound effects</span></span><span class="d" x-text="t('{n} track(s) in the library · 7 sound effects', {n: musicList.length})"></span></span>
+              <span class="dot" :class="{ok: musicList.length}"></span><svg class="i chev"><use href="#i-right"/></svg>
+            </button>
             <button type="button" class="crow" @click="openConn('footage')">
               <span class="ctile"><svg class="i"><use href="#i-film"/></svg></span>
               <span class="grow"><span class="t"><span x-t>Stock footage</span></span><span class="d" x-text="status.footage?.ok ? (cfg.footage?.provider==='pexels' ? 'Pexels' : 'Pixabay') : t('Off · scenes use animated backgrounds')"></span></span>
@@ -1766,6 +1784,36 @@
             </div>
             <p class="hint" x-show="['node','ffmpeg'].includes(motionInfo.code)"><span x-t>Install it, then reload this page. Videos use the Quick engine until then.</span></p>
       </div>
+      <div x-show="conn==='audio'">
+        <h3 class="chead" style="margin-top:0"><span x-t>Music library</span></h3>
+        <template x-if="!musicList.length"><p class="small muted"><span x-t>No tracks yet. Add music you have the rights to, or generate it with ElevenLabs.</span></p></template>
+        <div class="stack">
+          <template x-for="m in musicList" :key="m.file">
+            <div class="acct-row">
+              <button type="button" class="btn icon" @click="playTrack(m.file)" :aria-label="t('Listen')"><svg class="i"><use :href="playing===m.file ? '#i-pause' : '#i-play'"/></svg></button>
+              <div class="grow"><div x-text="m.name"></div><div class="small muted" x-text="[m.mood, fmtDur(m.duration), m.source==='elevenlabs' ? 'ElevenLabs' : ''].filter(Boolean).join(' · ')"></div></div>
+              <button class="btn ghost icon danger" @click="removeTrack(m)" :aria-label="t('Remove')"><svg class="i"><use href="#i-trash"/></svg></button>
+            </div>
+          </template>
+        </div>
+        <div class="grid-2" style="margin-top:12px">
+          <input x-model="musicUp.mood" :placeholder="t('Mood (e.g. upbeat, calm, epic)')">
+          <label class="btn uploadbtn"><span class="spin" x-show="musicUp.busy"></span><svg class="i" x-show="!musicUp.busy"><use href="#i-upload"/></svg><span x-t>Upload a track</span>
+            <input type="file" accept="audio/*" @change="uploadTrack($event)"></label>
+        </div>
+        <div class="field" style="margin-top:12px"><label><span x-t>Generate with ElevenLabs</span></label>
+          <div class="actions" style="flex-wrap:nowrap">
+            <input x-model="musicGen.prompt" :placeholder="t('e.g. upbeat lo-fi beat for a sports app, no vocals')" style="flex:1">
+            <div style="width:120px"><select x-select x-model.number="musicGen.seconds"><template x-for="s in [30,60,90,120]" :key="s"><option :value="s" x-text="t('{n} s', {n: s})"></option></template></select></div>
+            <button class="btn" @click="generateTrack()" :disabled="musicGen.busy || musicGen.prompt.trim().length < 3 || status.voice?.provider!=='elevenlabs'"><span class="spin" x-show="musicGen.busy"></span><span x-t>Generate</span></button>
+          </div>
+          <p class="hint" x-show="status.voice?.provider!=='elevenlabs'"><span x-t>Needs an ElevenLabs key (Voice-over) on a plan that includes Eleven Music.</span></p></div>
+        <h3 class="chead"><span x-t>Sound effects</span></h3>
+        <p class="small muted"><span x-t>Made by AutoClip (no licenses to worry about). Click to listen.</span></p>
+        <div class="pickchips" style="margin-top:8px">
+          <template x-for="s in sfxList" :key="s.name"><button type="button" class="pickchip" @click="playSfx(s)" :title="t(s.use)"><svg class="i"><use href="#i-play"/></svg><span x-text="s.name"></span></button></template>
+        </div>
+      </div>
       <div x-show="conn==='voice'">
             <template x-if="status.voice?.provider==='elevenlabs' && !voiceEdit">
               <div class="stack">
@@ -2080,7 +2128,7 @@ const VOICE_SAMPLES = {
   Italian: 'Ciao! Ecco come suonerà il tuo prossimo video.',
   Indonesian: 'Halo! Beginilah suara video Anda berikutnya.',
 };
-const COMPOSER_KEYS = ['language', 'format', 'duration', 'style', 'style_id', 'playbook_id', 'voice', 'voice_rate', 'engine', 'model', 'effort', 'channelIds', 'auto_publish', 'brand_id'];
+const COMPOSER_KEYS = ['language', 'format', 'duration', 'style', 'style_id', 'playbook_id', 'music', 'sfx', 'voice', 'voice_rate', 'engine', 'model', 'effort', 'channelIds', 'auto_publish', 'brand_id'];
 
 function parseRoute(pathname) {
   const p = pathname.split('/').filter(Boolean);
@@ -2097,13 +2145,14 @@ function app() {
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
     status: {}, cl: {}, cfg: { claude:{}, footage:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
     channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] },
-    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'', github_repo:'', style_id:'', playbook_id:'', hook:'' },
+    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'', github_repo:'', style_id:'', playbook_id:'', hook:'', music:'', sfx:true },
     models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, plan: {}, planLoading: false, showTable: false, hoverDay: null,
     projUsage: {}, editModel: '', editEffort: '',
     mp: { open:false, key:'form', sub:false, pos:{}, up:false, left:false, narrow:false },
     ghPick: { open:false, q:'', pos:{}, loading:false, current:'' },
     conn: '',
     hooks: { list:[], loading:false, ab:false, topic:'' }, post: { title:'', description:'', hashtags:'', youtube_tags:'' }, postBusy: false, coverText: '', coverBusy: false,
+    musicList: [], sfxList: [], playing: '', musicUp: { mood:'', busy:false }, musicGen: { prompt:'', seconds:60, busy:false },
     styleList: [], styleOpen: false, styleQ: '', styleSrc: '', pbList: [], pbOpen: false,
     rv: { time:0, dur:0, playing:false, sel:null, pin:null, mode:'time', text:'', comments:[], film:null, sending:false, dragging:null },
     workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' }, siteImport: { open:false, url:'', busy:false },
@@ -2280,7 +2329,7 @@ function app() {
       });
       window.addEventListener('beforeunload', e => { if (this.dirty || this.brandDirty) { e.preventDefault(); e.returnValue = ''; } });
       await this.loadComposer();
-      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers(), this.loadGithub(), this.loadStyles(), this.loadPlaybooks(),
+      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers(), this.loadGithub(), this.loadStyles(), this.loadPlaybooks(), this.loadMusic(),
         this.api('/api/settings').then(s => { if (s) this.cfg = s; }).catch(() => {})]);
       // Plan limits move while videos render: keep the Usage page current.
       setInterval(() => { if (this.route.page === 'usage' && !document.hidden && !this.planLoading) this.loadPlan(); }, 60000);
@@ -2347,6 +2396,33 @@ function app() {
     },
     async chooseCover(i) { const cv = await this.run(() => this.api(`/api/projects/${this.cur.id}/covers/${i}`, { method:'PUT' })); if (cv) this.cur = { ...this.cur, extra: { ...(this.cur.extra || {}), covers: cv } }; },
     curCovers() { const cv = this.cur?.extra?.covers; return cv && cv.version === this.cur.version ? cv : null; },
+    async loadMusic() { this.musicList = await this.api('/api/music').catch(() => this.musicList); },
+    async loadSfx() { if (!this.sfxList.length) this.sfxList = await this.api('/api/sfx').catch(() => []); },
+    playTrack(file) {
+      if (this._track) { this._track.pause(); const was = this.playing; this._track = null; this.playing = ''; if (was === file) return; }
+      const a = this._track = new Audio(`/api/music/${encodeURIComponent(file)}/audio`); this.playing = file;
+      a.onended = () => { if (this._track === a) { this._track = null; this.playing = ''; } };
+      a.play();
+    },
+    playSfx(s) { new Audio(s.url).play(); },
+    async uploadTrack(e) {
+      const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
+      const fd = new FormData(); fd.append('file', f); fd.append('name', f.name.replace(/\.[^.]+$/, '')); fd.append('mood', this.musicUp.mood);
+      this.musicUp.busy = true;
+      if (await this.run(() => this.api('/api/music', { method:'POST', body: fd }), 'Track added')) { this.musicUp.mood = ''; this.loadMusic(); }
+      this.musicUp.busy = false;
+    },
+    async generateTrack() {
+      this.musicGen.busy = true;
+      const r = await this.run(() => this.api('/api/music/generate', { method:'POST', body:{ prompt: this.musicGen.prompt, seconds: this.musicGen.seconds } }), 'Track generated and added');
+      this.musicGen.busy = false;
+      if (r) { this.musicGen.prompt = ''; this.loadMusic(); }
+    },
+    removeTrack(m) {
+      this.confirm(this.t('Remove “{name}”?', {name: m.name}), 'Videos that already use it keep their sound; new videos won\'t pick it.', 'Remove', async () => {
+        if (await this.run(() => this.api(`/api/music/${encodeURIComponent(m.file)}`, { method:'DELETE' }))) { this.loadMusic(); if (this.form.music === m.file) this.form.music = ''; }
+      });
+    },
     async loadPlaybooks() { this.pbList = await this.api('/api/playbooks').catch(() => this.pbList); },
     openPlaybooks() { this.pbOpen = true; this.loadPlaybooks(); },
     curPlaybook() { return this.form.playbook_id ? this.pbList.find(p => p.id === this.form.playbook_id) || null : null; },
@@ -2358,7 +2434,7 @@ function app() {
       return this.styleList.filter(s => (!this.styleSrc || s.source === this.styleSrc)
         && (!q || [s.name, s.tagline, s.description, ...s.mood, ...s.fonts, s.pacing].join(' ').toLowerCase().includes(q)));
     },
-    openConn(key) { this.conn = key; this.switching = false; this.keyEdit = false; if (key === 'claude' && this.cl.state === 'connected') this.loadPlan(); },
+    openConn(key) { if (key === 'audio') { this.loadMusic(); this.loadSfx(); } this.conn = key; this.switching = false; this.keyEdit = false; if (key === 'claude' && this.cl.state === 'connected') this.loadPlan(); },
     connInfo() {
       const k = this.conn;
       if (k.startsWith('pl:')) {
@@ -2369,6 +2445,7 @@ function app() {
         claude: ['Claude', 'Writes scripts, ideas and edits through the Claude Agent SDK.'],
         motion: ['Claude Motion', 'Claude animates each video as code with HyperFrames (open source). Runs on this computer.'],
         voice: ['Voice-over', 'ElevenLabs gives natural voices in 70+ languages, including Vietnamese. Without a key, free Microsoft voices are used.'],
+        audio: ['Music & sound effects', 'Background music and sound effects for your videos.'],
         footage: ['Stock footage', 'Real video clips behind each scene. Without a key, scenes use animated backgrounds in your brand colors.'],
         github: ['GitHub', 'Pick repositories when creating videos and import brand kits from them. Public repositories work without connecting.'],
         postiz: ['Postiz', 'Instagram, LinkedIn, X, Threads and more through a Postiz instance.'],

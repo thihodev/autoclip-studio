@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import activity, brands, claude, context, covers, db, leftovers, playbooks, styles, motion, pipeline, platforms, postiz, render, settings, tts, usage
+from . import activity, audio, brands, claude, context, covers, db, leftovers, playbooks, styles, motion, pipeline, platforms, postiz, render, settings, tts, usage
 from .config import DATA_DIR, ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -81,6 +81,8 @@ class ProjectIn(BaseModel):
     workspace_id: str | None = None
     model: str | None = None   # Claude model for this video (default: Connections setting for the engine)
     effort: str | None = None  # low | medium | high | xhigh | max (default: Connections setting)
+    music: str = ""  # "" auto (brand music, else the library) · "none" · a library file
+    sfx: bool = True  # sound effects (whooshes on cuts; Claude Motion places its own cues)
     hook: str | None = None  # the first spoken line, picked from Claude's suggestions
     playbook_id: str | None = None  # video type: structure, beats, pacing ("framejam:<id>" or "autoclip:<id>")
     style_id: str | None = None  # visual style for Claude Motion ("framejam:<id>" or "hyperframes:<id>")
@@ -367,7 +369,7 @@ def _require_setup():
 
 
 # The composer remembers its last choices (not the topic or files) for the next video.
-COMPOSER_KEYS = {"language", "format", "duration", "style", "style_id", "playbook_id", "voice", "voice_rate", "engine", "model", "effort",
+COMPOSER_KEYS = {"language", "format", "duration", "style", "style_id", "playbook_id", "music", "sfx", "voice", "voice_rate", "engine", "model", "effort",
                  "channelIds", "auto_publish", "brand_id"}
 
 
@@ -465,6 +467,66 @@ def choose_cover(pid: str, index: int):
     cv["chosen"] = index
     db.update_project(pid, extra=extra)
     return cv
+
+
+# ------------------------------------------------------------------ music & sound effects
+
+@app.get("/api/sfx")
+async def list_sfx():
+    await audio.sfx_pack()
+    return audio.sfx_list()
+
+
+@app.get("/api/sfx/{name}.wav")
+async def sfx_file(name: str):
+    if name not in audio.SFX:
+        raise HTTPException(404)
+    return FileResponse((await audio.sfx_pack()) / f"{name}.wav", media_type="audio/wav")
+
+
+@app.get("/api/music")
+def list_music():
+    return audio.music_list()
+
+
+@app.post("/api/music")
+async def add_music(file: UploadFile = File(...), name: str = Form(""), mood: str = Form("")):
+    tmp = render.project_dir("_uploads") / f"{uuid.uuid4().hex}{Path(file.filename or '').suffix}"
+    with open(tmp, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    try:
+        return await audio.music_add(tmp, name or Path(file.filename or "track").stem, mood)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+class MusicGenIn(BaseModel):
+    prompt: str = Field(min_length=3, max_length=500)
+    seconds: int = Field(60, ge=10, le=300)
+
+
+@app.post("/api/music/generate")
+async def generate_music(body: MusicGenIn):
+    try:
+        return await audio.music_generate(body.prompt, body.seconds)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/music/{file}/audio")
+def music_file(file: str):
+    p = audio.MUSIC_DIR / Path(file).name
+    if not p.exists():
+        raise HTTPException(404)
+    return FileResponse(p)
+
+
+@app.delete("/api/music/{file}")
+def delete_music(file: str):
+    audio.music_remove(file)
+    return audio.music_list()
 
 
 @app.get("/api/playbooks")

@@ -408,6 +408,8 @@ def new_timeline(meta: dict, req: dict, brand: dict | None = None) -> dict:
         "format": req.get("format", "shorts"),
         "voice": re.sub(r"-(Male|Female)$", "", voice or DEFAULT_VOICES.get(language, DEFAULT_VOICES["English"])),
         "voice_rate": float(req.get("voice_rate", 1.0)),
+        "music": req.get("music") or "",      # "" auto · "none" · a library file
+        "sfx": req.get("sfx", True) is not False,  # a whoosh on every cut
         "motion": True,
         "captions": dict(DEFAULT_CAPTIONS),
         "scenes": [
@@ -446,10 +448,11 @@ def _style(pid: str, tl: dict, brand: dict | None) -> dict:
         for k in ("intro", "outro"):
             if el[k] and (p := path(brand[k])):
                 style[k] = p
-        tracks = [m for m in brand["music"] if path(m)]
-        if el["music"] and tracks:
-            m = tracks[int(_hash(pid), 16) % len(tracks)]
-            style["music"] = {"path": path(m), "volume": float(m.get("volume", 0.12))}
+    if el["music"]:
+        from . import audio  # audio imports render
+
+        if (m := audio.pick(tl.get("music") or "", brand, pid)):
+            style["music"] = {"path": m["path"], "volume": m["volume"]}
     return style
 
 
@@ -627,16 +630,33 @@ async def render_timeline(pid: str, tl: dict, out: Path, on_progress) -> dict:
     (cache / "video.txt").write_text("".join(f"file '{p.name}'\n" for p in video_parts))
     (cache / "audio.txt").write_text("".join(f"file '{p.name}'\n" for p in audio_parts))
     args = ["-f", "concat", "-safe", "0", "-i", "video.txt", "-f", "concat", "-safe", "0", "-i", "audio.txt"]
+    sfx = None
+    if tl.get("sfx", True) is not False:
+        from . import audio
+
+        intro = (scenes[0].get("start") or 0) if scenes else 0
+        cues = [max(0.0, s["start"] - 0.25) for s in scenes[1:]] + ([max(0.0, intro - 0.25)] if intro else [])
+        sfx = await audio.sfx_track(cues, t, cache / f"sfx_{_hash(cues, t)}.wav")
+    graph, mix = [], ["[vo]"]
     if style["music"]:
         m = style["music"]
         fade = max(0.0, t - 2.0)
-        args += ["-stream_loop", "-1", "-i", m["path"], "-filter_complex",
-                 # Music ducks under the voice (sidechain) and fades out at the end.
-                 f"[1:a]asplit=2[vo][sc];[2:a]aformat=sample_rates=44100:channel_layouts=stereo,"
-                 f"volume={m['volume']:.3f},afade=t=out:st={fade:.2f}:d=2[mu];"
-                 f"[mu][sc]sidechaincompress=threshold=0.03:ratio=6:attack=20:release=400[md];"
-                 f"[vo][md]amix=inputs=2:duration=first:normalize=0[a]",
-                 "-map", "0:v", "-map", "[a]"]
+        args += ["-stream_loop", "-1", "-i", str(m["path"])]
+        # Music ducks under the voice (sidechain) and fades out at the end.
+        graph += [f"[1:a]asplit=2[vo][sc]",
+                  f"[2:a]aformat=sample_rates=44100:channel_layouts=stereo,volume={m['volume']:.3f},"
+                  f"afade=t=out:st={fade:.2f}:d=2[mu]",
+                  "[mu][sc]sidechaincompress=threshold=0.03:ratio=6:attack=20:release=400[md]"]
+        mix.append("[md]")
+    else:
+        graph.append("[1:a]anull[vo]")
+    if sfx:
+        args += ["-i", sfx]
+        graph.append(f"[{len(mix) + 1}:a]aformat=sample_rates=44100:channel_layouts=stereo[sx]")
+        mix.append("[sx]")
+    if len(mix) > 1:
+        graph.append("".join(mix) + f"amix=inputs={len(mix)}:duration=first:normalize=0[a]")
+        args += ["-filter_complex", ";".join(graph), "-map", "0:v", "-map", "[a]"]
     else:
         args += ["-map", "0:v", "-map", "1:a"]
     await _ffmpeg(*args, "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-t", f"{t:.3f}",
