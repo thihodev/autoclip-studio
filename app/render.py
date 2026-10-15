@@ -69,12 +69,25 @@ def _hash(*parts) -> str:
     return hashlib.sha1(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
 
+_running: set = set()  # ffmpeg processes, killed on shutdown
+
+
+def kill_running():
+    for proc in list(_running):
+        if proc.returncode is None:
+            proc.kill()
+
+
 async def _ffmpeg(*args, cwd: Path | None = None) -> str:
     proc = await asyncio.create_subprocess_exec(
         FFMPEG, "-hide_banner", "-loglevel", "error", "-y", *map(str, args),
         cwd=cwd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
     )
-    _, err = await proc.communicate()
+    _running.add(proc)
+    try:
+        _, err = await proc.communicate()
+    finally:
+        _running.discard(proc)
     if proc.returncode != 0:
         raise RuntimeError(f"ffmpeg failed: {err.decode(errors='replace')[-800:]}")
     return err.decode(errors="replace")

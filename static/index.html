@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AutoClip Studio</title>
+<script>try { const t = localStorage.getItem('autoclip.theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}</script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 <style>
   :root {
@@ -15,7 +16,7 @@
     --radius:12px; --radius-sm:8px;
   }
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
       --bg:#0e1013; --surface:#16191e; --surface-2:#1d2128; --border:#262b33; --border-strong:#353b45;
       --text:#e8eaee; --text-2:#a2a9b5; --text-3:#6f7784;
       --accent:#ff4d6d; --accent-hover:#ff6a85; --accent-soft:#3a1a22; --on-accent:#fff;
@@ -23,6 +24,13 @@
       --shadow:none;
     }
   }
+  :root[data-theme="dark"] {
+      --bg:#0e1013; --surface:#16191e; --surface-2:#1d2128; --border:#262b33; --border-strong:#353b45;
+      --text:#e8eaee; --text-2:#a2a9b5; --text-3:#6f7784;
+      --accent:#ff4d6d; --accent-hover:#ff6a85; --accent-soft:#3a1a22; --on-accent:#fff;
+      --ok:#3ccf91; --ok-soft:#10291f; --warn:#f0b04f; --warn-soft:#2d2210; --err:#ff6b7d; --err-soft:#341519;
+      --shadow:none;
+    }
   * { box-sizing:border-box; }
   [x-cloak] { display:none !important; }
   html, body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
@@ -43,6 +51,9 @@
   .nav .count { margin-left:auto; font-size:11px; background:var(--err-soft); color:var(--err); border-radius:99px; padding:0 7px; }
   .side-foot { margin-top:auto; padding:12px 10px; border:1px solid var(--border); border-radius:10px; font-size:12px; color:var(--text-2); }
   .side-foot .row-s { display:flex; align-items:center; gap:8px; padding:2px 0; }
+  .prefs { display:flex; flex-direction:column; gap:6px; }
+  .prefs select { padding:5px 8px; font-size:12px; }
+  .prefs .seg { display:flex; } .prefs .seg button { flex:1; padding:4px 6px; font-size:12px; }
   .dot { width:7px; height:7px; border-radius:50%; background:var(--text-3); flex:none; }
   .dot.ok { background:var(--ok); } .dot.err { background:var(--err); }
   .content { min-width:0; }
@@ -255,19 +266,28 @@
   <!-- ======================================================= sidebar -->
   <aside class="side">
     <div class="brand">Auto<span>Clip</span> Studio</div>
-    <a class="nav" href="/" :class="(route.page==='studio'||route.page==='project')&&'on'" @click.prevent="nav('/')"><svg class="i"><use href="#i-film"/></svg>Studio</a>
-    <a class="nav" href="/ideas" :class="route.page==='ideas'&&'on'" @click.prevent="nav('/ideas')"><svg class="i"><use href="#i-zap"/></svg>Ideas</a>
-    <a class="nav" href="/brands" :class="(route.page==='brands'||route.page==='brand')&&'on'" @click.prevent="nav('/brands')"><svg class="i"><use href="#i-layers"/></svg>Brand kits
+    <a class="nav" href="/" :class="(route.page==='studio'||route.page==='project')&&'on'" @click.prevent="nav('/')"><svg class="i"><use href="#i-film"/></svg><span x-t>Studio</span></a>
+    <a class="nav" href="/ideas" :class="route.page==='ideas'&&'on'" @click.prevent="nav('/ideas')"><svg class="i"><use href="#i-zap"/></svg><span x-t>Ideas</span></a>
+    <a class="nav" href="/brands" :class="(route.page==='brands'||route.page==='brand')&&'on'" @click.prevent="nav('/brands')"><svg class="i"><use href="#i-layers"/></svg><span x-t>Brand kits</span>
       <span class="count" x-show="brandList.length" x-text="brandList.length" style="background:var(--surface-2);color:var(--text-2)"></span></a>
-    <a class="nav" href="/autopilot" :class="route.page==='autopilot'&&'on'" @click.prevent="nav('/autopilot')"><svg class="i"><use href="#i-repeat"/></svg>Autopilot
-      <span class="count" x-show="autopilot.enabled" style="background:var(--ok-soft);color:var(--ok)">on</span></a>
-    <a class="nav" href="/connections" :class="route.page==='connections'&&'on'" @click.prevent="nav('/connections')"><svg class="i"><use href="#i-link"/></svg>Connections
+    <a class="nav" href="/autopilot" :class="route.page==='autopilot'&&'on'" @click.prevent="nav('/autopilot')"><svg class="i"><use href="#i-repeat"/></svg><span x-t>Autopilot</span>
+      <span class="count" x-show="autopilot.enabled" style="background:var(--ok-soft);color:var(--ok)"><span x-t>on</span></span></a>
+    <a class="nav" href="/connections" :class="route.page==='connections'&&'on'" @click.prevent="nav('/connections')"><svg class="i"><use href="#i-link"/></svg><span x-t>Connections</span>
       <span class="count" x-show="missingSetup().length" x-text="missingSetup().length"></span></a>
     <div class="side-foot">
-      <div class="row-s"><span class="dot" :class="status.claude?.ok?'ok':'err'"></span>Claude</div>
-      <div class="row-s"><span class="dot" :class="status.footage?.ok&&'ok'"></span>Stock footage</div>
-      <div class="row-s"><span class="dot" :class="nativeAccounts().length&&'ok'"></span><span x-text="nativeAccounts().length + ' social account' + (nativeAccounts().length===1?'':'s')"></span></div>
-      <div class="row-s"><span class="dot" :class="status.framejam?.ok&&'ok'"></span>FrameJam</div>
+      <div class="row-s"><span class="dot" :class="status.claude?.ok?'ok':'err'"></span><span x-t>Claude</span></div>
+      <div class="row-s"><span class="dot" :class="status.footage?.ok&&'ok'"></span><span x-t>Stock footage</span></div>
+      <div class="row-s"><span class="dot" :class="nativeAccounts().length&&'ok'"></span><span x-text="t(nativeAccounts().length===1 ? '{n} social account' : '{n} social accounts', {n: nativeAccounts().length})"></span></div>
+      <div class="row-s"><span class="dot" :class="status.framejam?.ok&&'ok'"></span><span x-t>FrameJam</span></div>
+      <div class="divider" style="margin:10px 0"></div>
+      <div class="prefs">
+        <select :value="lang" @change="setLang($event.target.value)" :aria-label="t('Language')"><option value="en">English</option><option value="vi">Tiếng Việt</option></select>
+        <div class="seg" role="group" :aria-label="t('Theme')">
+          <template x-for="th in [['system','Auto'],['light','Light'],['dark','Dark']]" :key="th[0]">
+            <button type="button" :class="theme===th[0]&&'on'" @click="setTheme(th[0])" x-text="t(th[1])"></button>
+          </template>
+        </div>
+      </div>
     </div>
   </aside>
 
@@ -275,60 +295,60 @@
     <!-- ===================================================== STUDIO -->
     <section class="page" x-show="route.page==='studio'">
       <div class="page-head">
-        <div><h1>Studio</h1><p class="sub">Describe a video and Claude writes it, picks footage and renders it.</p></div>
+        <div><h1><span x-t>Studio</span></h1><p class="sub"><span x-t>Describe a video and Claude writes it, picks footage and renders it.</span></p></div>
       </div>
 
       <div class="notice" x-show="ready && missingSetup().length" style="margin-bottom:16px">
         <svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg>
-        <div>Before creating videos: <span x-text="missingSetup().join(' and ')"></span>. <a href="/connections" @click.prevent="nav('/connections')">Open Connections →</a></div>
+        <div><span x-t>Before creating videos:</span> <span x-text="missingSetup().join(t(' and '))"></span>. <a href="/connections" @click.prevent="nav('/connections')"><span x-t>Open Connections →</span></a></div>
       </div>
 
       <div class="card composer">
         <fieldset :disabled="creating">
-          <div class="field"><label for="topic">What is the video about?</label>
-            <textarea id="topic" x-model="form.topic" placeholder="e.g. 5 surprising facts about the human brain — or “Turn the attached article into a 45-second explainer”"></textarea></div>
+          <div class="field"><label for="topic"><span x-t>What is the video about?</span></label>
+            <textarea id="topic" x-model="form.topic" :placeholder="t('e.g. 5 surprising facts about the human brain — or “Turn the attached article into a 45-second explainer”')"></textarea></div>
           <div class="files" style="margin-top:8px">
             <template x-for="f in form.context" :key="f.id">
-              <span class="filechip" :title="`${f.name} · ${fmtChars(f.chars)}`"><svg class="i" style="width:13px;height:13px"><use href="#i-clip"/></svg><span class="n" x-text="f.name"></span><span class="muted" x-text="fmtChars(f.chars)"></span><button type="button" class="x" @click="removeFormContext(f)" title="Remove">✕</button></span>
+              <span class="filechip" :title="`${f.name} · ${fmtChars(f.chars)}`"><svg class="i" style="width:13px;height:13px"><use href="#i-clip"/></svg><span class="n" x-text="f.name"></span><span class="muted" x-text="fmtChars(f.chars)"></span><button type="button" class="x" @click="removeFormContext(f)" :title="t('Remove')">✕</button></span>
             </template>
-            <label class="btn ghost sm uploadbtn"><span class="spin" x-show="uploadingContext"></span><svg class="i" x-show="!uploadingContext"><use href="#i-clip"/></svg>Add context files
+            <label class="btn ghost sm uploadbtn"><span class="spin" x-show="uploadingContext"></span><svg class="i" x-show="!uploadingContext"><use href="#i-clip"/></svg><span x-t>Add context files</span>
               <input type="file" multiple :accept="contextAccept" @change="addFormContext($event)"></label>
-            <span class="small muted" x-show="!form.context.length">Optional: articles, notes, product docs or transcripts for Claude to base the script on.</span>
+            <span class="small muted" x-show="!form.context.length"><span x-t>Optional: articles, notes, product docs or transcripts for Claude to base the script on.</span></span>
           </div>
           <div class="grid-3" style="margin-top:12px">
-            <div class="field"><label>Language</label>
-              <select x-model="form.language" @change="form.voice=''; loadVoices(form.language)"><template x-for="l in languages"><option :value="l" x-text="l" :selected="l===form.language"></option></template></select></div>
-            <div class="field"><label>Format</label>
-              <select x-model="form.format"><option value="shorts">Vertical 9:16 · Shorts, TikTok, Reels</option><option value="youtube">Landscape 16:9 · YouTube</option><option value="square">Square 1:1</option></select></div>
-            <div class="field"><label>Length</label>
-              <select x-model.number="form.duration"><template x-for="d in [15,30,45,60,90,120,180]"><option :value="d" x-text="d<60 ? d+' seconds' : (d/60)+' min'" :selected="d===form.duration"></option></template></select></div>
+            <div class="field"><label><span x-t>Language</span></label>
+              <select x-model="form.language" @change="form.voice=''; loadVoices(form.language)"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===form.language"></option></template></select></div>
+            <div class="field"><label><span x-t>Format</span></label>
+              <select x-model="form.format"><option value="shorts" x-t>Vertical 9:16 · Shorts, TikTok, Reels</option><option value="youtube" x-t>Landscape 16:9 · YouTube</option><option value="square" x-t>Square 1:1</option></select></div>
+            <div class="field"><label><span x-t>Length</span></label>
+              <select x-model.number="form.duration"><template x-for="d in [15,30,45,60,90,120,180]"><option :value="d" x-text="d<60 ? d+t(' seconds') : (d/60)+t(' min')" :selected="d===form.duration"></option></template></select></div>
           </div>
           <div class="field" style="margin-top:12px" x-show="brandList.length">
-            <label>Brand kit</label>
+            <label><span x-t>Brand kit</span></label>
             <div class="pickchips">
-              <button type="button" class="pickchip" :class="!form.brand_id&&'on'" @click="form.brand_id=null" style="padding-left:12px">No brand</button>
+              <button type="button" class="pickchip" :class="!form.brand_id&&'on'" @click="form.brand_id=null" style="padding-left:12px"><span x-t>No brand</span></button>
               <template x-for="b in brandList" :key="b.id">
                 <button type="button" class="pickchip" :class="form.brand_id===b.id&&'on'" @click="form.brand_id=b.id">
                   <span class="avatar" :style="`background:${b.colors.primary};color:#fff`"><img x-show="b.logo" :src="b.logo && brandUrl(b, b.logo.file)" alt="" style="object-fit:contain;background:#fff"><span x-show="!b.logo" x-text="initial(b.name)"></span></span>
                   <span x-text="b.name"></span></button>
               </template>
             </div>
-            <p class="hint" x-show="form.brand_id">Claude follows the kit's tone and call to action; the video uses its colors, font, logo, intro/outro, music and b-roll.</p>
+            <p class="hint" x-show="form.brand_id"><span x-t>Claude follows the kit's tone and call to action; the video uses its colors, font, logo, intro/outro, music and b-roll.</span></p>
           </div>
           <details style="margin-top:14px">
-            <summary>Style, voice and publishing</summary>
+            <summary><span x-t>Style, voice and publishing</span></summary>
             <div class="grid-3" style="margin-top:12px">
-              <div class="field"><label>Style / tone</label><input x-model="form.style" placeholder="funny, storytelling, educational…"></div>
-              <div class="field"><label>Voice</label>
+              <div class="field"><label><span x-t>Style / tone</span></label><input x-model="form.style" :placeholder="t('funny, storytelling, educational…')"></div>
+              <div class="field"><label><span x-t>Voice</span></label>
                 <select x-model="form.voice">
-                  <option value="">Default for the language</option>
+                  <option value="" x-t>Default for the language</option>
                   <template x-for="v in (voices[form.language]||[])"><option :value="v.name" x-text="voiceLabel(v)"></option></template>
                 </select></div>
-              <div class="field"><label>Voice speed <span x-text="form.voice_rate.toFixed(2)+'×'"></span></label>
+              <div class="field"><label><span x-t>Voice speed</span> <span x-text="form.voice_rate.toFixed(2)+'×'"></span></label>
                 <input type="range" min="0.7" max="1.4" step="0.05" x-model.number="form.voice_rate"></div>
             </div>
-            <div class="field" style="margin-top:12px"><label>Publish to</label>
-              <template x-if="!channels.length"><p class="small muted">No accounts connected. <a href="/connections" @click.prevent="nav('/connections')">Connect YouTube, TikTok or Facebook</a> to publish from here.</p></template>
+            <div class="field" style="margin-top:12px"><label><span x-t>Publish to</span></label>
+              <template x-if="!channels.length"><p class="small muted"><span x-t>No accounts connected.</span> <a href="/connections" @click.prevent="nav('/connections')"><span x-t>Connect YouTube, TikTok or Facebook</span></a> <span x-t>to publish from here.</span></p></template>
               <div class="pickchips">
                 <template x-for="c in channels" :key="c.id">
                   <button type="button" class="pickchip" :class="form.channelIds.includes(c.id)&&'on'" @click="toggle(form.channelIds, c.id)">
@@ -337,20 +357,20 @@
                 </template>
               </div>
               <label class="toggle small" style="margin-top:10px" x-show="channels.length" :style="!form.channelIds.length && 'opacity:.5'">
-                <input type="checkbox" x-model="form.auto_publish" :disabled="!form.channelIds.length"> Publish automatically when the first render is ready</label>
+                <input type="checkbox" x-model="form.auto_publish" :disabled="!form.channelIds.length"> <span x-t>Publish automatically when the first render is ready</span></label>
             </div>
           </details>
           <div class="actions" style="margin-top:16px; justify-content:flex-end">
-            <span class="small muted" x-show="missingSetup().length">Finish setup in Connections to create videos</span>
+            <span class="small muted" x-show="missingSetup().length"><span x-t>Finish setup in Connections to create videos</span></span>
             <button class="btn primary" @click="create()" :disabled="creating || form.topic.trim().length < 3 || missingSetup().length > 0">
-              <span class="spin" x-show="creating"></span><span x-text="creating ? 'Creating…' : 'Create video'"></span></button>
+              <span class="spin" x-show="creating"></span><span x-text="creating ? t('Creating…') : t('Create video')"></span></button>
           </div>
         </fieldset>
       </div>
 
-      <div class="page-head" style="margin:28px 0 12px"><h2 x-text="`Projects · ${projects.length}`"></h2></div>
+      <div class="page-head" style="margin:28px 0 12px"><h2 x-text="t('Projects') + ' · ' + projects.length"></h2></div>
       <template x-if="!projects.length">
-        <div class="card empty"><h2>No videos yet</h2><p>Your first video will appear here while it renders.</p></div>
+        <div class="card empty"><h2><span x-t>No videos yet</span></h2><p><span x-t>Your first video will appear here while it renders.</span></p></div>
       </template>
       <div class="projects">
         <template x-for="p in projects" :key="p.id">
@@ -375,7 +395,7 @@
     <section class="page" x-show="route.page==='project'">
       <template x-if="!cur">
         <div class="card empty">
-          <template x-if="curMissing"><div><h2>Project not found</h2><p>It may have been deleted.</p><div class="actions" style="justify-content:center;margin-top:12px"><a class="btn" href="/" @click.prevent="nav('/')">Back to Studio</a></div></div></template>
+          <template x-if="curMissing"><div><h2><span x-t>Project not found</span></h2><p><span x-t>It may have been deleted.</span></p><div class="actions" style="justify-content:center;margin-top:12px"><a class="btn" href="/" @click.prevent="nav('/')"><span x-t>Back to Studio</span></a></div></div></template>
           <template x-if="!curMissing"><div><span class="spin"></span></div></template>
         </div>
       </template>
@@ -383,17 +403,17 @@
         <div>
           <div class="page-head">
             <div style="min-width:0">
-              <a class="btn ghost sm" href="/" @click.prevent="nav('/')" style="margin-left:-10px"><svg class="i"><use href="#i-back"/></svg>Studio</a>
+              <a class="btn ghost sm" href="/" @click.prevent="nav('/')" style="margin-left:-10px"><svg class="i"><use href="#i-back"/></svg><span x-t>Studio</span></a>
               <h1 style="margin-top:6px" x-text="cur.script?.title || cur.request.topic"></h1>
               <div class="actions" style="margin-top:8px">
                 <span class="chip" :class="statusTone(cur)" x-text="statusText(cur)"></span>
-                <span class="small muted" x-show="cur.version" x-text="`Version ${cur.version} · ${(cur.timeline?.scenes||[]).length} scenes · ${duration(cur)}`"></span>
+                <span class="small muted" x-show="cur.version" x-text="t('Version {v} · {n} scenes · {d}', {v: cur.version, n: (cur.timeline?.scenes||[]).length, d: duration(cur)})"></span>
               </div>
             </div>
             <div class="actions">
-              <a class="btn" x-show="cur.video_path" :href="videoUrl(cur)" download><svg class="i"><use href="#i-download"/></svg>Download</a>
-              <button class="btn" x-show="cur.status==='failed'" @click="retry(cur)" :disabled="missingSetup().length > 0"><svg class="i"><use href="#i-retry"/></svg>Retry</button>
-              <button class="btn ghost danger" title="Delete video" @click="askDelete(cur)" :disabled="isBusy(cur)"><svg class="i"><use href="#i-trash"/></svg></button>
+              <a class="btn" x-show="cur.video_path" :href="videoUrl(cur)" download><svg class="i"><use href="#i-download"/></svg><span x-t>Download</span></a>
+              <button class="btn" x-show="cur.status==='failed'" @click="retry(cur)" :disabled="missingSetup().length > 0"><svg class="i"><use href="#i-retry"/></svg><span x-t>Retry</span></button>
+              <button class="btn ghost danger" :title="t('Delete video')" @click="askDelete(cur)" :disabled="isBusy(cur)"><svg class="i"><use href="#i-trash"/></svg></button>
             </div>
           </div>
 
@@ -404,71 +424,71 @@
           <div class="notice err" x-show="!isBusy(cur) && cur.error" style="margin-bottom:16px">
             <svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg>
             <div><span x-text="cur.error"></span>
-              <a href="/connections" x-show="/Connections/.test(cur.error||'')" @click.prevent="nav('/connections')"> Open Connections →</a></div>
+              <a href="/connections" x-show="/Connections/.test(cur.error||'')" @click.prevent="nav('/connections')"> <span x-t>Open Connections →</span></a></div>
           </div>
 
           <div class="editor">
             <div class="left">
               <div class="card">
                 <template x-if="cur.video_path"><video class="player" :src="previewSrc()" controls x-ref="player" preload="metadata"></video></template>
-                <template x-if="!cur.video_path"><div class="empty small" x-text="isBusy(cur) ? 'Your video will play here when the first render is done.' : 'No render yet.'"></div></template>
+                <template x-if="!cur.video_path"><div class="empty small" x-text="isBusy(cur) ? t('Your video will play here when the first render is done.') : t('No render yet.')"></div></template>
                 <div class="versions" x-show="versions().length > 1">
-                  <div class="lbl" style="margin:4px 0">Versions</div>
+                  <div class="lbl" style="margin:4px 0"><span x-t>Versions</span></div>
                   <template x-for="v in versions()" :key="v.file">
                     <div class="ver" :class="(preview||latestFile())===v.file && 'on'" @click="preview = v.file===latestFile() ? null : v.file">
                       <span class="n" x-text="'v'+v.version"></span><span class="note" x-text="v.note" :title="v.note"></span>
-                      <span class="small muted" x-show="v.file===latestFile()">latest</span>
+                      <span class="small muted" x-show="v.file===latestFile()"><span x-t>latest</span></span>
                     </div>
                   </template>
-                  <p class="hint" x-show="preview">Previewing an older version. Publishing and downloads use the latest.</p>
+                  <p class="hint" x-show="preview"><span x-t>Previewing an older version. Publishing and downloads use the latest.</span></p>
                 </div>
               </div>
             </div>
 
             <div>
               <nav class="tabs">
-                <template x-for="t in editorTabs" :key="t.key">
-                  <a :href="`/projects/${cur.id}/${t.key}`" :class="route.sub===t.key&&'on'" @click.prevent="nav(`/projects/${cur.id}/${t.key}`)" x-text="t.label"></a>
+                <template x-for="tab in editorTabs" :key="tab.key">
+                  <a :href="`/projects/${cur.id}/${tab.key}`" :class="route.sub===tab.key&&'on'" @click.prevent="nav(`/projects/${cur.id}/${tab.key}`)" x-text="t(tab.label)"></a>
                 </template>
               </nav>
 
               <template x-if="!cur.timeline">
-                <div class="card empty small" x-text="isBusy(cur) ? 'Claude is writing the scenes…' : 'This video has no scenes yet. Retry to generate them.'"></div>
+                <div class="card empty small" x-text="isBusy(cur) ? t('Claude is writing the scenes…') : t('This video has no scenes yet. Retry to generate them.')"></div>
               </template>
 
               <!-- Scenes -->
               <fieldset x-show="cur.timeline && route.sub==='scenes'" :disabled="isBusy(cur)">
-                <div class="field" style="margin-bottom:14px"><label>Title</label><input x-model="edTitle"></div>
+                <div class="field" style="margin-bottom:14px"><label><span x-t>Title</span></label><input x-model="edTitle"></div>
                 <template x-for="(s, i) in tl.scenes" :key="s.id">
                   <div class="scene">
-                    <button type="button" class="sthumb" @click="openPicker(s)" title="Change footage">
+                    <button type="button" class="sthumb" @click="openPicker(s)" :title="t('Change footage')">
                       <img x-show="sceneThumb(s)" :src="sceneThumb(s)" alt="">
-                      <span x-show="!sceneThumb(s)">Auto</span><span class="swap">Change</span>
+                      <span x-show="!sceneThumb(s)"><span x-t>Auto</span></span><span class="swap"><span x-t>Change</span></span>
                     </button>
                     <div style="min-width:0">
-                      <div class="meta"><strong x-text="`Scene ${i+1}`"></strong><span x-show="s.start!=null" x-text="`${fmt(s.start)} – ${fmt(s.end)}`"></span></div>
-                      <textarea x-model="s.text" placeholder="Voice-over for this scene"></textarea>
-                      <input x-model="s.search" placeholder="Footage search (English) — changing it picks new footage" style="margin-top:6px">
+                      <div class="meta"><strong x-text="t('Scene {n}', {n: i+1})"></strong><span x-show="s.start!=null" x-text="`${fmt(s.start)} – ${fmt(s.end)}`"></span></div>
+                      <textarea x-model="s.text" :placeholder="t('Voice-over for this scene')"></textarea>
+                      <input x-model="s.search" :placeholder="t('Footage search (English) — changing it picks new footage')" style="margin-top:6px">
                     </div>
                     <div class="tools">
-                      <button type="button" class="btn ghost icon" title="Play this scene" @click="seek(s)" :disabled="s.start==null || !cur.video_path"><svg class="i"><use href="#i-play"/></svg></button>
-                      <button type="button" class="btn ghost icon" title="Move up" @click="move(i,-1)" :disabled="i===0"><svg class="i"><use href="#i-up"/></svg></button>
-                      <button type="button" class="btn ghost icon" title="Move down" @click="move(i,1)" :disabled="i===tl.scenes.length-1"><svg class="i"><use href="#i-down"/></svg></button>
-                      <button type="button" class="btn ghost icon danger" title="Delete scene" @click="tl.scenes.splice(i,1)" :disabled="tl.scenes.length<2"><svg class="i"><use href="#i-trash"/></svg></button>
+                      <button type="button" class="btn ghost icon" :title="t('Play this scene')" @click="seek(s)" :disabled="s.start==null || !cur.video_path"><svg class="i"><use href="#i-play"/></svg></button>
+                      <button type="button" class="btn ghost icon" :title="t('Move up')" @click="move(i,-1)" :disabled="i===0"><svg class="i"><use href="#i-up"/></svg></button>
+                      <button type="button" class="btn ghost icon" :title="t('Move down')" @click="move(i,1)" :disabled="i===tl.scenes.length-1"><svg class="i"><use href="#i-down"/></svg></button>
+                      <button type="button" class="btn ghost icon danger" :title="t('Delete scene')" @click="tl.scenes.splice(i,1)" :disabled="tl.scenes.length<2"><svg class="i"><use href="#i-trash"/></svg></button>
                     </div>
                   </div>
                 </template>
-                <button type="button" class="btn" style="margin-top:12px" @click="addScene()"><svg class="i"><use href="#i-plus"/></svg>Add scene</button>
+                <button type="button" class="btn" style="margin-top:12px" @click="addScene()"><svg class="i"><use href="#i-plus"/></svg><span x-t>Add scene</span></button>
               </fieldset>
 
               <!-- Style -->
               <fieldset x-show="cur.timeline && route.sub==='style'" :disabled="isBusy(cur)">
                 <div class="card">
-                  <div class="card-head"><div class="grow"><h2>Brand kit</h2><p>Logo, colors, font, intro/outro, music and b-roll from a kit.</p></div>
-                    <a class="btn ghost sm" x-show="tl.brand_id && brandById(tl.brand_id)" :href="`/brands/${tl.brand_id}`" @click.prevent="nav(`/brands/${tl.brand_id}`)">Edit kit</a></div>
-                  <template x-if="!brandList.length"><p class="small muted">No brand kits yet. <a href="/brands" @click.prevent="nav('/brands')">Create one or import it from GitHub</a>.</p></template>
+                  <div class="card-head"><div class="grow"><h2><span x-t>Brand kit</span></h2><p><span x-t>Logo, colors, font, intro/outro, music and b-roll from a kit.</span></p></div>
+                    <a class="btn ghost sm" x-show="tl.brand_id && brandById(tl.brand_id)" :href="`/brands/${tl.brand_id}`" @click.prevent="nav(`/brands/${tl.brand_id}`)"><span x-t>Edit kit</span></a></div>
+                  <template x-if="!brandList.length"><p class="small muted"><span x-t>No brand kits yet.</span> <a href="/brands" @click.prevent="nav('/brands')"><span x-t>Create one or import it from GitHub</span></a>.</p></template>
                   <div class="pickchips" x-show="brandList.length">
-                    <button type="button" class="pickchip" :class="!tl.brand_id&&'on'" @click="applyBrand(null)" style="padding-left:12px">No brand</button>
+                    <button type="button" class="pickchip" :class="!tl.brand_id&&'on'" @click="applyBrand(null)" style="padding-left:12px"><span x-t>No brand</span></button>
                     <template x-for="b in brandList" :key="b.id">
                       <button type="button" class="pickchip" :class="tl.brand_id===b.id&&'on'" @click="applyBrand(b)">
                         <span class="avatar" :style="`background:${b.colors.primary};color:#fff`" x-text="initial(b.name)"></span><span x-text="b.name"></span></button>
@@ -480,95 +500,95 @@
                         <label class="toggle small" :style="!brandHas(brandById(tl.brand_id), el) && 'opacity:.45'">
                           <input type="checkbox" :disabled="!brandHas(brandById(tl.brand_id), el)" :checked="brandHas(brandById(tl.brand_id), el) && tl.brand_elements?.[el] !== false"
                                  @change="tl.brand_elements = { ...(tl.brand_elements||{}), [el]: $event.target.checked }">
-                          <span x-text="{logo:'Logo', intro:'Intro', outro:'Outro', music:'Music'}[el]"></span></label>
+                          <span x-text="{logo:t('Logo'), intro:t('Intro'), outro:t('Outro'), music:t('Music')}[el]"></span></label>
                       </template>
                     </div>
                   </template>
-                  <p class="hint" x-show="tl.brand_id && !brandById(tl.brand_id)">The brand kit used by this video was deleted.</p>
+                  <p class="hint" x-show="tl.brand_id && !brandById(tl.brand_id)"><span x-t>The brand kit used by this video was deleted.</span></p>
                 </div>
                 <div class="card">
-                  <div class="card-head"><div class="grow"><h2>Captions</h2></div></div>
+                  <div class="card-head"><div class="grow"><h2><span x-t>Captions</span></h2></div></div>
                   <div class="presets">
                     <template x-for="pr in presets" :key="pr.key">
                       <button type="button" class="preset" :class="tl.captions?.preset===pr.key&&'on'" @click="tl.captions.preset=pr.key">
-                        <div class="demo"><span :class="pr.cls" x-html="pr.demo"></span></div><div class="name" x-text="pr.label"></div>
+                        <div class="demo"><span :class="pr.cls" x-html="pr.demo"></span></div><div class="name" x-text="t(pr.label)"></div>
                       </button>
                     </template>
                   </div>
                   <div class="grid-3" style="margin-top:14px" x-show="tl.captions?.preset!=='none'">
-                    <div class="field"><label>Position · <span x-text="positionLabel(tl.captions?.position)"></span></label>
+                    <div class="field"><label><span x-t>Position ·</span> <span x-text="positionLabel(tl.captions?.position)"></span></label>
                       <input type="range" min="0.1" max="0.9" step="0.01" x-model.number="tl.captions.position"></div>
-                    <div class="field"><label>Text color</label><input type="color" x-model="tl.captions.color"></div>
-                    <div class="field" x-show="tl.captions?.preset==='bold'"><label>Highlighted word</label><input type="color" x-model="tl.captions.highlight_color"></div>
+                    <div class="field"><label><span x-t>Text color</span></label><input type="color" x-model="tl.captions.color"></div>
+                    <div class="field" x-show="tl.captions?.preset==='bold'"><label><span x-t>Highlighted word</span></label><input type="color" x-model="tl.captions.highlight_color"></div>
                   </div>
                 </div>
                 <div class="card">
-                  <div class="card-head"><div class="grow"><h2>Voice & motion</h2></div></div>
+                  <div class="card-head"><div class="grow"><h2><span x-t>Voice & motion</span></h2></div></div>
                   <div class="grid-2">
-                    <div class="field"><label>Voice</label>
+                    <div class="field"><label><span x-t>Voice</span></label>
                       <select x-model="tl.voice">
                         <template x-if="!(voices[cur.request.language]||[]).some(v=>v.name===tl.voice)"><option :value="tl.voice" x-text="tl.voice"></option></template>
                         <template x-for="v in (voices[cur.request.language]||[])"><option :value="v.name" x-text="voiceLabel(v)" :selected="v.name===tl.voice"></option></template>
                       </select></div>
-                    <div class="field"><label>Speed <span x-text="(+tl.voice_rate||1).toFixed(2)+'×'"></span></label>
+                    <div class="field"><label><span x-t>Speed</span> <span x-text="(+tl.voice_rate||1).toFixed(2)+'×'"></span></label>
                       <input type="range" min="0.7" max="1.4" step="0.05" x-model.number="tl.voice_rate"></div>
                   </div>
-                  <label class="toggle" style="margin-top:12px"><input type="checkbox" x-model="tl.motion"> Slow camera drift on every clip</label>
+                  <label class="toggle" style="margin-top:12px"><input type="checkbox" x-model="tl.motion"> <span x-t>Slow camera drift on every clip</span></label>
                 </div>
               </fieldset>
 
               <!-- AI & review -->
               <div x-show="cur.timeline && route.sub==='review'">
                 <div class="card">
-                  <div class="card-head"><div class="grow"><h2>Edit with Claude</h2><p>Describe the change. Claude edits the scenes and style, then renders a new version.</p></div></div>
+                  <div class="card-head"><div class="grow"><h2><span x-t>Edit with Claude</span></h2><p><span x-t>Describe the change. Claude edits the scenes and style, then renders a new version.</span></p></div></div>
                   <fieldset :disabled="isBusy(cur) || dirty || !status.claude?.ok">
-                    <textarea x-model="instruction" placeholder="e.g. Make the hook punchier and put the captions near the top"></textarea>
+                    <textarea x-model="instruction" :placeholder="t('e.g. Make the hook punchier and put the captions near the top')"></textarea>
                     <div class="suggest">
-                      <template x-for="s in suggestions"><button type="button" @click="instruction = instruction.trim() ? instruction.trim() + '. ' + s : s" x-text="s"></button></template>
+                      <template x-for="s in suggestions"><button type="button" @click="instruction = instruction.trim() ? instruction.trim() + '. ' + t(s) : t(s)" x-text="t(s)"></button></template>
                     </div>
                     <div class="actions" style="margin-top:12px;justify-content:flex-end">
-                      <button class="btn primary" @click="aiEdit()" :disabled="instruction.trim().length<3"><svg class="i"><use href="#i-star"/></svg>Apply with Claude</button>
+                      <button class="btn primary" @click="aiEdit()" :disabled="instruction.trim().length<3"><svg class="i"><use href="#i-star"/></svg><span x-t>Apply with Claude</span></button>
                     </div>
                   </fieldset>
-                  <p class="hint" x-show="dirty">You have unsaved manual edits — save or discard them first.</p>
-                  <p class="hint" x-show="!status.claude?.ok">Connect Claude in Connections to use AI edits.</p>
+                  <p class="hint" x-show="dirty"><span x-t>You have unsaved manual edits — save or discard them first.</span></p>
+                  <p class="hint" x-show="!status.claude?.ok"><span x-t>Connect Claude in Connections to use AI edits.</span></p>
                 </div>
 
                 <div class="card">
-                  <div class="card-head"><div class="grow"><h2>Context files</h2><p>Claude uses these as source material for AI edits.</p></div>
-                    <label class="btn sm uploadbtn"><span class="spin" x-show="uploadingContext"></span><svg class="i" x-show="!uploadingContext"><use href="#i-clip"/></svg>Add files<input type="file" multiple :accept="contextAccept" @change="addProjectContext($event)"></label></div>
-                  <template x-if="!(cur.request.context||[]).length"><p class="small muted">None. Add articles, notes, product docs or transcripts.</p></template>
+                  <div class="card-head"><div class="grow"><h2><span x-t>Context files</span></h2><p><span x-t>Claude uses these as source material for AI edits.</span></p></div>
+                    <label class="btn sm uploadbtn"><span class="spin" x-show="uploadingContext"></span><svg class="i" x-show="!uploadingContext"><use href="#i-clip"/></svg><span x-t>Add files</span><input type="file" multiple :accept="contextAccept" @change="addProjectContext($event)"></label></div>
+                  <template x-if="!(cur.request.context||[]).length"><p class="small muted"><span x-t>None. Add articles, notes, product docs or transcripts.</span></p></template>
                   <div class="files">
                     <template x-for="m in (cur.request.context||[])" :key="m.id">
-                      <span class="filechip"><svg class="i" style="width:13px;height:13px"><use href="#i-clip"/></svg><span class="n" x-text="m.name"></span><span class="muted" x-text="fmtChars(m.chars)"></span><button type="button" class="x" @click="removeProjectContext(m)" title="Remove">✕</button></span>
+                      <span class="filechip"><svg class="i" style="width:13px;height:13px"><use href="#i-clip"/></svg><span class="n" x-text="m.name"></span><span class="muted" x-text="fmtChars(m.chars)"></span><button type="button" class="x" @click="removeProjectContext(m)" :title="t('Remove')">✕</button></span>
                     </template>
                   </div>
                 </div>
 
                 <div class="card">
                   <div class="card-head">
-                    <div class="grow"><h2>FrameJam review</h2><p>Click the exact frame that's wrong and comment. Claude applies the comments.</p></div>
-                    <span class="chip" :class="status.framejam?.ok?'ok':''" x-text="status.framejam?.ok?'Running':'Not running'"></span>
+                    <div class="grow"><h2><span x-t>FrameJam review</span></h2><p><span x-t>Click the exact frame that's wrong and comment. Claude applies the comments.</span></p></div>
+                    <span class="chip" :class="status.framejam?.ok?'ok':''" x-text="status.framejam?.ok?t('Running'):t('Not running')"></span>
                   </div>
                   <template x-if="!status.framejam?.ok">
-                    <div class="notice info"><div>Start FrameJam with <code>npx -y framejam start</code> (Node 22+), then <a href="#" @click.prevent="refreshStatus()">check again</a>.</div></div>
+                    <div class="notice info"><div><span x-t>Start FrameJam with</span> <code>npx -y framejam start</code> <span x-t>(Node 22+), then</span> <a href="#" @click.prevent="refreshStatus()"><span x-t>check again</span></a>.</div></div>
                   </template>
                   <template x-if="status.framejam?.ok && !cur.extra?.framejam?.review_id">
-                    <div class="actions"><button class="btn primary" @click="framejamOpen()" :disabled="!cur.video_path || isBusy(cur)"><svg class="i"><use href="#i-send"/></svg>Send to FrameJam</button></div>
+                    <div class="actions"><button class="btn primary" @click="framejamOpen()" :disabled="!cur.video_path || isBusy(cur)"><svg class="i"><use href="#i-send"/></svg><span x-t>Send to FrameJam</span></button></div>
                   </template>
                   <template x-if="status.framejam?.ok && cur.extra?.framejam?.review_id">
                     <div>
                       <div class="actions">
-                        <a class="btn" :href="cur.extra.framejam.url" target="_blank" rel="noopener"><svg class="i"><use href="#i-ext"/></svg>Open review</a>
-                        <button class="btn primary" @click="framejamApply()" :disabled="isBusy(cur) || dirty || !status.claude?.ok">Apply comments</button>
+                        <a class="btn" :href="cur.extra.framejam.url" target="_blank" rel="noopener"><svg class="i"><use href="#i-ext"/></svg><span x-t>Open review</span></a>
+                        <button class="btn primary" @click="framejamApply()" :disabled="isBusy(cur) || dirty || !status.claude?.ok"><span x-t>Apply comments</span></button>
                       </div>
-                      <p class="hint">New versions are sent to this review automatically.</p>
+                      <p class="hint"><span x-t>New versions are sent to this review automatically.</span></p>
                     </div>
                   </template>
                 </div>
 
                 <div class="card" x-show="(cur.extra?.history||[]).length">
-                  <div class="card-head"><div class="grow"><h2>History</h2></div></div>
+                  <div class="card-head"><div class="grow"><h2><span x-t>History</span></h2></div></div>
                   <template x-for="h in (cur.extra?.history||[]).slice().reverse()"><div class="hist"><span class="src" x-text="h.source"></span><span x-text="h.summary"></span></div></template>
                 </div>
               </div>
@@ -576,9 +596,9 @@
               <!-- Publish -->
               <div x-show="cur.timeline && route.sub==='publish'">
                 <div class="card">
-                  <div class="card-head"><div class="grow"><h2>Publish the latest version</h2><p x-text="cur.video_path ? `Version ${cur.version}` : 'Render the video first'"></p></div></div>
+                  <div class="card-head"><div class="grow"><h2><span x-t>Publish the latest version</span></h2><p x-text="cur.video_path ? t('Version {v}', {v: cur.version}) : t('Render the video first')"></p></div></div>
                   <template x-if="!channels.length">
-                    <div class="notice info"><div>No accounts connected yet. <a href="/connections" @click.prevent="nav('/connections')">Connect YouTube, TikTok or Facebook</a></div></div>
+                    <div class="notice info"><div><span x-t>No accounts connected yet.</span> <a href="/connections" @click.prevent="nav('/connections')"><span x-t>Connect YouTube, TikTok or Facebook</span></a></div></div>
                   </template>
                   <div class="pickchips">
                     <template x-for="c in channels" :key="c.id">
@@ -588,22 +608,22 @@
                     </template>
                   </div>
                   <div class="grid-2" style="margin-top:14px" x-show="selectedProviders().includes('youtube') || selectedProviders().includes('tiktok')">
-                    <div class="field" x-show="selectedProviders().includes('youtube')"><label>YouTube visibility</label>
-                      <select x-model="pubOpts.youtube_visibility"><option value="public">Public</option><option value="unlisted">Unlisted</option><option value="private">Private</option></select></div>
-                    <div class="field" x-show="selectedProviders().includes('tiktok')"><label>TikTok</label>
-                      <select x-model="pubOpts.tiktok_method"><option value="DIRECT_POST">Post directly</option><option value="UPLOAD">Send to TikTok inbox as a draft</option></select></div>
+                    <div class="field" x-show="selectedProviders().includes('youtube')"><label><span x-t>YouTube visibility</span></label>
+                      <select x-model="pubOpts.youtube_visibility"><option value="public" x-t>Public</option><option value="unlisted" x-t>Unlisted</option><option value="private" x-t>Private</option></select></div>
+                    <div class="field" x-show="selectedProviders().includes('tiktok')"><label><span x-t>TikTok</span></label>
+                      <select x-model="pubOpts.tiktok_method"><option value="DIRECT_POST" x-t>Post directly</option><option value="UPLOAD" x-t>Send to TikTok inbox as a draft</option></select></div>
                   </div>
                   <div class="actions" style="margin-top:14px;justify-content:flex-end" x-show="channels.length">
-                    <button class="btn primary" @click="publish()" :disabled="!pubIds.length || !cur.video_path || isBusy(cur) || dirty"><svg class="i"><use href="#i-send"/></svg>Publish</button>
+                    <button class="btn primary" @click="publish()" :disabled="!pubIds.length || !cur.video_path || isBusy(cur) || dirty"><svg class="i"><use href="#i-send"/></svg><span x-t>Publish</span></button>
                   </div>
-                  <p class="hint" x-show="dirty">Save your edits first so the published video includes them.</p>
+                  <p class="hint" x-show="dirty"><span x-t>Save your edits first so the published video includes them.</span></p>
                 </div>
                 <div class="card" x-show="(cur.publish_result||[]).length">
-                  <div class="card-head"><div class="grow"><h2 x-text="`Results · version ${cur.version}`"></h2></div></div>
+                  <div class="card-head"><div class="grow"><h2 x-text="t('Results · version {v}', {v: cur.version})"></h2></div></div>
                   <template x-for="r in (cur.publish_result||[])">
                     <div class="acct-row">
-                      <span class="chip" :class="r.ok?'ok':'err'" x-text="r.ok?'Published':'Failed'"></span>
-                      <div class="grow"><div x-text="(r.channel?.name || 'Postiz') + (platformLabel(r.channel) ? ' · ' + platformLabel(r.channel) : '')"></div>
+                      <span class="chip" :class="r.ok?'ok':'err'" x-text="r.ok?t('Published'):t('Failed')"></span>
+                      <div class="grow"><div x-text="(r.channel?.name || t('Postiz')) + (platformLabel(r.channel) ? t(' · ') + platformLabel(r.channel) : '')"></div>
                         <div class="small" :style="!r.ok && 'color:var(--err)'" :class="r.ok&&'muted'" x-text="r.ok ? (r.result?.url || r.result?.publish_id || r.result?.video_id || '') : r.error"></div></div>
                       <a class="btn sm" x-show="r.result?.url" :href="r.result?.url" target="_blank" rel="noopener"><svg class="i"><use href="#i-ext"/></svg></a>
                     </div>
@@ -614,9 +634,9 @@
           </div>
 
           <div class="savebar" x-show="dirty && ['scenes','style'].includes(route.sub)" x-transition>
-            <div><span>Unsaved changes</span>
-              <button class="btn ghost sm" @click="loadTimeline()">Discard</button>
-              <button class="btn primary sm" @click="saveTimeline()" :disabled="isBusy(cur)">Save & render</button></div>
+            <div><span><span x-t>Unsaved changes</span></span>
+              <button class="btn ghost sm" @click="loadTimeline()"><span x-t>Discard</span></button>
+              <button class="btn primary sm" @click="saveTimeline()" :disabled="isBusy(cur)"><span x-t>Save & render</span></button></div>
           </div>
         </div>
       </template>
@@ -624,16 +644,16 @@
 
     <!-- ===================================================== IDEAS -->
     <section class="page" x-show="route.page==='ideas'">
-      <div class="page-head"><div><h1>Ideas</h1><p class="sub">Claude suggests topics for your niche, each with an opening hook.</p></div></div>
+      <div class="page-head"><div><h1><span x-t>Ideas</span></h1><p class="sub"><span x-t>Claude suggests topics for your niche, each with an opening hook.</span></p></div></div>
       <div class="card">
         <fieldset :disabled="thinking || !status.claude?.ok">
           <div class="grid-3">
-            <div class="field" style="grid-column:span 2"><label>Niche</label><input x-model="ideaForm.niche" placeholder="personal finance, history, tech tips…" @keydown.enter="getIdeas()"></div>
-            <div class="field"><label>Language</label><select x-model="ideaForm.language"><template x-for="l in languages"><option :value="l" x-text="l" :selected="l===ideaForm.language"></option></template></select></div>
+            <div class="field" style="grid-column:span 2"><label><span x-t>Niche</span></label><input x-model="ideaForm.niche" :placeholder="t('personal finance, history, tech tips…')" @keydown.enter="getIdeas()"></div>
+            <div class="field"><label><span x-t>Language</span></label><select x-model="ideaForm.language"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===ideaForm.language"></option></template></select></div>
           </div>
           <div class="actions" style="margin-top:12px;justify-content:flex-end">
-            <span class="small muted" x-show="!status.claude?.ok">Connect Claude first</span>
-            <button class="btn primary" @click="getIdeas()" :disabled="!ideaForm.niche.trim()"><span class="spin" x-show="thinking"></span><span x-text="thinking ? 'Thinking…' : 'Suggest ideas'"></span></button>
+            <span class="small muted" x-show="!status.claude?.ok"><span x-t>Connect Claude first</span></span>
+            <button class="btn primary" @click="getIdeas()" :disabled="!ideaForm.niche.trim()"><span class="spin" x-show="thinking"></span><span x-text="thinking ? t('Thinking…') : t('Suggest ideas')"></span></button>
           </div>
         </fieldset>
       </div>
@@ -643,7 +663,7 @@
             <strong x-text="i.topic"></strong>
             <div class="muted" x-text="'“' + i.hook + '”'"></div>
             <div class="small muted" x-text="i.why"></div>
-            <div class="actions" style="margin-top:auto;justify-content:flex-end"><button class="btn sm" @click="useIdea(i)">Use this idea</button></div>
+            <div class="actions" style="margin-top:auto;justify-content:flex-end"><button class="btn sm" @click="useIdea(i)"><span x-t>Use this idea</span></button></div>
           </div>
         </template>
       </div>
@@ -652,19 +672,19 @@
     <!-- ===================================================== BRAND KITS -->
     <section class="page" x-show="route.page==='brands'">
       <div class="page-head">
-        <div><h1>Brand kits</h1><p class="sub">A design system for your videos: logo, colors, font, intro/outro, music, b-roll and tone of voice.</p></div>
+        <div><h1><span x-t>Brand kits</span></h1><p class="sub"><span x-t>A design system for your videos: logo, colors, font, intro/outro, music, b-roll and tone of voice.</span></p></div>
         <div class="actions">
-          <button class="btn" @click="openImport()"><svg class="i"><use href="#i-github"/></svg>Import from GitHub</button>
-          <button class="btn primary" @click="newBrand.open=true; newBrand.name=''"><svg class="i"><use href="#i-plus"/></svg>New brand kit</button>
+          <button class="btn" @click="openImport()"><svg class="i"><use href="#i-github"/></svg><span x-t>Import from GitHub</span></button>
+          <button class="btn primary" @click="newBrand.open=true; newBrand.name=''"><svg class="i"><use href="#i-plus"/></svg><span x-t>New brand kit</span></button>
         </div>
       </div>
       <template x-if="!brandList.length">
         <div class="card empty">
-          <h2>No brand kits yet</h2>
-          <p>Upload your logo, fonts and clips — or import a repository. Add an <code>autoclip.brand.json</code> to the repo to control exactly what gets imported; otherwise Claude reads the README and styles to build the kit.</p>
+          <h2><span x-t>No brand kits yet</span></h2>
+          <p><span x-t>Upload your logo, fonts and clips — or import a repository. Add an</span> <code>autoclip.brand.json</code> <span x-t>to the repo to control exactly what gets imported; otherwise Claude reads the README and styles to build the kit.</span></p>
           <div class="actions" style="justify-content:center;margin-top:14px">
-            <button class="btn" @click="openImport()"><svg class="i"><use href="#i-github"/></svg>Import from GitHub</button>
-            <button class="btn primary" @click="newBrand.open=true; newBrand.name=''">New brand kit</button>
+            <button class="btn" @click="openImport()"><svg class="i"><use href="#i-github"/></svg><span x-t>Import from GitHub</span></button>
+            <button class="btn primary" @click="newBrand.open=true; newBrand.name=''"><span x-t>New brand kit</span></button>
           </div>
         </div>
       </template>
@@ -673,7 +693,7 @@
           <a class="bcard" :href="`/brands/${b.id}`" @click.prevent="nav(`/brands/${b.id}`)">
             <div class="bpreview" :style="`background:linear-gradient(135deg, ${b.colors.primary}, #111)`">
               <img x-show="b.logo" :src="b.logo && brandUrl(b, b.logo.file)" alt="">
-              <span class="cap" :style="`font-family:${brandFontFamily(b)}`">Your <span :style="`color:${b.colors.accent}`">story</span> here</span>
+              <span class="cap" :style="`font-family:${brandFontFamily(b)}`"><span x-t>Your</span> <span :style="`color:${b.colors.accent}`"><span x-t>story</span></span> <span x-t>here</span></span>
             </div>
             <div class="pbody">
               <div class="actions" style="justify-content:space-between"><strong x-text="b.name"></strong>
@@ -687,24 +707,24 @@
     </section>
 
     <section class="page" x-show="route.page==='brand'">
-      <template x-if="!brand"><div class="card empty"><template x-if="brandMissing"><div><h2>Brand kit not found</h2><div class="actions" style="justify-content:center;margin-top:12px"><a class="btn" href="/brands" @click.prevent="nav('/brands')">All brand kits</a></div></div></template><template x-if="!brandMissing"><span class="spin"></span></template></div></template>
+      <template x-if="!brand"><div class="card empty"><template x-if="brandMissing"><div><h2><span x-t>Brand kit not found</span></h2><div class="actions" style="justify-content:center;margin-top:12px"><a class="btn" href="/brands" @click.prevent="nav('/brands')"><span x-t>All brand kits</span></a></div></div></template><template x-if="!brandMissing"><span class="spin"></span></template></div></template>
       <template x-if="brand">
         <div>
           <div class="page-head">
             <div style="min-width:0;flex:1">
-              <a class="btn ghost sm" href="/brands" @click.prevent="nav('/brands')" style="margin-left:-10px"><svg class="i"><use href="#i-back"/></svg>Brand kits</a>
-              <input x-model="brand.name" style="font-size:22px;font-weight:700;border-color:transparent;padding:4px 6px;margin:6px 0 0 -6px;background:none" aria-label="Brand name">
+              <a class="btn ghost sm" href="/brands" @click.prevent="nav('/brands')" style="margin-left:-10px"><svg class="i"><use href="#i-back"/></svg><span x-t>Brand kits</span></a>
+              <input x-model="brand.name" style="font-size:22px;font-weight:700;border-color:transparent;padding:4px 6px;margin:6px 0 0 -6px;background:none" :aria-label="t('Brand name')">
               <div class="small muted" style="margin-top:4px">
                 <template x-if="brand.source?.type==='github'"><span><svg class="i" style="width:12px;height:12px;vertical-align:-1px"><use href="#i-github"/></svg>
                   <a :href="`https://github.com/${brand.source.repo}`" target="_blank" rel="noopener" x-text="brand.source.repo + '@' + brand.source.ref"></a>
-                  · imported <span x-text="ago(brand.source.imported_at)"></span> · <span x-text="{manifest:'from autoclip.brand.json', claude:'analyzed by Claude', heuristic:'guessed from file names'}[brand.source.mode]"></span></span></template>
-                <template x-if="brand.source?.type!=='github'"><span>Built by hand</span></template>
+                  <span x-t>· imported</span> <span x-text="ago(brand.source.imported_at)"></span> · <span x-text="{manifest:t('from autoclip.brand.json'), claude:t('analyzed by Claude'), heuristic:t('guessed from file names')}[brand.source.mode]"></span></span></template>
+                <template x-if="brand.source?.type!=='github'"><span><span x-t>Built by hand</span></span></template>
               </div>
             </div>
             <div class="actions">
-              <button class="btn" x-show="brand.source?.type==='github'" @click="syncBrand()" :disabled="syncing"><span class="spin" x-show="syncing"></span><svg class="i" x-show="!syncing"><use href="#i-retry"/></svg>Sync from GitHub</button>
-              <button class="btn" @click="useBrand()"><svg class="i"><use href="#i-film"/></svg>Create a video</button>
-              <button class="btn ghost danger" title="Delete brand kit" @click="askDeleteBrand()"><svg class="i"><use href="#i-trash"/></svg></button>
+              <button class="btn" x-show="brand.source?.type==='github'" @click="syncBrand()" :disabled="syncing"><span class="spin" x-show="syncing"></span><svg class="i" x-show="!syncing"><use href="#i-retry"/></svg><span x-t>Sync from GitHub</span></button>
+              <button class="btn" @click="useBrand()"><svg class="i"><use href="#i-film"/></svg><span x-t>Create a video</span></button>
+              <button class="btn ghost danger" :title="t('Delete brand kit')" @click="askDeleteBrand()"><svg class="i"><use href="#i-trash"/></svg></button>
             </div>
           </div>
           <template x-for="w in (brand.warnings||[])"><div class="notice" style="margin-bottom:10px"><svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg><div x-text="w"></div></div></template>
@@ -712,98 +732,98 @@
           <div class="grid-2">
             <div>
               <div class="card">
-                <div class="card-head"><div class="grow"><h2>Identity</h2><p>Claude follows this when writing and editing scripts.</p></div></div>
+                <div class="card-head"><div class="grow"><h2><span x-t>Identity</span></h2><p><span x-t>Claude follows this when writing and editing scripts.</span></p></div></div>
                 <div class="stack">
-                  <div class="field"><label>What it is</label><textarea x-model="brand.description" placeholder="Acme makes invoicing painless for freelancers."></textarea></div>
-                  <div class="field"><label>Voice & tone</label><textarea x-model="brand.voice" placeholder="Warm, confident, no jargon. Speak to the viewer as 'you'."></textarea></div>
+                  <div class="field"><label><span x-t>What it is</span></label><textarea x-model="brand.description" :placeholder="t('Acme makes invoicing painless for freelancers.')"></textarea></div>
+                  <div class="field"><label><span x-t>Voice & tone</span></label><textarea x-model="brand.voice" :placeholder="t('Warm, confident, no jargon. Speak to the viewer as \'you\'.')"></textarea></div>
                   <div class="grid-2">
-                    <div class="field"><label>Audience</label><input x-model="brand.audience" placeholder="Freelancers and small agencies"></div>
-                    <div class="field"><label>Call to action</label><input x-model="brand.cta" placeholder="Start free at acme.com"></div>
+                    <div class="field"><label><span x-t>Audience</span></label><input x-model="brand.audience" :placeholder="t('Freelancers and small agencies')"></div>
+                    <div class="field"><label><span x-t>Call to action</span></label><input x-model="brand.cta" :placeholder="t('Start free at acme.com')"></div>
                   </div>
                   <div class="grid-2">
-                    <div class="field"><label>Language</label><select x-model="brand.language" @change="brand.voice_name=''; loadVoices(brand.language||'English')"><option value="">Any</option><template x-for="l in languages"><option :value="l" x-text="l" :selected="l===brand.language"></option></template></select></div>
-                    <div class="field"><label>Voice</label><select x-model="brand.voice_name"><option value="">Default for the language</option><template x-for="v in (voices[brand.language||'English']||[])"><option :value="v.name" x-text="voiceLabel(v)" :selected="v.name===brand.voice_name"></option></template></select></div>
+                    <div class="field"><label><span x-t>Language</span></label><select x-model="brand.language" @change="brand.voice_name=''; loadVoices(brand.language||'English')"><option value="" x-t>Any</option><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===brand.language"></option></template></select></div>
+                    <div class="field"><label><span x-t>Voice</span></label><select x-model="brand.voice_name"><option value="" x-t>Default for the language</option><template x-for="v in (voices[brand.language||'English']||[])"><option :value="v.name" x-text="voiceLabel(v)" :selected="v.name===brand.voice_name"></option></template></select></div>
                   </div>
                 </div>
               </div>
 
               <div class="card">
-                <div class="card-head"><div class="grow"><h2>Knowledge</h2><p>Product facts, FAQs, docs — Claude stays consistent with them in every video for this brand.</p></div>
-                  <label class="btn sm uploadbtn"><svg class="i"><use href="#i-clip"/></svg>Add files<input type="file" multiple :accept="contextAccept" @change="uploadAsset('context', $event)"></label></div>
-                <template x-if="!(brand.knowledge||[]).length"><p class="small muted">None yet. TXT, MD, PDF, DOCX, HTML, CSV or JSON.</p></template>
+                <div class="card-head"><div class="grow"><h2><span x-t>Knowledge</span></h2><p><span x-t>Product facts, FAQs, docs — Claude stays consistent with them in every video for this brand.</span></p></div>
+                  <label class="btn sm uploadbtn"><svg class="i"><use href="#i-clip"/></svg><span x-t>Add files</span><input type="file" multiple :accept="contextAccept" @change="uploadAsset('context', $event)"></label></div>
+                <template x-if="!(brand.knowledge||[]).length"><p class="small muted"><span x-t>None yet. TXT, MD, PDF, DOCX, HTML, CSV or JSON.</span></p></template>
                 <div class="files">
                   <template x-for="k in (brand.knowledge||[])" :key="k.id">
-                    <span class="filechip"><svg class="i" style="width:13px;height:13px"><use href="#i-clip"/></svg><span class="n" x-text="k.name"></span><span class="muted" x-text="fmtChars(k.chars)"></span><button type="button" class="x" @click="removeAsset('context', k.id)" title="Remove">✕</button></span>
+                    <span class="filechip"><svg class="i" style="width:13px;height:13px"><use href="#i-clip"/></svg><span class="n" x-text="k.name"></span><span class="muted" x-text="fmtChars(k.chars)"></span><button type="button" class="x" @click="removeAsset('context', k.id)" :title="t('Remove')">✕</button></span>
                   </template>
                 </div>
               </div>
 
               <div class="card">
-                <div class="card-head"><div class="grow"><h2>Look</h2></div></div>
+                <div class="card-head"><div class="grow"><h2><span x-t>Look</span></h2></div></div>
                 <div class="grid-3">
-                  <div class="field"><label>Primary</label><input type="color" x-model="brand.colors.primary"></div>
-                  <div class="field"><label>Highlight</label><input type="color" x-model="brand.colors.accent"></div>
-                  <div class="field"><label>Caption text</label><input type="color" x-model="brand.colors.text"></div>
+                  <div class="field"><label><span x-t>Primary</span></label><input type="color" x-model="brand.colors.primary"></div>
+                  <div class="field"><label><span x-t>Highlight</span></label><input type="color" x-model="brand.colors.accent"></div>
+                  <div class="field"><label><span x-t>Caption text</span></label><input type="color" x-model="brand.colors.text"></div>
                 </div>
-                <div class="lbl" style="margin-top:14px">Captions</div>
+                <div class="lbl" style="margin-top:14px"><span x-t>Captions</span></div>
                 <div class="presets">
                   <template x-for="pr in presets" :key="pr.key">
                     <button type="button" class="preset" :class="brand.captions.preset===pr.key&&'on'" @click="brand.captions.preset=pr.key">
-                      <div class="demo" :style="`background:linear-gradient(135deg, ${brand.colors.primary}, #111)`"><span :class="pr.cls" :style="`font-family:${brandFontFamily(brand)};color:${brand.colors.text}`" x-html="pr.demo.replace('<em>', `<em style='color:${brand.colors.accent}'>`)"></span></div><div class="name" x-text="pr.label"></div>
+                      <div class="demo" :style="`background:linear-gradient(135deg, ${brand.colors.primary}, #111)`"><span :class="pr.cls" :style="`font-family:${brandFontFamily(brand)};color:${brand.colors.text}`" x-html="pr.demo.replace('<em>', `<em style='color:${brand.colors.accent}'>`)"></span></div><div class="name" x-text="t(pr.label)"></div>
                     </button>
                   </template>
                 </div>
-                <div class="field" style="margin-top:12px"><label>Caption position · <span x-text="positionLabel(brand.captions.position)"></span></label><input type="range" min="0.1" max="0.9" step="0.01" x-model.number="brand.captions.position"></div>
+                <div class="field" style="margin-top:12px"><label><span x-t>Caption position ·</span> <span x-text="positionLabel(brand.captions.position)"></span></label><input type="range" min="0.1" max="0.9" step="0.01" x-model.number="brand.captions.position"></div>
                 <div class="divider"></div>
                 <div class="assetslot">
                   <div class="thumbbox" :style="brand.font && `font-family:${brandFontFamily(brand)};font-size:22px;color:var(--text)`">Aa</div>
-                  <div class="grow"><div style="font-weight:600">Font</div><div class="small muted" x-text="brand.font ? brand.font.family : 'Be Vietnam Pro (default)'"></div></div>
-                  <label class="btn sm uploadbtn"><svg class="i"><use href="#i-upload"/></svg><span x-text="brand.font?'Replace':'Upload TTF/OTF'"></span><input type="file" accept=".ttf,.otf" @change="uploadAsset('font', $event)"></label>
-                  <button class="btn ghost sm danger" x-show="brand.font" @click="removeAsset('font')">Remove</button>
+                  <div class="grow"><div style="font-weight:600"><span x-t>Font</span></div><div class="small muted" x-text="brand.font ? brand.font.family : t('Be Vietnam Pro (default)')"></div></div>
+                  <label class="btn sm uploadbtn"><svg class="i"><use href="#i-upload"/></svg><span x-text="brand.font?t('Replace'):t('Upload TTF/OTF')"></span><input type="file" accept=".ttf,.otf" @change="uploadAsset('font', $event)"></label>
+                  <button class="btn ghost sm danger" x-show="brand.font" @click="removeAsset('font')"><span x-t>Remove</span></button>
                 </div>
               </div>
             </div>
 
             <div>
               <div class="card">
-                <div class="card-head"><div class="grow"><h2>Logo</h2><p>Shown on every scene (not on the intro/outro).</p></div>
-                  <label class="btn sm uploadbtn"><svg class="i"><use href="#i-upload"/></svg><span x-text="brand.logo?'Replace':'Upload PNG'"></span><input type="file" accept=".png,.jpg,.jpeg,.webp" @change="uploadAsset('logo', $event)"></label></div>
+                <div class="card-head"><div class="grow"><h2><span x-t>Logo</span></h2><p><span x-t>Shown on every scene (not on the intro/outro).</span></p></div>
+                  <label class="btn sm uploadbtn"><svg class="i"><use href="#i-upload"/></svg><span x-text="brand.logo?t('Replace'):t('Upload PNG')"></span><input type="file" accept=".png,.jpg,.jpeg,.webp" @change="uploadAsset('logo', $event)"></label></div>
                 <template x-if="brand.logo">
                   <div class="stack">
                     <div class="logobox"><img :src="brandUrl(brand, brand.logo.file)" alt="" :style="`opacity:${brand.logo.opacity}`"></div>
                     <div class="grid-3">
-                      <div class="field"><label>Corner</label><select x-model="brand.logo.position"><option value="top-left">Top left</option><option value="top-right">Top right</option><option value="bottom-left">Bottom left</option><option value="bottom-right">Bottom right</option></select></div>
-                      <div class="field"><label>Size <span x-text="Math.round(brand.logo.size*100)+'%'"></span></label><input type="range" min="0.06" max="0.4" step="0.01" x-model.number="brand.logo.size"></div>
-                      <div class="field"><label>Opacity <span x-text="Math.round(brand.logo.opacity*100)+'%'"></span></label><input type="range" min="0.2" max="1" step="0.05" x-model.number="brand.logo.opacity"></div>
+                      <div class="field"><label><span x-t>Corner</span></label><select x-model="brand.logo.position"><option value="top-left" x-t>Top left</option><option value="top-right" x-t>Top right</option><option value="bottom-left" x-t>Bottom left</option><option value="bottom-right" x-t>Bottom right</option></select></div>
+                      <div class="field"><label><span x-t>Size</span> <span x-text="Math.round(brand.logo.size*100)+'%'"></span></label><input type="range" min="0.06" max="0.4" step="0.01" x-model.number="brand.logo.size"></div>
+                      <div class="field"><label><span x-t>Opacity</span> <span x-text="Math.round(brand.logo.opacity*100)+'%'"></span></label><input type="range" min="0.2" max="1" step="0.05" x-model.number="brand.logo.opacity"></div>
                     </div>
-                    <button class="btn ghost sm danger" @click="removeAsset('logo')">Remove logo</button>
+                    <button class="btn ghost sm danger" @click="removeAsset('logo')"><span x-t>Remove logo</span></button>
                   </div>
                 </template>
-                <template x-if="!brand.logo"><p class="small muted">PNG, JPG or WebP — a transparent PNG looks best. SVG isn't supported; export a PNG.</p></template>
+                <template x-if="!brand.logo"><p class="small muted"><span x-t>PNG, JPG or WebP — a transparent PNG looks best. SVG isn't supported; export a PNG.</span></p></template>
               </div>
 
               <div class="card">
-                <div class="card-head"><div class="grow"><h2>Intro & outro</h2><p>Played before and after every video, up to 30 s each.</p></div></div>
+                <div class="card-head"><div class="grow"><h2><span x-t>Intro & outro</span></h2><p><span x-t>Played before and after every video, up to 30 s each.</span></p></div></div>
                 <template x-for="k in ['intro','outro']" :key="k">
                   <div class="assetslot">
                     <div class="thumbbox"><img x-show="brand[k]" :src="brand[k] && brandUrl(brand, brand[k].thumb)" alt=""><svg class="i" x-show="!brand[k]"><use href="#i-film"/></svg></div>
-                    <div class="grow"><div style="font-weight:600" x-text="k==='intro'?'Intro':'Outro'"></div><div class="small muted" x-text="brand[k] ? brand[k].duration + ' s' : 'None'"></div></div>
-                    <label class="btn sm uploadbtn"><svg class="i"><use href="#i-upload"/></svg><span x-text="brand[k]?'Replace':'Upload'"></span><input type="file" accept="video/*" @change="uploadAsset(k, $event)"></label>
-                    <button class="btn ghost sm danger" x-show="brand[k]" @click="removeAsset(k)">Remove</button>
+                    <div class="grow"><div style="font-weight:600" x-text="k==='intro'?t('Intro'):t('Outro')"></div><div class="small muted" x-text="brand[k] ? brand[k].duration + t(' s') : t('None')"></div></div>
+                    <label class="btn sm uploadbtn"><svg class="i"><use href="#i-upload"/></svg><span x-text="brand[k]?t('Replace'):t('Upload')"></span><input type="file" accept="video/*" @change="uploadAsset(k, $event)"></label>
+                    <button class="btn ghost sm danger" x-show="brand[k]" @click="removeAsset(k)"><span x-t>Remove</span></button>
                   </div>
                 </template>
               </div>
 
               <div class="card">
-                <div class="card-head"><div class="grow"><h2>Music</h2><p>Plays under the voice and ducks automatically when someone speaks.</p></div>
-                  <label class="btn sm uploadbtn"><svg class="i"><use href="#i-upload"/></svg>Add track<input type="file" accept="audio/*" @change="uploadAsset('music', $event)"></label></div>
-                <template x-if="!brand.music.length"><p class="small muted">No music — videos have voice only.</p></template>
+                <div class="card-head"><div class="grow"><h2><span x-t>Music</span></h2><p><span x-t>Plays under the voice and ducks automatically when someone speaks.</span></p></div>
+                  <label class="btn sm uploadbtn"><svg class="i"><use href="#i-upload"/></svg><span x-t>Add track</span><input type="file" accept="audio/*" @change="uploadAsset('music', $event)"></label></div>
+                <template x-if="!brand.music.length"><p class="small muted"><span x-t>No music — videos have voice only.</span></p></template>
                 <template x-for="(m, i) in brand.music" :key="m.file">
                   <div class="assetslot">
                     <audio :src="brandUrl(brand, m.file)" controls preload="none" style="height:32px;width:180px;flex:none"></audio>
                     <div class="grow"><div style="font-weight:600" x-text="m.name"></div>
-                      <div class="actions small muted" style="flex-wrap:nowrap">Volume <input type="range" min="0.02" max="0.5" step="0.01" x-model.number="m.volume" style="max-width:140px"><span x-text="Math.round(m.volume*100)+'%'"></span></div></div>
-                    <button class="btn ghost sm danger" @click="removeAsset('music', m.file)">Remove</button>
+                      <div class="actions small muted" style="flex-wrap:nowrap"><span x-t>Volume</span> <input type="range" min="0.02" max="0.5" step="0.01" x-model.number="m.volume" style="max-width:140px"><span x-text="Math.round(m.volume*100)+'%'"></span></div></div>
+                    <button class="btn ghost sm danger" @click="removeAsset('music', m.file)"><span x-t>Remove</span></button>
                   </div>
                 </template>
               </div>
@@ -811,23 +831,23 @@
           </div>
 
           <div class="card" style="margin-top:16px">
-            <div class="card-head"><div class="grow"><h2>B-roll library</h2><p>Your own clips. Claude uses them for scenes that match the description, before stock footage.</p></div>
-              <label class="btn sm uploadbtn"><svg class="i"><use href="#i-upload"/></svg>Add clips<input type="file" accept="video/*" multiple @change="uploadAsset('clip', $event)"></label></div>
-            <template x-if="!brand.clips.length"><p class="small muted">No clips yet — product demos, screen recordings and team shots work well.</p></template>
+            <div class="card-head"><div class="grow"><h2><span x-t>B-roll library</span></h2><p><span x-t>Your own clips. Claude uses them for scenes that match the description, before stock footage.</span></p></div>
+              <label class="btn sm uploadbtn"><svg class="i"><use href="#i-upload"/></svg><span x-t>Add clips</span><input type="file" accept="video/*" multiple @change="uploadAsset('clip', $event)"></label></div>
+            <template x-if="!brand.clips.length"><p class="small muted"><span x-t>No clips yet — product demos, screen recordings and team shots work well.</span></p></template>
             <div class="cliplib">
               <template x-for="c in brand.clips" :key="c.id">
                 <div class="c"><img :src="brandUrl(brand, c.thumb)" alt="">
-                  <div class="b"><textarea x-model="c.description" style="min-height:52px;font-size:12px" placeholder="What does it show?"></textarea>
-                    <div class="actions" style="justify-content:space-between"><span class="small muted" x-text="c.duration + ' s'"></span><button class="btn ghost sm danger" @click="removeAsset('clip', c.file)">Remove</button></div></div>
+                  <div class="b"><textarea x-model="c.description" style="min-height:52px;font-size:12px" :placeholder="t('What does it show?')"></textarea>
+                    <div class="actions" style="justify-content:space-between"><span class="small muted" x-text="c.duration + t(' s')"></span><button class="btn ghost sm danger" @click="removeAsset('clip', c.file)"><span x-t>Remove</span></button></div></div>
                 </div>
               </template>
             </div>
           </div>
 
           <div class="savebar" x-show="brandDirty" x-transition>
-            <div><span>Unsaved changes</span>
-              <button class="btn ghost sm" @click="loadBrand(brand.id)">Discard</button>
-              <button class="btn primary sm" @click="saveBrand()">Save brand kit</button></div>
+            <div><span><span x-t>Unsaved changes</span></span>
+              <button class="btn ghost sm" @click="loadBrand(brand.id)"><span x-t>Discard</span></button>
+              <button class="btn primary sm" @click="saveBrand()"><span x-t>Save brand kit</span></button></div>
           </div>
         </div>
       </template>
@@ -835,32 +855,32 @@
 
     <!-- ===================================================== AUTOPILOT -->
     <section class="page" x-show="route.page==='autopilot'">
-      <div class="page-head"><div><h1>Autopilot</h1><p class="sub">On a schedule, Claude comes up with ideas for your niche, renders them and can publish them.</p></div>
-        <span class="chip" :class="autopilot.enabled?'ok':''" x-text="autopilot.enabled?'On':'Off'"></span></div>
+      <div class="page-head"><div><h1><span x-t>Autopilot</span></h1><p class="sub"><span x-t>On a schedule, Claude comes up with ideas for your niche, renders them and can publish them.</span></p></div>
+        <span class="chip" :class="autopilot.enabled?'ok':''" x-text="autopilot.enabled?t('On'):t('Off')"></span></div>
       <div class="card" x-show="autopilot.enabled || autopilot.last_error">
         <div class="grid-3">
-          <div><div class="lbl">Next run</div><div x-text="autopilot.next_run ? when(autopilot.next_run) : '—'"></div></div>
-          <div><div class="lbl">Last run</div><div x-text="autopilot.last_run ? when(autopilot.last_run) : 'Never'"></div></div>
-          <div><div class="lbl">Last result</div><div :style="autopilot.last_error&&'color:var(--err)'" x-text="autopilot.last_error || (autopilot.last_run ? 'OK' : '—')"></div></div>
+          <div><div class="lbl"><span x-t>Next run</span></div><div x-text="autopilot.next_run ? when(autopilot.next_run) : '—'"></div></div>
+          <div><div class="lbl"><span x-t>Last run</span></div><div x-text="autopilot.last_run ? when(autopilot.last_run) : t('Never')"></div></div>
+          <div><div class="lbl"><span x-t>Last result</span></div><div :style="autopilot.last_error&&'color:var(--err)'" x-text="autopilot.last_error || (autopilot.last_run ? t('OK') : '—')"></div></div>
         </div>
       </div>
       <div class="card">
         <div class="stack">
-          <div class="field"><label>Niche</label><input x-model="autoForm.niche" placeholder="e.g. money tips for students"></div>
+          <div class="field"><label><span x-t>Niche</span></label><input x-model="autoForm.niche" :placeholder="t('e.g. money tips for students')"></div>
           <div class="grid-3">
-            <div class="field"><label>Every</label><select x-model.number="autoForm.every_hours"><template x-for="h in [6,12,24,48,72,168]"><option :value="h" x-text="h<24 ? h+' hours' : (h===168?'week':(h/24)+' day'+(h>24?'s':''))" :selected="h===autoForm.every_hours"></option></template></select></div>
-            <div class="field"><label>Videos per run</label><input type="number" min="1" max="10" x-model.number="autoForm.videos_per_run"></div>
-            <div class="field"><label>Length</label><select x-model.number="autoForm.duration"><template x-for="d in [15,30,45,60,90]"><option :value="d" x-text="d+' seconds'" :selected="d===autoForm.duration"></option></template></select></div>
+            <div class="field"><label><span x-t>Every</span></label><select x-model.number="autoForm.every_hours"><template x-for="h in [6,12,24,48,72,168]"><option :value="h" x-text="h<24 ? t('{n} hours', {n: h}) : h===168 ? t('1 week') : h===24 ? t('1 day') : t('{n} days', {n: h/24})" :selected="h===autoForm.every_hours"></option></template></select></div>
+            <div class="field"><label><span x-t>Videos per run</span></label><input type="number" min="1" max="10" x-model.number="autoForm.videos_per_run"></div>
+            <div class="field"><label><span x-t>Length</span></label><select x-model.number="autoForm.duration"><template x-for="d in [15,30,45,60,90]"><option :value="d" x-text="d+t(' seconds')" :selected="d===autoForm.duration"></option></template></select></div>
           </div>
           <div class="grid-3">
-            <div class="field"><label>Language</label><select x-model="autoForm.language"><template x-for="l in languages"><option :value="l" x-text="l" :selected="l===autoForm.language"></option></template></select></div>
-            <div class="field"><label>Format</label><select x-model="autoForm.format"><option value="shorts">Vertical 9:16</option><option value="youtube">Landscape 16:9</option><option value="square">Square 1:1</option></select></div>
-            <div class="field"><label>Style</label><input x-model="autoForm.style" placeholder="optional"></div>
+            <div class="field"><label><span x-t>Language</span></label><select x-model="autoForm.language"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===autoForm.language"></option></template></select></div>
+            <div class="field"><label><span x-t>Format</span></label><select x-model="autoForm.format"><option value="shorts" x-t>Vertical 9:16</option><option value="youtube" x-t>Landscape 16:9</option><option value="square" x-t>Square 1:1</option></select></div>
+            <div class="field"><label><span x-t>Style</span></label><input x-model="autoForm.style" :placeholder="t('optional')"></div>
           </div>
-          <div class="field" x-show="brandList.length"><label>Brand kit</label>
-            <select x-model="autoForm.brand_id"><option value="">No brand</option><template x-for="b in brandList" :key="b.id"><option :value="b.id" x-text="b.name" :selected="autoForm.brand_id===b.id"></option></template></select></div>
-          <div class="field"><label>Publish to</label>
-            <template x-if="!channels.length"><p class="small muted">No accounts connected — videos will be created but not published.</p></template>
+          <div class="field" x-show="brandList.length"><label><span x-t>Brand kit</span></label>
+            <select x-model="autoForm.brand_id"><option value="" x-t>No brand</option><template x-for="b in brandList" :key="b.id"><option :value="b.id" x-text="b.name" :selected="autoForm.brand_id===b.id"></option></template></select></div>
+          <div class="field"><label><span x-t>Publish to</span></label>
+            <template x-if="!channels.length"><p class="small muted"><span x-t>No accounts connected — videos will be created but not published.</span></p></template>
             <div class="pickchips">
               <template x-for="c in channels" :key="c.id">
                 <button type="button" class="pickchip" :class="autoForm.channelIds.includes(c.id)&&'on'" @click="toggle(autoForm.channelIds, c.id)">
@@ -869,15 +889,15 @@
               </template>
             </div>
             <label class="toggle small" style="margin-top:10px" x-show="channels.length" :style="!autoForm.channelIds.length && 'opacity:.5'">
-              <input type="checkbox" x-model="autoForm.auto_publish" :disabled="!autoForm.channelIds.length"> Publish automatically</label>
+              <input type="checkbox" x-model="autoForm.auto_publish" :disabled="!autoForm.channelIds.length"> <span x-t>Publish automatically</span></label>
           </div>
         </div>
         <div class="divider"></div>
         <div class="actions" style="justify-content:space-between">
-          <span class="small muted" x-text="!autopilot.enabled && missingSetup().length ? 'To turn it on: ' + missingSetup().join(' and ') : ''"></span>
+          <span class="small muted" x-text="!autopilot.enabled && missingSetup().length ? t('To turn it on: ') + missingSetup().join(t(' and ')) : ''"></span>
           <div class="actions">
-            <button class="btn" @click="saveAuto(!!autopilot.enabled)">Save</button>
-            <button class="btn" :class="!autopilot.enabled && 'primary'" @click="saveAuto(!autopilot.enabled)" :disabled="!autopilot.enabled && (missingSetup().length > 0 || !(autoForm.niche||'').trim())" x-text="autopilot.enabled ? 'Turn off' : 'Save & turn on'"></button>
+            <button class="btn" @click="saveAuto(!!autopilot.enabled)"><span x-t>Save</span></button>
+            <button class="btn" :class="!autopilot.enabled && 'primary'" @click="saveAuto(!autopilot.enabled)" :disabled="!autopilot.enabled && (missingSetup().length > 0 || !(autoForm.niche||'').trim())" x-text="autopilot.enabled ? t('Turn off') : t('Save & turn on')"></button>
           </div>
         </div>
       </div>
@@ -885,15 +905,15 @@
 
     <!-- ===================================================== CONNECTIONS -->
     <section class="page" x-show="route.page==='connections'">
-      <div class="page-head"><div><h1>Connections</h1><p class="sub">Claude and stock footage are required. Social accounts, FrameJam and Postiz are optional.</p></div></div>
+      <div class="page-head"><div><h1><span x-t>Connections</span></h1><p class="sub"><span x-t>Only Claude is required. Stock footage, social accounts, GitHub, FrameJam and Postiz are optional.</span></p></div></div>
 
       <div class="grid-2">
         <div>
           <!-- Claude -->
           <div class="card">
             <div class="card-head">
-              <div class="grow"><h2>Claude</h2><p>Writes scripts, ideas and edits through the Claude Agent SDK.</p></div>
-              <span class="chip" :class="{connected:'ok', expired:'warn', disconnected:'err'}[cl.state]" x-text="{connected:'Connected', expired:'Needs sign-in', disconnected:'Not connected'}[cl.state] || 'Checking…'"></span>
+              <div class="grow"><h2><span x-t>Claude</span></h2><p><span x-t>Writes scripts, ideas and edits through the Claude Agent SDK.</span></p></div>
+              <span class="chip" :class="{connected:'ok', expired:'warn', disconnected:'err'}[cl.state]" x-text="{connected:t('Connected'), expired:t('Needs sign-in'), disconnected:t('Not connected')}[cl.state] || t('Checking…')"></span>
             </div>
 
             <template x-if="!cl.state"><div class="small muted"><span class="spin"></span></div></template>
@@ -902,18 +922,18 @@
             <template x-if="cl.state==='connected' && !switching && !signingIn()">
               <div>
                 <div class="account">
-                  <span class="avatar lg" x-text="initial(cl.current.email || 'K')"></span>
+                  <span class="avatar lg" x-text="initial(cl.current.email || t('K'))"></span>
                   <div class="grow"><div class="t" x-text="cl.current.email || cl.current.detail"></div>
-                    <div class="d" x-text="sourceText(cl.current.source) + (cl.current.email && cl.current.detail.includes('·') ? ' · ' + cl.current.detail.split('·').slice(1).join('·').trim() + ' plan' : '')"></div></div>
+                    <div class="d" x-text="sourceText(cl.current.source) + (cl.current.email && cl.current.detail.includes('·') ? t(' · ') + cl.current.detail.split('·').slice(1).join('·').trim() + t(' plan') : '')"></div></div>
                 </div>
                 <div class="grid-2" style="margin-top:14px;align-items:end">
-                  <div class="field"><label>Model</label>
+                  <div class="field"><label><span x-t>Model</span></label>
                     <select @change="setModel($event.target.value)">
-                      <template x-for="m in [['sonnet','Sonnet · fast, recommended'],['opus','Opus · best quality'],['haiku','Haiku · fastest']]"><option :value="m[0]" x-text="m[1]" :selected="m[0]===cl.model"></option></template>
+                      <template x-for="m in [['sonnet','Sonnet · fast, recommended'],['opus','Opus · best quality'],['haiku','Haiku · fastest']]"><option :value="m[0]" x-text="t(m[1])" :selected="m[0]===cl.model"></option></template>
                     </select></div>
                   <div class="actions" style="justify-content:flex-end">
-                    <button class="btn" @click="switching=true">Switch account</button>
-                    <button class="btn ghost danger" @click="cl.current.source==='app' ? claudeLogout() : claudeSource('')" x-text="cl.current.source==='app' ? 'Sign out' : 'Disconnect'"></button>
+                    <button class="btn" @click="switching=true"><span x-t>Switch account</span></button>
+                    <button class="btn ghost danger" @click="cl.current.source==='app' ? claudeLogout() : claudeSource('')" x-text="cl.current.source==='app' ? t('Sign out') : t('Disconnect')"></button>
                   </div>
                 </div>
               </div>
@@ -923,68 +943,68 @@
             <template x-if="signingIn()">
               <div class="stack">
                 <ol class="steps">
-                  <li>Approve access on the Claude page that opened in a new tab. <a :href="cl.login.url" target="_blank" rel="noopener" x-show="cl.login.url">Open it again ↗</a></li>
-                  <li>Copy the code Claude shows and paste it here.</li>
+                  <li><span x-t>Approve access on the Claude page that opened in a new tab.</span> <a :href="cl.login.url" target="_blank" rel="noopener" x-show="cl.login.url"><span x-t>Open it again ↗</span></a></li>
+                  <li><span x-t>Copy the code Claude shows and paste it here.</span></li>
                 </ol>
                 <div class="actions" style="flex-wrap:nowrap">
-                  <input x-model="claudeCode" placeholder="Paste the code" @keydown.enter="claudeSubmitCode()" :disabled="cl.login.state!=='waiting_code'" autocomplete="off">
+                  <input x-model="claudeCode" :placeholder="t('Paste the code')" @keydown.enter="claudeSubmitCode()" :disabled="cl.login.state!=='waiting_code'" autocomplete="off">
                   <button class="btn primary" @click="claudeSubmitCode()" :disabled="!claudeCode.trim() || cl.login.state!=='waiting_code'">
-                    <span class="spin" x-show="cl.login.state==='verifying'"></span><span x-text="cl.login.state==='verifying' ? 'Connecting…' : 'Connect'"></span></button>
+                    <span class="spin" x-show="cl.login.state==='verifying'"></span><span x-text="cl.login.state==='verifying' ? t('Connecting…') : t('Connect')"></span></button>
                 </div>
-                <button class="btn ghost sm" @click="claudeCancel()" :disabled="cl.login.state==='verifying'">Cancel</button>
+                <button class="btn ghost sm" @click="claudeCancel()" :disabled="cl.login.state==='verifying'"><span x-t>Cancel</span></button>
               </div>
             </template>
 
             <!-- chooser -->
             <template x-if="cl.state && (cl.state!=='connected' || switching) && !signingIn()">
               <div class="stack">
-                <div class="notice" x-show="cl.state==='expired'"><svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg><div>The saved Claude connection no longer works. Choose how to connect again.</div></div>
+                <div class="notice" x-show="cl.state==='expired'"><svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg><div><span x-t>The saved Claude connection no longer works. Choose how to connect again.</span></div></div>
                 <div class="notice err" x-show="cl.login?.state==='error'"><svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg><div x-text="cl.login?.error"></div></div>
                 <div class="options">
                   <div class="option rec">
-                    <div class="grow"><div class="t">Sign in with Claude</div><div class="d">Any Claude Pro, Max or Team account. Kept separate from your terminal login.</div></div>
-                    <button class="btn primary" @click="claudeLogin()" :disabled="cl.login?.state==='starting'"><span class="spin" x-show="cl.login?.state==='starting'"></span>Sign in</button>
+                    <div class="grow"><div class="t"><span x-t>Sign in with Claude</span></div><div class="d"><span x-t>Any Claude Pro, Max or Team account. Kept separate from your terminal login.</span></div></div>
+                    <button class="btn primary" @click="claudeLogin()" :disabled="cl.login?.state==='starting'"><span class="spin" x-show="cl.login?.state==='starting'"></span><span x-t>Sign in</span></button>
                   </div>
                   <div class="option" x-show="cl.system?.ok && !(cl.current?.source==='system' && cl.state==='connected')">
-                    <div class="grow"><div class="t">Use this computer's Claude Code login</div><div class="d" x-text="cl.system?.email || cl.system?.detail"></div></div>
-                    <button class="btn" @click="claudeSource('system')">Use</button>
+                    <div class="grow"><div class="t"><span x-t>Use this computer's Claude Code login</span></div><div class="d" x-text="cl.system?.email || cl.system?.detail"></div></div>
+                    <button class="btn" @click="claudeSource('system')"><span x-t>Use</span></button>
                   </div>
                   <div class="option">
-                    <div class="grow"><div class="t">Anthropic API key</div><div class="d">Pay as you go from the Claude Console.</div>
+                    <div class="grow"><div class="t"><span x-t>Anthropic API key</span></div><div class="d"><span x-t>Pay as you go from the Claude Console.</span></div>
                       <div class="actions" style="margin-top:8px;flex-wrap:nowrap"><input type="password" x-model="apiKey" placeholder="sk-ant-…" autocomplete="off" @keydown.enter="useApiKey()">
-                        <button class="btn" @click="useApiKey()" :disabled="!apiKey.trim().startsWith('sk-')">Use key</button></div></div>
+                        <button class="btn" @click="useApiKey()" :disabled="!apiKey.trim().startsWith('sk-')"><span x-t>Use key</span></button></div></div>
                   </div>
                 </div>
-                <button class="btn ghost sm" x-show="switching" @click="switching=false">Cancel</button>
+                <button class="btn ghost sm" x-show="switching" @click="switching=false"><span x-t>Cancel</span></button>
               </div>
             </template>
-            <p class="hint" style="margin-top:12px">Personal use only: subscription usage through the Agent SDK draws from your plan's monthly Agent SDK credit. Don't share your login with others.</p>
+            <p class="hint" style="margin-top:12px"><span x-t>Personal use only: subscription usage through the Agent SDK draws from your plan's monthly Agent SDK credit. Don't share your login with others.</span></p>
           </div>
 
           <!-- Footage -->
           <div class="card">
             <div class="card-head">
-              <div class="grow"><h2>Stock footage <span class="small muted">optional</span></h2><p>Real video clips behind each scene. Without a key, scenes use animated backgrounds in your brand colors.</p></div>
-              <span class="chip" :class="status.footage?.ok?'ok':''" x-text="status.footage?.ok?'Connected':'Not connected'"></span>
+              <div class="grow"><h2><span x-t>Stock footage</span> <span class="small muted"><span x-t>optional</span></span></h2><p><span x-t>Real video clips behind each scene. Without a key, scenes use animated backgrounds in your brand colors.</span></p></div>
+              <span class="chip" :class="status.footage?.ok?'ok':''" x-text="status.footage?.ok?t('Connected'):t('Not connected')"></span>
             </div>
             <template x-if="status.footage?.ok && !footageEdit">
               <div class="account">
-                <div class="grow"><div class="t" x-text="cfg.footage.provider==='pexels' ? 'Pexels' : 'Pixabay'"></div>
-                  <div class="d" x-text="'API key ' + (cfg.footage[cfg.footage.provider + '_api_key'] || '')"></div></div>
-                <button class="btn" @click="footageEdit=true; footageKey=''">Change</button>
-                <button class="btn ghost danger" @click="removeFootage()">Remove</button>
+                <div class="grow"><div class="t" x-text="cfg.footage.provider==='pexels' ? t('Pexels') : t('Pixabay')"></div>
+                  <div class="d" x-text="t('API key ') + (cfg.footage[cfg.footage.provider + '_api_key'] || '')"></div></div>
+                <button class="btn" @click="footageEdit=true; footageKey=''"><span x-t>Change</span></button>
+                <button class="btn ghost danger" @click="removeFootage()"><span x-t>Remove</span></button>
               </div>
             </template>
             <template x-if="!status.footage?.ok || footageEdit">
               <div class="stack">
-                <div class="seg"><button type="button" :class="footageProvider==='pixabay'&&'on'" @click="footageProvider='pixabay'">Pixabay</button><button type="button" :class="footageProvider==='pexels'&&'on'" @click="footageProvider='pexels'">Pexels</button></div>
-                <p class="small muted" x-show="footageProvider==='pixabay'">Create a free account at <a href="https://pixabay.com/accounts/register/" target="_blank" rel="noopener">pixabay.com</a>, then copy your key from <a href="https://pixabay.com/api/docs/#api_search_videos" target="_blank" rel="noopener">pixabay.com/api/docs</a> (shown once you're signed in).</p>
-                <p class="small muted" x-show="footageProvider==='pexels'">Pexels has paused new API keys. If you already have one, paste it here.</p>
+                <div class="seg"><button type="button" :class="footageProvider==='pixabay'&&'on'" @click="footageProvider='pixabay'"><span x-t>Pixabay</span></button><button type="button" :class="footageProvider==='pexels'&&'on'" @click="footageProvider='pexels'"><span x-t>Pexels</span></button></div>
+                <p class="small muted" x-show="footageProvider==='pixabay'"><span x-t>Create a free account at</span> <a href="https://pixabay.com/accounts/register/" target="_blank" rel="noopener"><span x-t>pixabay.com</span></a><span x-t>, then copy your key from</span> <a href="https://pixabay.com/api/docs/#api_search_videos" target="_blank" rel="noopener"><span x-t>pixabay.com/api/docs</span></a> <span x-t>(shown once you're signed in).</span></p>
+                <p class="small muted" x-show="footageProvider==='pexels'"><span x-t>Pexels has paused new API keys. If you already have one, paste it here.</span></p>
                 <div class="actions" style="flex-wrap:nowrap">
-                  <input x-model="footageKey" placeholder="Paste your API key" autocomplete="off" @keydown.enter="saveFootage()">
-                  <button class="btn primary" @click="saveFootage()" :disabled="!footageKey.trim() || savingFootage"><span class="spin" x-show="savingFootage"></span>Verify & save</button>
+                  <input x-model="footageKey" :placeholder="t('Paste your API key')" autocomplete="off" @keydown.enter="saveFootage()">
+                  <button class="btn primary" @click="saveFootage()" :disabled="!footageKey.trim() || savingFootage"><span class="spin" x-show="savingFootage"></span><span x-t>Verify & save</span></button>
                 </div>
-                <button class="btn ghost sm" x-show="footageEdit" @click="footageEdit=false">Cancel</button>
+                <button class="btn ghost sm" x-show="footageEdit" @click="footageEdit=false"><span x-t>Cancel</span></button>
               </div>
             </template>
           </div>
@@ -992,31 +1012,31 @@
           <!-- FrameJam -->
           <div class="card">
             <div class="card-head">
-              <div class="grow"><h2>FrameJam <span class="small muted">optional</span></h2><p>Review renders frame by frame; Claude applies your comments.</p></div>
-              <span class="chip" :class="status.framejam?.ok?'ok':''" x-text="status.framejam?.ok?'Running':'Not running'"></span>
+              <div class="grow"><h2><span x-t>FrameJam</span> <span class="small muted"><span x-t>optional</span></span></h2><p><span x-t>Review renders frame by frame; Claude applies your comments.</span></p></div>
+              <span class="chip" :class="status.framejam?.ok?'ok':''" x-text="status.framejam?.ok?t('Running'):t('Not running')"></span>
             </div>
-            <p class="small muted" x-show="!status.framejam?.ok">Start it with <code>npx -y framejam start</code> (Node 22+), then <a href="#" @click.prevent="refreshStatus()">check again</a>.</p>
-            <details style="margin-top:10px"><summary>Address</summary>
-              <div class="actions" style="margin-top:8px;flex-wrap:nowrap"><input x-model="cfg.framejam.url"><button class="btn" @click="saveSection('framejam')">Save</button></div>
+            <p class="small muted" x-show="!status.framejam?.ok"><span x-t>Start it with</span> <code>npx -y framejam start</code> <span x-t>(Node 22+), then</span> <a href="#" @click.prevent="refreshStatus()"><span x-t>check again</span></a>.</p>
+            <details style="margin-top:10px"><summary><span x-t>Address</span></summary>
+              <div class="actions" style="margin-top:8px;flex-wrap:nowrap"><input x-model="cfg.framejam.url"><button class="btn" @click="saveSection('framejam')"><span x-t>Save</span></button></div>
             </details>
           </div>
 
           <!-- GitHub -->
           <div class="card">
             <div class="card-head">
-              <div class="grow"><h2>GitHub <span class="small muted">optional</span></h2><p>Import brand kits from your repositories. Public repos work without connecting.</p></div>
-              <span class="chip" :class="github.connected?'ok':''" x-text="github.connected?'Connected':'Not connected'"></span>
+              <div class="grow"><h2><span x-t>GitHub</span> <span class="small muted"><span x-t>optional</span></span></h2><p><span x-t>Import brand kits from your repositories. Public repos work without connecting.</span></p></div>
+              <span class="chip" :class="github.connected?'ok':''" x-text="github.connected?t('Connected'):t('Not connected')"></span>
             </div>
             <template x-if="github.connected">
               <div class="account"><span class="avatar lg"><svg class="i"><use href="#i-github"/></svg></span>
-                <div class="grow"><div class="t" x-text="github.login"></div><div class="d">Can read your repositories</div></div>
-                <button class="btn ghost danger" @click="githubDisconnect()">Disconnect</button></div>
+                <div class="grow"><div class="t" x-text="github.login"></div><div class="d"><span x-t>Can read your repositories</span></div></div>
+                <button class="btn ghost danger" @click="githubDisconnect()"><span x-t>Disconnect</span></button></div>
             </template>
             <template x-if="!github.connected">
               <div class="stack">
-                <p class="small muted">Create a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained token</a> with read-only <em>Contents</em> access to the repos you want to import.</p>
+                <p class="small muted"><span x-t>Create a</span> <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener"><span x-t>fine-grained token</span></a> <span x-t>with read-only</span> <em>Contents</em> <span x-t>access to the repos you want to import.</span></p>
                 <div class="actions" style="flex-wrap:nowrap"><input type="password" x-model="githubToken" placeholder="github_pat_…" autocomplete="off" @keydown.enter="githubConnect()">
-                  <button class="btn primary" @click="githubConnect()" :disabled="!githubToken.trim() || githubSaving"><span class="spin" x-show="githubSaving"></span>Connect</button></div>
+                  <button class="btn primary" @click="githubConnect()" :disabled="!githubToken.trim() || githubSaving"><span class="spin" x-show="githubSaving"></span><span x-t>Connect</span></button></div>
               </div>
             </template>
           </div>
@@ -1027,29 +1047,29 @@
           <template x-for="pl in (cfg.platforms||[])" :key="pl.key">
             <div class="card">
               <div class="card-head">
-                <div class="grow"><h2 x-text="pl.label"></h2>
-                  <p x-text="accountsFor(pl.key).length ? `${accountsFor(pl.key).length} account${accountsFor(pl.key).length>1?'s':''} connected` : (pl.configured ? 'Ready to connect' : 'Needs a developer app (one-time setup)')"></p></div>
-                <span class="chip" :class="accountsFor(pl.key).length ? 'ok' : (pl.configured ? 'warn' : '')" x-text="accountsFor(pl.key).length ? 'Connected' : (pl.configured ? 'Not connected' : 'Not set up')"></span>
+                <div class="grow"><h2 x-text="t(pl.label)"></h2>
+                  <p x-text="accountsFor(pl.key).length ? t(accountsFor(pl.key).length>1 ? '{n} accounts connected' : '{n} account connected', {n: accountsFor(pl.key).length}) : (pl.configured ? t('Ready to connect') : t('Needs a developer app (one-time setup)'))"></p></div>
+                <span class="chip" :class="accountsFor(pl.key).length ? 'ok' : (pl.configured ? 'warn' : '')" x-text="accountsFor(pl.key).length ? t('Connected') : (pl.configured ? t('Not connected') : t('Not set up'))"></span>
               </div>
               <template x-for="a in accountsFor(pl.key)" :key="a.id">
                 <div class="acct-row">
                   <span class="avatar"><img x-show="a.avatar" :src="a.avatar" alt=""><span x-show="!a.avatar" x-text="initial(a.name)"></span></span>
                   <div class="grow" x-text="a.name"></div>
-                  <button class="btn ghost sm danger" @click="askDisconnect(a)">Disconnect</button>
+                  <button class="btn ghost sm danger" @click="askDisconnect(a)"><span x-t>Disconnect</span></button>
                 </div>
               </template>
               <div class="actions" style="margin-top:10px" x-show="pl.configured">
                 <a class="btn" :class="!accountsFor(pl.key).length && 'primary'" :href="`/oauth/${pl.key}/start`"
-                   x-text="accountsFor(pl.key).length ? 'Connect another' : `Connect ${pl.label}`"></a>
+                   x-text="accountsFor(pl.key).length ? t('Connect another') : t('Connect {name}', {name: pl.label})"></a>
               </div>
               <details :open="!pl.configured" style="margin-top:12px">
-                <summary x-text="pl.configured ? 'Developer app settings' : 'Set up the developer app'"></summary>
+                <summary x-text="pl.configured ? t('Developer app settings') : t('Set up the developer app')"></summary>
                 <div class="stack" style="margin-top:10px">
-                  <p class="small muted" x-text="pl.notes"></p>
-                  <div class="field"><label>Redirect URI to register</label>
-                    <div class="copy"><code x-text="pl.redirect_uri"></code><button class="btn sm" title="Copy" @click="copy(pl.redirect_uri)"><svg class="i"><use href="#i-copy"/></svg></button></div></div>
-                  <template x-for="f in pl.fields"><div class="field"><label x-text="f.label"></label><input x-model="cfg.apps[pl.key][f.key]" autocomplete="off"></div></template>
-                  <div class="actions"><button class="btn" @click="saveSection('apps')">Save</button><a class="btn ghost sm" :href="pl.docs" target="_blank" rel="noopener">Docs <svg class="i"><use href="#i-ext"/></svg></a></div>
+                  <p class="small muted" x-text="t(pl.notes)"></p>
+                  <div class="field"><label><span x-t>Redirect URI to register</span></label>
+                    <div class="copy"><code x-text="pl.redirect_uri"></code><button class="btn sm" :title="t('Copy')" @click="copy(pl.redirect_uri)"><svg class="i"><use href="#i-copy"/></svg></button></div></div>
+                  <template x-for="f in pl.fields"><div class="field"><label x-text="t(f.label)"></label><input x-model="cfg.apps[pl.key][f.key]" autocomplete="off"></div></template>
+                  <div class="actions"><button class="btn" @click="saveSection('apps')"><span x-t>Save</span></button><a class="btn ghost sm" :href="pl.docs" target="_blank" rel="noopener"><span x-t>Docs</span> <svg class="i"><use href="#i-ext"/></svg></a></div>
                 </div>
               </details>
             </div>
@@ -1057,20 +1077,20 @@
 
           <!-- Advanced -->
           <div class="card">
-            <div class="card-head"><div class="grow"><h2>Advanced <span class="small muted">optional</span></h2></div></div>
-            <details><summary>Public URL for sign-in redirects</summary>
+            <div class="card-head"><div class="grow"><h2><span x-t>Advanced</span> <span class="small muted"><span x-t>optional</span></span></h2></div></div>
+            <details><summary><span x-t>Public URL for sign-in redirects</span></summary>
               <div class="stack" style="margin-top:10px">
-                <p class="small muted">Leave empty to use this page's address. TikTok needs HTTPS: run <code>cloudflared tunnel --url http://localhost:8000</code> and paste the tunnel URL.</p>
-                <div class="actions" style="flex-wrap:nowrap"><input x-model="cfg.public_url" placeholder="https://my-tunnel.trycloudflare.com"><button class="btn" @click="saveSection('public_url')">Save</button></div>
+                <p class="small muted"><span x-t>Leave empty to use this page's address. TikTok needs HTTPS: run</span> <code>cloudflared tunnel --url http://localhost:8000</code> <span x-t>and paste the tunnel URL.</span></p>
+                <div class="actions" style="flex-wrap:nowrap"><input x-model="cfg.public_url" placeholder="https://my-tunnel.trycloudflare.com"><button class="btn" @click="saveSection('public_url')"><span x-t>Save</span></button></div>
               </div>
             </details>
             <div class="divider"></div>
-            <details><summary>Postiz — publish to more networks</summary>
+            <details><summary><span x-t>Postiz — publish to more networks</span></summary>
               <div class="stack" style="margin-top:10px">
-                <p class="small muted">Instagram, LinkedIn, X, Threads and more through a <a href="https://github.com/gitroomhq/postiz-app" target="_blank" rel="noopener">Postiz</a> instance.</p>
-                <div class="field"><label>API URL</label><input x-model="cfg.postiz.url" placeholder="https://api.postiz.com or http://localhost:4007/api"></div>
-                <div class="field"><label>API key</label><input x-model="cfg.postiz.api_key" autocomplete="off"></div>
-                <div class="actions"><button class="btn" @click="saveSection('postiz')">Save</button><span class="small muted" x-text="status.postiz?.detail"></span></div>
+                <p class="small muted"><span x-t>Instagram, LinkedIn, X, Threads and more through a</span> <a href="https://github.com/gitroomhq/postiz-app" target="_blank" rel="noopener"><span x-t>Postiz</span></a> <span x-t>instance.</span></p>
+                <div class="field"><label><span x-t>API URL</span></label><input x-model="cfg.postiz.url" placeholder="https://api.postiz.com or http://localhost:4007/api"></div>
+                <div class="field"><label><span x-t>API key</span></label><input x-model="cfg.postiz.api_key" autocomplete="off"></div>
+                <div class="actions"><button class="btn" @click="saveSection('postiz')"><span x-t>Save</span></button><span class="small muted" x-text="status.postiz?.detail"></span></div>
                 <template x-for="c in channels.filter(c=>c.via==='postiz')"><div class="acct-row"><span class="avatar" x-text="initial(c.name)"></span><div class="grow" x-text="`${c.name} · ${c.provider}`"></div></div></template>
               </div>
             </details>
@@ -1083,28 +1103,28 @@
   <!-- ======================================================= overlays -->
   <div class="modal" x-show="picker.open" x-transition.opacity @click.self="picker.open=false" @keydown.escape.window="picker.open=false">
     <div class="card wide">
-      <div class="card-head"><div class="grow"><h2>Choose footage</h2><p>Pick a stock clip or upload your own.</p></div><button class="btn ghost sm" @click="picker.open=false">Close</button></div>
+      <div class="card-head"><div class="grow"><h2><span x-t>Choose footage</span></h2><p><span x-t>Pick a stock clip or upload your own.</span></p></div><button class="btn ghost sm" @click="picker.open=false"><span x-t>Close</span></button></div>
       <div class="actions" style="flex-wrap:nowrap">
-        <input x-model="picker.q" placeholder="Search in English, e.g. city at night" @keydown.enter="searchFootage()">
-        <button class="btn primary" @click="searchFootage()" :disabled="!picker.q.trim() || !status.footage?.ok">Search</button>
-        <label class="btn"><input type="file" accept="video/*" style="display:none" @change="uploadClip($event)">Upload</label>
+        <input x-model="picker.q" :placeholder="t('Search in English, e.g. city at night')" @keydown.enter="searchFootage()">
+        <button class="btn primary" @click="searchFootage()" :disabled="!picker.q.trim() || !status.footage?.ok"><span x-t>Search</span></button>
+        <label class="btn"><input type="file" accept="video/*" style="display:none" @change="uploadClip($event)"><span x-t>Upload</span></label>
       </div>
       <div class="actions" style="margin-top:10px">
-        <button class="btn sm" @click="chooseMotion()">Use an animated background</button>
-        <span class="hint" style="margin:0" x-show="!status.footage?.ok">Add a stock footage key in Connections to search clips — uploads and brand b-roll work without one.</span>
+        <button class="btn sm" @click="chooseMotion()"><span x-t>Use an animated background</span></button>
+        <span class="hint" style="margin:0" x-show="!status.footage?.ok"><span x-t>Add a stock footage key in Connections to search clips — uploads and brand b-roll work without one.</span></span>
       </div>
       <template x-if="cur && brandById(tl.brand_id)?.clips?.length">
         <div style="margin-top:12px">
-          <div class="lbl" x-text="`Brand library · ${brandById(tl.brand_id).name}`"></div>
+          <div class="lbl" x-text="t('Brand library') + ' · ' + brandById(tl.brand_id).name"></div>
           <div class="results" style="margin-top:6px">
             <template x-for="c in brandById(tl.brand_id).clips" :key="c.id">
               <button @click="chooseBrandClip(brandById(tl.brand_id), c)" :title="c.description"><img :src="brandUrl(brandById(tl.brand_id), c.thumb)" alt=""><span class="dur" x-text="c.duration+'s'"></span></button>
             </template>
           </div>
-          <div class="lbl" style="margin-top:14px">Stock footage</div>
+          <div class="lbl" style="margin-top:14px"><span x-t>Stock footage</span></div>
         </div>
       </template>
-      <div class="small muted" x-show="picker.loading" style="margin-top:10px"><span class="spin"></span> Loading…</div>
+      <div class="small muted" x-show="picker.loading" style="margin-top:10px"><span class="spin"></span> <span x-t>Loading…</span></div>
       <div class="notice err" x-show="picker.error" style="margin-top:10px"><div x-text="picker.error"></div></div>
       <div class="results">
         <template x-for="r in picker.results" :key="r.id">
@@ -1116,30 +1136,30 @@
 
   <div class="modal" x-show="importer.open" x-transition.opacity @click.self="!importer.busy && (importer.open=false)">
     <div class="card">
-      <div class="card-head"><div class="grow"><h2>Import a brand kit from GitHub</h2>
-        <p>Uses <code>autoclip.brand.json</code> if the repo has one; otherwise Claude reads the README and styles and picks the assets.</p></div></div>
+      <div class="card-head"><div class="grow"><h2><span x-t>Import a brand kit from GitHub</span></h2>
+        <p><span x-t>Uses</span> <code>autoclip.brand.json</code> <span x-t>if the repo has one; otherwise Claude reads the README and styles and picks the assets.</span></p></div></div>
       <fieldset :disabled="importer.busy" class="stack">
-        <div class="field"><label>Repository</label>
+        <div class="field"><label><span x-t>Repository</span></label>
           <input x-model="importer.url" list="gh-repos" placeholder="owner/repo or https://github.com/owner/repo" @keydown.enter="runImport()">
-          <datalist id="gh-repos"><template x-for="r in githubRepos" :key="r.full_name"><option :value="r.full_name" x-text="(r.private?'private · ':'') + (r.description||'')"></option></template></datalist>
-          <p class="hint" x-show="!github.connected">Private repo? <a href="/connections" @click.prevent="importer.open=false; nav('/connections')">Connect GitHub</a> first.</p></div>
-        <div class="field"><label>Branch or tag <span class="muted">(optional)</span></label><input x-model="importer.ref" placeholder="default branch"></div>
+          <datalist id="gh-repos"><template x-for="r in githubRepos" :key="r.full_name"><option :value="r.full_name" x-text="(r.private?t('private · '):'') + (r.description||'')"></option></template></datalist>
+          <p class="hint" x-show="!github.connected"><span x-t>Private repo?</span> <a href="/connections" @click.prevent="importer.open=false; nav('/connections')"><span x-t>Connect GitHub</span></a> <span x-t>first.</span></p></div>
+        <div class="field"><label><span x-t>Branch or tag</span> <span class="muted"><span x-t>(optional)</span></span></label><input x-model="importer.ref" :placeholder="t('default branch')"></div>
       </fieldset>
-      <div class="notice info" x-show="importer.busy" style="margin-top:12px"><span class="spin" style="margin-top:3px"></span><div>Downloading the repository and building the kit… this can take a minute.</div></div>
+      <div class="notice info" x-show="importer.busy" style="margin-top:12px"><span class="spin" style="margin-top:3px"></span><div><span x-t>Downloading the repository and building the kit… this can take a minute.</span></div></div>
       <div class="actions" style="margin-top:16px;justify-content:flex-end">
-        <button class="btn" @click="importer.open=false" :disabled="importer.busy">Cancel</button>
-        <button class="btn primary" @click="runImport()" :disabled="importer.busy || !importer.url.trim()">Import</button>
+        <button class="btn" @click="importer.open=false" :disabled="importer.busy"><span x-t>Cancel</span></button>
+        <button class="btn primary" @click="runImport()" :disabled="importer.busy || !importer.url.trim()"><span x-t>Import</span></button>
       </div>
     </div>
   </div>
 
   <div class="modal" x-show="newBrand.open" x-transition.opacity @click.self="newBrand.open=false">
     <div class="card">
-      <h2>New brand kit</h2>
-      <div class="field" style="margin-top:12px"><label>Name</label><input x-model="newBrand.name" placeholder="Acme" @keydown.enter="createBrand()"></div>
+      <h2><span x-t>New brand kit</span></h2>
+      <div class="field" style="margin-top:12px"><label><span x-t>Name</span></label><input x-model="newBrand.name" :placeholder="t('Acme')" @keydown.enter="createBrand()"></div>
       <div class="actions" style="margin-top:16px;justify-content:flex-end">
-        <button class="btn" @click="newBrand.open=false">Cancel</button>
-        <button class="btn primary" @click="createBrand()" :disabled="!newBrand.name.trim()">Create</button>
+        <button class="btn" @click="newBrand.open=false"><span x-t>Cancel</span></button>
+        <button class="btn primary" @click="createBrand()" :disabled="!newBrand.name.trim()"><span x-t>Create</span></button>
       </div>
     </div>
   </div>
@@ -1149,7 +1169,7 @@
       <h2 x-text="dialog.title"></h2>
       <p class="muted" style="margin-top:6px" x-text="dialog.body"></p>
       <div class="actions" style="margin-top:16px;justify-content:flex-end">
-        <button class="btn" @click="dialog.open=false">Cancel</button>
+        <button class="btn" @click="dialog.open=false"><span x-t>Cancel</span></button>
         <button class="btn primary" @click="dialog.open=false; dialog.action()" x-text="dialog.confirm"></button>
       </div>
     </div>
@@ -1159,6 +1179,22 @@
 </div>
 
 <script>
+// i18n: English text is the key; locales/<lang>.json maps it to translations.
+document.addEventListener('alpine:init', () => {
+  Alpine.store('i18n', { lang: 'en', dict: {} });
+  Alpine.directive('t', (el, _, { effect }) => {
+    const src = el.dataset.src ?? el.textContent.trim();
+    el.dataset.src = src;
+    effect(() => { el.textContent = tr(src); });
+  });
+});
+function tr(key, vars) {
+  const st = window.Alpine?.store('i18n');
+  let s = (st && st.lang !== 'en' && st.dict[key]) || key;
+  if (vars) s = s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+  return s;
+}
+
 const PLATFORM_LABELS = { youtube:'YouTube', tiktok:'TikTok', facebook:'Facebook' };
 const EDITOR_TABS = ['scenes', 'style', 'review', 'publish'];
 
@@ -1172,7 +1208,7 @@ function parseRoute(pathname) {
 
 function app() {
   return {
-    ready: false, route: { page:'studio', id:null, sub:null },
+    ready: false, route: { page:'studio', id:null, sub:null }, lang: 'en', theme: 'system',
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
     status: {}, cl: {}, cfg: { claude:{}, footage:{}, framejam:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
     channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] },
@@ -1197,6 +1233,28 @@ function app() {
     dialog: { open:false, title:'', body:'', confirm:'OK', action(){} },
     toast: '', toastErr: false,
 
+    // ------------------------------------------------ language & theme
+    t(key, vars) { return tr(key, vars); },
+    async setLang(lang) {
+      if (lang !== 'en') {
+        const dict = await fetch(`/static/locales/${lang}.json`).then(r => r.ok ? r.json() : null).catch(() => null);
+        if (!dict) { lang = 'en'; } else Alpine.store('i18n').dict = dict;
+      }
+      Alpine.store('i18n').lang = lang; this.lang = lang;
+      document.documentElement.lang = lang;
+      try { localStorage.setItem('autoclip.lang', lang); } catch {}
+      this.setTitle();
+    },
+    setTheme(theme) {
+      this.theme = theme;
+      if (theme === 'system') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme;
+      try { localStorage.setItem('autoclip.theme', theme); } catch {}
+    },
+    setTitle() {
+      const name = { studio:'Studio', project:'Editor', ideas:'Ideas', autopilot:'Autopilot', connections:'Connections', brands:'Brand kits', brand:'Brand kit' }[this.route.page];
+      document.title = this.t(name) + ' · AutoClip Studio';
+    },
+
     // ------------------------------------------------ helpers
     get dirty() { return !!this.cur?.timeline && (JSON.stringify(this.tl) !== this.baseTl || this.edTitle !== this.baseTitle); },
     get brandDirty() { return !!this.brand && this.route.page === 'brand' && JSON.stringify(this.brand) !== this.brandBase; },
@@ -1207,20 +1265,20 @@ function app() {
       return r.json();
     },
     async run(fn, okMsg) { try { const r = await fn(); if (okMsg) this.say(okMsg); return r ?? true; } catch (e) { this.say(e.message, true); return null; } },
-    say(m, err=false) { this.toast = String(m).slice(0, 300); this.toastErr = err; clearTimeout(this._t); this._t = setTimeout(() => this.toast = '', err ? 7000 : 3500); },
-    confirm(title, body, confirm, action) { this.dialog = { open:true, title, body, confirm, action }; },
+    say(m, err=false) { this.toast = this.t(String(m)).slice(0, 300); this.toastErr = err; clearTimeout(this._t); this._t = setTimeout(() => this.toast = '', err ? 7000 : 3500); },
+    confirm(title, body, confirm, action) { this.dialog = { open:true, title: this.t(title), body: this.t(body), confirm: this.t(confirm), action }; },
     toggle(arr, id) { const i = arr.indexOf(id); i < 0 ? arr.push(id) : arr.splice(i, 1); },
     initial(s) { return (s || '?').trim().charAt(0).toUpperCase(); },
-    platformLabel(c) { if (!c || !c.provider) return ''; return c.via === 'postiz' ? `${c.provider} via Postiz` : (PLATFORM_LABELS[c.provider] || c.provider); },
+    platformLabel(c) { if (!c || !c.provider) return ''; return c.via === 'postiz' ? this.t('{name} via Postiz', {name: c.provider}) : (PLATFORM_LABELS[c.provider] || c.provider); },
     nativeAccounts() { return this.channels.filter(c => c.via === 'native'); },
     accountsFor(key) { return this.channels.filter(c => c.via === 'native' && c.provider === key); },
-    missingSetup() { return this.status.claude && !this.status.claude.ok ? ['connect Claude'] : []; },
-    sourceText(s) { return { app:'Signed in here', system:"This computer's Claude Code login", api_key:'Anthropic API key' }[s] || ''; },
+    missingSetup() { return this.status.claude && !this.status.claude.ok ? [this.t('connect Claude')] : []; },
+    sourceText(s) { return this.t({ app:'Signed in here', system:"This computer's Claude Code login", api_key:'Anthropic API key' }[s] || ''); },
     voiceLabel(v) { const n = v.name.split('-').slice(2).join('-').replace(/Neural$/, '').replace(/Multilingual$/, ' (multilingual)'); return `${n} · ${v.gender || ''} · ${v.locale}`; },
     isBusy(p) { return ['queued','scripting','editing','rendering','publishing'].includes(p?.status); },
-    statusText(p) { return { queued:'Queued', scripting:'Writing script', editing:'Claude is editing', rendering:`Rendering ${p.progress||0}%`, publishing:'Publishing', ready:'Ready', published:'Published', failed:'Failed' }[p.status] || p.status; },
+    statusText(p) { return p.status === 'rendering' ? this.t('Rendering {n}%', {n: p.progress || 0}) : this.t({ queued:'Queued', scripting:'Writing script', editing:'Claude is editing', publishing:'Publishing', ready:'Ready', published:'Published', failed:'Failed' }[p.status] || p.status); },
     statusTone(p) { return { ready:'ok', published:'ok', failed:'err' }[p.status] || 'warn'; },
-    busyText(p) { return { queued:'Waiting to start…', scripting:'Claude is writing the script…', editing:'Claude is editing the video…', rendering:`Rendering version ${(p.version||0)+1}…`, publishing:'Publishing…' }[p.status] || ''; },
+    busyText(p) { return p.status === 'rendering' ? this.t('Rendering version {v}…', {v: (p.version||0)+1}) : this.t({ queued:'Waiting to start…', scripting:'Claude is writing the script…', editing:'Claude is editing the video…', publishing:'Publishing…' }[p.status] || ''); },
     base(path) { return (path || '').split(/[\\/]/).pop(); },
     videoUrl(p) { return p.video_path ? '/videos/' + this.base(p.video_path) : ''; },
     versions() { return (this.cur?.extra?.versions || []).slice().reverse(); },
@@ -1232,17 +1290,17 @@ function app() {
     brandById(id) { return id ? this.brandList.find(b => b.id === id) : null; },
     brandUrl(b, file) { return file ? `/brand-media/${b.id}/${file}` : ''; },
     brandHas(b, el) { return !!b && (el === 'music' ? b.music.length > 0 : !!b[el]); },
-    brandSummary(b) { const parts = []; if (b.logo) parts.push('logo'); if (b.font) parts.push(b.font.family); if (b.intro) parts.push('intro'); if (b.outro) parts.push('outro'); if (b.music.length) parts.push(`${b.music.length} track${b.music.length>1?'s':''}`); if (b.clips.length) parts.push(`${b.clips.length} clip${b.clips.length>1?'s':''}`); return parts.join(' · ') || 'No assets yet'; },
+    brandSummary(b) { const t = (k, v) => this.t(k, v); const parts = []; if (b.logo) parts.push(t('logo')); if (b.font) parts.push(b.font.family); if (b.intro) parts.push(t('intro')); if (b.outro) parts.push(t('outro')); if (b.music.length) parts.push(t(b.music.length > 1 ? '{n} tracks' : '{n} track', {n: b.music.length})); if (b.clips.length) parts.push(t(b.clips.length > 1 ? '{n} clips' : '{n} clip', {n: b.clips.length})); return parts.join(' · ') || t('No assets yet'); },
     brandFontFamily(b) { return b?.font ? `'bf-${b.id}', sans-serif` : 'inherit'; },
     brandFontCss() { return [...this.brandList, ...(this.brand ? [this.brand] : [])].filter(b => b.font).map(b => `@font-face{font-family:'bf-${b.id}';src:url('${this.brandUrl(b, b.font.file)}')}`).join(''); },
     selectedProviders() { return this.channels.filter(c => this.pubIds.includes(c.id)).map(c => c.provider); },
     pick(ids) { return this.channels.filter(c => ids.includes(c.id)).map(({id,provider,name,via}) => ({id,provider,name,via})); },
     fmt(t) { t = +t || 0; return `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`; },
     duration(p) { const s = p.timeline?.scenes || []; return s.length && s[s.length-1].end != null ? this.fmt(s[s.length-1].end) : '—'; },
-    positionLabel(v) { v = +v; return v < 0.35 ? 'top' : v > 0.65 ? 'bottom' : 'middle'; },
-    ago(ts) { const s = Date.now()/1000 - ts; if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s/60) + ' min ago'; if (s < 86400) return Math.floor(s/3600) + ' h ago'; return new Date(ts*1000).toLocaleDateString(); },
-    when(ts) { return new Date(ts*1000).toLocaleString([], { dateStyle:'medium', timeStyle:'short' }); },
-    fmtChars(n) { const w = Math.round((n || 0) / 6); return w >= 1000 ? `~${(w/1000).toFixed(1)}k words` : `~${w} words`; },
+    positionLabel(v) { v = +v; return this.t(v < 0.35 ? 'top' : v > 0.65 ? 'bottom' : 'middle'); },
+    ago(ts) { const s = Date.now()/1000 - ts; if (s < 60) return this.t('just now'); if (s < 3600) return this.t('{n} min ago', {n: Math.floor(s/60)}); if (s < 86400) return this.t('{n} h ago', {n: Math.floor(s/3600)}); return new Date(ts*1000).toLocaleDateString(this.lang); },
+    when(ts) { return new Date(ts*1000).toLocaleString(this.lang, { dateStyle:'medium', timeStyle:'short' }); },
+    fmtChars(n) { const w = Math.round((n || 0) / 6); return w >= 1000 ? this.t('~{n}k words', {n: (w/1000).toFixed(1)}) : this.t('~{n} words', {n: w}); },
     async uploadEach(ev, fn) {
       const files = [...ev.target.files]; ev.target.value = '';
       this.uploadingContext = true;
@@ -1253,7 +1311,7 @@ function app() {
     async removeFormContext(f) { this.form.context = this.form.context.filter(x => x.id !== f.id); this.api(`/api/context/${f.id}`, { method:'DELETE' }).catch(() => {}); },
     addProjectContext(ev) { return this.uploadEach(ev, async fd => { const p = await this.run(() => this.api(`/api/projects/${this.cur.id}/context`, { method:'POST', body:fd })); if (p?.id) this.cur = p; }); },
     removeProjectContext(m) {
-      this.confirm(`Remove ${m.name}?`, 'Claude will no longer use it for AI edits of this video.', 'Remove', async () => {
+      this.confirm(this.t('Remove {what}?', {what: m.name}), 'Claude will no longer use it for AI edits of this video.', 'Remove', async () => {
         const p = await this.run(() => this.api(`/api/projects/${this.cur.id}/context/${m.id}`, { method:'DELETE' })); if (p?.id) this.cur = p;
       });
     },
@@ -1278,7 +1336,7 @@ function app() {
     async onRoute() {
       const prev = this.route;
       const r = this.route = parseRoute(location.pathname);
-      document.title = ({ studio:'Studio', project:'Editor', ideas:'Ideas', autopilot:'Autopilot', connections:'Connections', brands:'Brand kits', brand:'Brand kit' }[r.page]) + ' · AutoClip Studio';
+      this.setTitle();
       if (r.page === 'brands') this.loadBrands();
       if (r.page === 'brand' && (prev.page !== 'brand' || prev.id !== r.id || !this.brand)) this.loadBrand(r.id);
       if (r.page === 'project' && (prev.page !== 'project' || prev.id !== r.id || !this.cur)) await this.openProject(r.id);
@@ -1289,8 +1347,12 @@ function app() {
     // ------------------------------------------------ boot & polling
     async init() {
       this.route = parseRoute(location.pathname);
+      let lang = 'en', theme = 'system';
+      try { lang = localStorage.getItem('autoclip.lang') || (navigator.language || '').slice(0, 2); theme = localStorage.getItem('autoclip.theme') || 'system'; } catch {}
+      this.setTheme(theme);
+      await this.setLang(lang === 'vi' ? 'vi' : 'en');
       const q = new URLSearchParams(location.search);
-      if (q.get('connected')) this.say(`${q.get('connected')} connected`);
+      if (q.get('connected')) this.say(this.t('{name} connected', {name: q.get('connected')}));
       if (q.get('error')) this.say(q.get('error'), true);
       if (location.search) history.replaceState({}, '', location.pathname);
       window.addEventListener('popstate', () => {
@@ -1326,7 +1388,7 @@ function app() {
       if (finished) {
         this.preview = null;
         if (fresh.error) this.say(fresh.error, true);
-        else if (fresh.status === 'ready') this.say(`Version ${fresh.version} is ready`);
+        else if (fresh.status === 'ready') this.say(this.t('Version {v} is ready', {v: fresh.version}));
         else if (fresh.status === 'published') this.say('Published');
       }
     },
@@ -1375,7 +1437,7 @@ function app() {
       if (!await this.run(() => this.api(`/api/projects/${this.cur.id}/timeline`, { method:'PUT', body:{ timeline: tl, title: this.edTitle } }))) return;
       this.tl = tl; this.baseTl = JSON.stringify(tl); this.baseTitle = this.edTitle;
       this.cur = { ...this.cur, status:'rendering', progress:0, error:null };
-      this.say(empty ? `Rendering — ${empty} empty scene${empty>1?'s were':' was'} removed` : 'Rendering a new version…');
+      this.say(empty ? this.t('Rendering — {n} empty scenes removed', {n: empty}) : 'Rendering a new version…');
     },
     async aiEdit() {
       if (await this.run(() => this.api(`/api/projects/${this.cur.id}/ai-edit`, { method:'POST', body:{ instruction: this.instruction } }))) {
@@ -1466,15 +1528,15 @@ function app() {
       const files = [...ev.target.files]; ev.target.value = '';
       for (const f of files) {
         const fd = new FormData(); fd.append('kind', kind); fd.append('file', f);
-        this.say(`Uploading ${f.name}…`);
+        this.say(this.t('Uploading {name}…', {name: f.name}));
         const b = await this.run(() => this.api(`/api/brands/${this.brand.id}/assets`, { method:'POST', body:fd }));
         if (b?.id) this.applyAssets(b);
       }
-      if (files.length) this.say(files.length > 1 ? `${files.length} files added` : 'Added');
+      if (files.length) this.say(files.length > 1 ? this.t('{n} files added', {n: files.length}) : 'Added');
     },
     removeAsset(kind, file) {
       const label = { logo:'the logo', font:'the font', intro:'the intro', outro:'the outro', music:'this track', clip:'this clip', context:'this file' }[kind];
-      this.confirm(`Remove ${label}?`, 'The file is deleted from this brand kit. Videos keep working without it.', 'Remove', async () => {
+      this.confirm(this.t('Remove {what}?', {what: this.t(label)}), 'The file is deleted from this brand kit. Videos keep working without it.', 'Remove', async () => {
         const b = await this.run(() => this.api(`/api/brands/${this.brand.id}/assets/${kind}${file ? '?file=' + encodeURIComponent(file) : ''}`, { method:'DELETE' }));
         if (b?.id) this.applyAssets(b);
       });
@@ -1488,7 +1550,7 @@ function app() {
       });
     },
     askDeleteBrand() {
-      this.confirm(`Delete ${this.brand.name}?`, 'The brand kit and its files are removed. Existing videos keep their renders but lose the brand on their next render.', 'Delete', async () => {
+      this.confirm(this.t('Delete {name}?', {name: this.brand.name}), 'The brand kit and its files are removed. Existing videos keep their renders but lose the brand on their next render.', 'Delete', async () => {
         if (!await this.run(() => this.api(`/api/brands/${this.brand.id}`, { method:'DELETE' }), 'Brand kit deleted')) return;
         this.brandBase = JSON.stringify(this.brand); await this.loadBrands(); this.nav('/brands');
       });
@@ -1509,14 +1571,14 @@ function app() {
       this.importer.busy = true;
       const b = await this.run(() => this.api('/api/brands/import', { method:'POST', body:{ url:this.importer.url.trim(), ref:this.importer.ref.trim() || null } }));
       this.importer.busy = false;
-      if (b?.id) { this.importer.open = false; this.say(`Imported ${b.name}`); await this.loadBrands(); this.nav(`/brands/${b.id}`); }
+      if (b?.id) { this.importer.open = false; this.say(this.t('Imported {name}', {name: b.name})); await this.loadBrands(); this.nav(`/brands/${b.id}`); }
     },
     async loadGithub() { this.github = await this.api('/api/github').catch(() => this.github); },
     async githubConnect() {
       this.githubSaving = true;
       const r = await this.run(() => this.api('/api/github', { method:'POST', body:{ token:this.githubToken.trim() } }));
       this.githubSaving = false;
-      if (r?.connected) { this.github = r; this.githubToken = ''; this.githubRepos = []; this.say(`GitHub connected as ${r.login}`); }
+      if (r?.connected) { this.github = r; this.githubToken = ''; this.githubRepos = []; this.say(this.t('GitHub connected as {name}', {name: r.login})); }
     },
     async githubDisconnect() { this.github = await this.api('/api/github', { method:'DELETE' }); this.githubRepos = []; this.say('GitHub disconnected'); },
 
@@ -1572,7 +1634,7 @@ function app() {
       });
     },
     askDisconnect(a) {
-      this.confirm(`Disconnect ${a.name}?`, 'You can connect it again at any time.', 'Disconnect', async () => {
+      this.confirm(this.t('Disconnect {name}?', {name: a.name}), 'You can connect it again at any time.', 'Disconnect', async () => {
         if (await this.run(() => this.api(`/api/accounts/${a.id}`, { method:'DELETE' }), 'Disconnected')) this.loadConnections();
       });
     },

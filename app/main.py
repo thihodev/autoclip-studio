@@ -28,6 +28,8 @@ async def lifespan(app: FastAPI):
     task = asyncio.create_task(pipeline.autopilot_loop())
     yield
     task.cancel()
+    render.kill_running()
+    claude.login_cancel()
 
 
 app = FastAPI(title="AutoClip Studio", lifespan=lifespan)

@@ -41,6 +41,8 @@ Everything else is optional and can be connected at any time from the same tab:
 
 ## Features
 
+- **Interface in English or Vietnamese**, light or dark theme (switch in the sidebar; follows your browser and system by default). Translations live in `static/locales/<lang>.json` — add a file to contribute a language.
+
 - **Create**: topic → Claude splits the voice-over into scenes and picks a footage search for each → render.
 - **Editor** (per project):
   - edit each scene's text and footage search, reorder, add or delete scenes;
