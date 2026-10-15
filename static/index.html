@@ -254,7 +254,21 @@
   table.data td { padding:7px 8px; border-bottom:1px solid var(--border); vertical-align:top; }
   table.data td.n, table.data th.n { text-align:right; }
   .tablewrap { overflow-x:auto; }
-  .modelpick { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .mpchip { display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--surface); color:var(--text); font:inherit; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
+  .mpchip:hover, .mpchip[aria-expanded=true] { background:var(--surface-2); }
+  .mpchip .e { color:var(--text-2); font-weight:500; } .mpchip .i { width:14px; height:14px; color:var(--text-3); }
+  .mp { position:fixed; z-index:40; display:flex; gap:6px; align-items:flex-start; }
+  .mp.up { align-items:flex-end; } .mp.left { flex-direction:row-reverse; }
+  .mpmenu { background:var(--surface); border:1px solid var(--border-strong); border-radius:12px; padding:6px; min-width:220px; box-shadow:0 10px 30px rgba(10,12,16,.18); }
+  .mpmenu.sub { width:300px; }
+  .mpi { display:flex; align-items:center; gap:8px; width:100%; padding:8px 10px; border:0; border-radius:8px; background:none; color:var(--text); font:inherit; font-size:14px; text-align:left; cursor:pointer; }
+  .mpi:hover, .mpi:focus-visible, .mpi.on { background:var(--surface-2); outline:none; }
+  .mpi .grow { flex:1; } .mpi .i { width:15px; height:15px; } .mpi .ck { color:var(--accent); }
+  .mpi .badge { font-size:11px; font-weight:600; padding:1px 6px; border-radius:6px; background:var(--surface-2); color:var(--text-2); }
+  .mpi:hover .badge { background:var(--surface); }
+  .mpwarn { font-size:12px; color:var(--warn); }
+  .mphead { margin:0; padding:6px 10px 8px; font-size:12.5px; color:var(--text-2); }
+  .mpsep { height:1px; background:var(--border); margin:6px 4px; }
 
   /* context files */
   .files { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
@@ -310,6 +324,8 @@
   <symbol id="i-play" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></symbol>
   <symbol id="i-up" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></symbol>
   <symbol id="i-down" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
   <symbol id="i-star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
@@ -441,19 +457,6 @@
             </div>
             <p class="hint" x-show="['node','ffmpeg'].includes(motionInfo.code)" x-text="t('Claude Motion needs setup: ') + t(motionInfo.detail || '')"></p>
           </div>
-          <div class="grid-2" style="margin-top:12px">
-            <div class="field"><label><span x-t>Model</span></label>
-              <select x-model="form.model">
-                <option value="" x-text="t('Default') + ' · ' + modelLabel(models.defaults?.[form.engine==='motion'?'motion':'script']?.model)"></option>
-                <template x-for="m in models.models" :key="m.id"><option :value="m.id" x-text="t(m.label) + ' · ' + t(m.note)"></option></template>
-              </select></div>
-            <div class="field"><label><span x-t>Effort</span></label>
-              <select x-model="form.effort">
-                <option value="" x-text="t('Default') + ' · ' + effortLabel(models.defaults?.[form.engine==='motion'?'motion':'script']?.effort||'')"></option>
-                <template x-for="e in models.efforts.filter(Boolean)" :key="e"><option :value="e" x-text="effortLabel(e)"></option></template>
-              </select></div>
-          </div>
-          <p class="hint" x-text="t('Defaults for {engine} are set in Connections → Claude. Higher effort thinks longer: better results on hard work, more usage.', {engine: t(form.engine==='motion' ? 'Claude Motion' : 'Quick')})"></p>
           <label class="toggle small" style="margin-top:12px">
             <input type="checkbox" :checked="form.framejam ?? (cfg.framejam?.auto !== false)" @change="form.framejam = $event.target.checked">
             <span x-t>Review in FrameJam: send every render there to comment on it, then let Claude apply the comments</span></label>
@@ -502,6 +505,7 @@
           </div>
           <div class="actions" style="margin-top:16px; justify-content:flex-end">
             <span class="small muted" x-show="missingSetup().length"><span x-t>Finish setup in Connections to create videos</span></span>
+            <button type="button" class="mpchip" aria-haspopup="menu" :aria-expanded="String(mp.open && mp.key==='form')" :title="t('Claude model and effort for this video')" @click="mpOpen('form', $el)"><span x-text="modelShort(mpModel('form'))"></span><span class="e" x-text="effortShort(mpEffort('form'))"></span><svg class="i"><use href="#i-down"/></svg></button>
             <button class="btn primary" @click="create()" :disabled="creating || form.topic.trim().length < 3 || missingSetup().length > 0">
               <span class="spin" x-show="creating"></span><span x-text="creating ? t('Creating…') : t('Create video')"></span></button>
           </div>
@@ -733,16 +737,7 @@
                       <template x-for="s in suggestions"><button type="button" @click="instruction = instruction.trim() ? instruction.trim() + '. ' + t(s) : t(s)" x-text="t(s)"></button></template>
                     </div>
                     <div class="actions" style="margin-top:12px;justify-content:space-between">
-                      <div class="modelpick" style="min-width:300px;flex:1;max-width:420px">
-                        <select x-model="editModel" :aria-label="t('Model')">
-                          <option value="" x-text="t('Default') + ' · ' + modelLabel(models.defaults?.[isMotion(cur)?'motion':'script']?.model)"></option>
-                          <template x-for="m in models.models" :key="m.id"><option :value="m.id" x-text="t(m.label)"></option></template>
-                        </select>
-                        <select x-model="editEffort" :aria-label="t('Effort')">
-                          <option value="" x-text="t('Default') + ' · ' + effortLabel(models.defaults?.[isMotion(cur)?'motion':'script']?.effort||'')"></option>
-                          <template x-for="e in models.efforts.filter(Boolean)" :key="e"><option :value="e" x-text="effortLabel(e)"></option></template>
-                        </select>
-                      </div>
+                      <button type="button" class="mpchip" aria-haspopup="menu" :aria-expanded="String(mp.open && mp.key==='edit')" :title="t('Claude model and effort for this edit')" @click="mpOpen('edit', $el)"><span x-text="modelShort(mpModel('edit'))"></span><span class="e" x-text="effortShort(mpEffort('edit'))"></span><svg class="i"><use href="#i-down"/></svg></button>
                       <button class="btn primary" @click="aiEdit()" :disabled="instruction.trim().length<3"><svg class="i"><use href="#i-star"/></svg><span x-t>Apply with Claude</span></button>
                     </div>
                   </fieldset>
@@ -1291,18 +1286,11 @@
                 </div>
                 <div class="stack" style="margin-top:14px">
                   <template x-for="task in [['script','Scripts, ideas & quick edits'],['motion','Claude Motion videos']]" :key="task[0]">
-                    <div class="field"><label x-text="t(task[1])"></label>
-                      <div class="modelpick">
-                        <select :aria-label="t('Model')" @change="setDefault(task[0], 'model', $event.target.value)">
-                          <template x-for="m in models.models" :key="m.id"><option :value="m.id" :selected="m.id===models.defaults?.[task[0]]?.model" x-text="t(m.label) + ' · ' + t(m.note)"></option></template>
-                        </select>
-                        <select :aria-label="t('Effort')" @change="setDefault(task[0], 'effort', $event.target.value)">
-                          <template x-for="e in models.efforts" :key="e"><option :value="e" :selected="e===(models.defaults?.[task[0]]?.effort||'')" x-text="effortLabel(e)"></option></template>
-                        </select>
-                      </div>
+                    <div class="actions" style="justify-content:space-between"><span x-text="t(task[1])"></span>
+                      <button type="button" class="mpchip" aria-haspopup="menu" :aria-expanded="String(mp.open && mp.key==='default:' + task[0])" @click="mpOpen('default:' + task[0], $el)"><span x-text="modelShort(mpModel('default:' + task[0]))"></span><span class="e" x-text="effortShort(mpEffort('default:' + task[0]))"></span><svg class="i"><use href="#i-down"/></svg></button>
                     </div>
                   </template>
-                  <p class="hint"><span x-t>Higher effort thinks longer: better results on hard work, more usage. You can override both for any video.</span></p>
+                  <p class="hint"><span x-t>Defaults for new videos and edits. You can pick another model and effort for any video.</span></p>
                 </div>
                 <div class="grid-2" style="margin-top:4px">
                   <div class="actions" style="justify-content:flex-end;grid-column:1/-1">
@@ -1630,6 +1618,36 @@
     </div>
   </div>
 
+  <!-- model & effort menu, shared by every picker chip -->
+  <div class="mp" x-show="mp.open" :style="mp.pos" :class="{ up: mp.up, left: mp.left }" @click.outside="if (!$event.target.closest('.mpchip')) mpClose()"
+       @keydown.escape.window="mp.open && mpClose()" @resize.window="mp.open && mpClose()" @scroll.window="mp.open && mpClose()">
+    <div class="mpmenu" role="menu" :aria-label="t('Model')" x-show="!(mp.narrow && mp.sub)">
+      <template x-for="m in models.models || []" :key="m.id">
+        <button type="button" class="mpi" role="menuitemradio" :aria-checked="String(mpModel(mp.key)===m.id)" :title="t(m.note)" @click="mpPick('model', m.id)" @mouseenter="!mp.narrow && (mp.sub=false)">
+          <span class="grow" x-text="modelShort(m.id)"></span>
+          <span class="badge" x-show="mpTarget(mp.key).defaults && mpDefault(mp.key).model===m.id"><span x-t>Default</span></span>
+          <svg class="i ck" :style="mpModel(mp.key)===m.id ? '' : 'visibility:hidden'"><use href="#i-check"/></svg>
+        </button>
+      </template>
+      <div class="mpsep"></div>
+      <button type="button" class="mpi" :class="mp.sub && 'on'" aria-haspopup="menu" :aria-expanded="String(mp.sub)" @click="mp.sub=true" @mouseenter="!mp.narrow && (mp.sub=true)">
+        <span class="grow"><span x-t>Effort</span></span><span class="small muted" x-text="effortShort(mpEffort(mp.key))"></span><svg class="i"><use href="#i-right"/></svg></button>
+    </div>
+    <div class="mpmenu sub" role="menu" :aria-label="t('Effort')" x-show="mp.sub">
+      <button type="button" class="mpi" x-show="mp.narrow" @click="mp.sub=false"><svg class="i"><use href="#i-back"/></svg><span x-t>Model</span></button>
+      <p class="mphead"><span x-t>Higher effort means more thorough work, but takes longer and uses your limits faster.</span></p>
+      <template x-for="e in ['low','medium','high','xhigh','max']" :key="e">
+        <button type="button" class="mpi" role="menuitemradio" :aria-checked="String(mpEffort(mp.key)===e)" @click="mpPick('effort', e)">
+          <span x-text="effortShort(e)"></span>
+          <span class="badge" x-show="mpTarget(mp.key).defaults && mpDefault(mp.key).effort===e"><span x-t>Default</span></span>
+          <span class="mpwarn" x-show="e==='max'">⚠ <span x-t>Much more usage</span></span>
+          <span class="grow"></span>
+          <svg class="i ck" :style="mpEffort(mp.key)===e ? '' : 'visibility:hidden'"><use href="#i-check"/></svg>
+        </button>
+      </template>
+    </div>
+  </div>
+
   <div class="modal" x-show="leftoverOpen" x-transition.opacity @click.self="leftoverOpen=false" @keydown.escape.window="!dialog.open && (leftoverOpen=false)">
     <div class="card wide">
       <h2><span x-t>Leftovers of deleted videos</span></h2>
@@ -1711,6 +1729,7 @@ function app() {
     form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'', framejam:null },
     models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, plan: {}, planLoading: false, showTable: false, hoverDay: null,
     projUsage: {}, editModel: '', editEffort: '',
+    mp: { open:false, key:'form', sub:false, pos:{}, up:false, left:false, narrow:false },
     workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' }, siteImport: { open:false, url:'', busy:false },
     live: {}, dockOpen: true, startingFj: false,
     uploadingContext: false, motionInfo: {}, voiceEdit: false, voiceKey: '', savingVoice: false, elevenVoices: [], previewing: false, contextAccept: '.txt,.md,.markdown,.pdf,.docx,.html,.htm,.csv,.json,.srt,.vtt,.yaml,.yml',
@@ -2176,6 +2195,34 @@ function app() {
     async loadProjectUsage() { if (this.cur) this.projUsage = await this.api(`/api/projects/${this.cur.id}/usage`).catch(() => ({})); },
     modelLabel(id) { if (!id) return this.t('Default'); const m = (this.models.models || []).find(x => x.id === id); return m ? this.t(m.label) : id; },
     modelShort(id) { const m = (this.models.models || []).find(x => x.id === id); return m ? m.label.replace('Claude ', '') : id; },
+    effortShort(e) { return this.t({ '':'Model default', low:'Low', medium:'Medium', high:'High', xhigh:'Extra', max:'Max' }[e] ?? e); },
+    // ------------------------------------------------ model & effort menu (like Claude's)
+    // key: 'form' (new video) | 'edit' (AI edit of the open video) | 'default:script' | 'default:motion' (Connections)
+    mpTarget(key) {
+      if (key === 'form') return { task: this.form.engine === 'motion' ? 'motion' : 'script', model: this.form.model, effort: this.form.effort, defaults: true, set: (f, v) => { this.form[f] = v; } };
+      if (key === 'edit') return { task: this.cur && this.isMotion(this.cur) ? 'motion' : 'script', model: this.editModel, effort: this.editEffort, defaults: true, set: (f, v) => { if (f === 'model') this.editModel = v; else this.editEffort = v; } };
+      const task = key.split(':')[1], d = this.models.defaults?.[task] || {};
+      return { task, model: d.model, effort: d.effort || '', defaults: false, set: (f, v) => this.setDefault(task, f, v) };
+    },
+    mpDefault(key) { const t = this.mpTarget(key); return t.defaults ? (this.models.defaults?.[t.task] || {}) : {}; },
+    mpModel(key) { return this.mpTarget(key).model || this.mpDefault(key).model || ''; },
+    mpEffort(key) { return this.mpTarget(key).effort || this.mpDefault(key).effort || ''; },
+    mpOpen(key, el) {
+      if (this.mp.open && this.mp.key === key) return this.mpClose();
+      const r = el.getBoundingClientRect(), W = window.innerWidth, H = window.innerHeight;
+      // Room on the right for the menu and its Effort submenu? Otherwise align right and open the submenu leftwards.
+      const up = r.top > H - r.bottom, right = r.left + 240 + 306 > W - 8;
+      this.mp = { open:true, key, sub:false, up, left: right, narrow: W < 620, pos: {
+        top: up ? 'auto' : `${r.bottom + 6}px`, bottom: up ? `${H - r.top + 6}px` : 'auto',
+        left: right ? 'auto' : `${Math.max(8, r.left)}px`, right: right ? `${Math.max(8, W - r.right)}px` : 'auto' } };
+      this.$nextTick(() => document.querySelector('.mp [aria-checked="true"]')?.focus());
+    },
+    mpClose() { this.mp = { ...this.mp, open:false, sub:false }; },
+    mpPick(field, v) {
+      const t = this.mpTarget(this.mp.key), d = this.mpDefault(this.mp.key);
+      t.set(field, t.defaults && v === d[field] ? '' : v);  // picking the default keeps following it
+      this.mpClose();
+    },
     effortLabel(e) { return this.t({ '':'Model default', low:'Low effort', medium:'Medium effort', high:'High effort', xhigh:'Extra-high effort', max:'Max effort' }[e] ?? e); },
     kindLabel(k) { return this.t({ script:'Script', ideas:'Ideas', edit:'AI edit', motion:'Claude Motion', 'motion-edit':'Claude Motion edit', 'brand-import':'Brand import' }[k] || k); },
     async loadPlan(refresh = false) {

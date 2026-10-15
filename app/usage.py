@@ -13,9 +13,9 @@ from . import db, settings
 
 MODELS = [
     {"id": "opus", "label": "Claude Opus 5.5", "note": "Best quality for most work"},
+    {"id": "claude-fable-5-1", "label": "Claude Fable 5.1", "note": "Most capable, uses the most"},
     {"id": "sonnet", "label": "Claude Sonnet 5.5", "note": "Fast and capable"},
     {"id": "haiku", "label": "Claude Haiku 5.5", "note": "Fastest, lightest"},
-    {"id": "claude-fable-5-1", "label": "Claude Fable 5.1", "note": "Most capable, uses the most"},
 ]
 EFFORTS = ["", "low", "medium", "high", "xhigh", "max"]  # "" = model default
 
