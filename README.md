@@ -19,12 +19,12 @@ git clone https://github.com/thihodev/autoclip-studio.git && cd autoclip-studio
 
 That's the only command. The first run creates `.venv` and installs dependencies (with [uv](https://github.com/astral-sh/uv) if it's installed, otherwise pip), then opens http://localhost:8000. After `git pull`, run `./start.sh` again — it reinstalls only when `requirements.txt` changed. Use `./start.sh --no-browser` on a server. Requires Python 3.11+.
 
-The app opens on **Connections** until two things are set:
+The only required step is **Claude** (Connections → Claude): click **Sign in with Claude**, approve in the browser and paste the code back, or pick *Use this computer's Claude Code login*, or paste an Anthropic API key. The app never uses an account until you choose one.
 
-1. **Claude**: click **Sign in with Claude**, approve in the browser and paste the code back, or pick *Use this computer's Claude Code login*, or paste an Anthropic API key. The app never uses an account until you choose one.
-2. **Stock footage**: paste a free [Pexels](https://www.pexels.com/api/) (or [Pixabay](https://pixabay.com/api/docs/)) API key.
+Everything else is optional and can be connected at any time from the same tab:
 
-Social accounts, GitHub, FrameJam and Postiz are optional and can be connected at any time from the same tab.
+- **Stock footage**: a free [Pixabay](https://pixabay.com/api/docs/) key (or an existing Pexels key — Pexels has paused new keys) adds real video clips behind each scene. Without one, scenes use animated gradient backgrounds in your brand colors, and you can still upload your own clips or use brand b-roll.
+- Social accounts, GitHub, FrameJam and Postiz.
 
 ## Built on
 
@@ -32,7 +32,7 @@ Social accounts, GitHub, FrameJam and Postiz are optional and can be connected a
 |---|---|---|
 | LLM | [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python) | Ideas, scene-by-scene scripts, AI edits. Bundles the Claude Code CLI, so it signs in with your Claude subscription. |
 | Voice | [edge-tts](https://github.com/rany2/edge-tts) | Natural voices in many languages, with word timings for captions. |
-| Footage | Pexels / Pixabay APIs | Royalty-free stock clips per scene, swappable in the editor. |
+| Footage | Pixabay / Pexels APIs (optional) | Royalty-free stock clips per scene, swappable in the editor. Falls back to animated gradient backgrounds rendered by ffmpeg. |
 | Render | ffmpeg via [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg) | Crop, slow camera drift, word-by-word captions (libass), concat. Each scene is cached, so edits re-encode only what changed. |
 | Review | [FrameJam](https://github.com/moritzkremb/framejam) (MIT) | Comment on exact frames; Claude applies the comments and renders the next version. |
 | Publishing | YouTube Data API, TikTok Content Posting API, Facebook Graph API | Native OAuth from the UI. Optional [Postiz](https://github.com/gitroomhq/postiz-app) for more networks. |

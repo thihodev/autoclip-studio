@@ -241,8 +241,8 @@ async def autopilot_loop():
                 last = float(db.get_setting("autopilot_last_run", 0))
                 if time.time() - last >= interval:
                     db.set_setting("autopilot_last_run", time.time())
-                    if not settings.get("claude")["source"] or not render.footage_status()["ok"]:
-                        db.set_setting("autopilot_last_error", "Skipped: Claude or stock footage is not connected")
+                    if not settings.get("claude")["source"]:
+                        db.set_setting("autopilot_last_error", "Skipped: Claude is not connected")
                     else:
                         db.set_setting("autopilot_last_error", None)
                         await _autopilot_run(cfg)

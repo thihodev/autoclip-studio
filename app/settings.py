@@ -3,7 +3,7 @@ from . import db
 
 DEFAULTS = {
     "claude": {"source": "", "api_key": "", "model": "sonnet"},  # source: "" until the user picks
-    "footage": {"provider": "pexels", "pexels_api_key": "", "pixabay_api_key": ""},
+    "footage": {"provider": "pixabay", "pexels_api_key": "", "pixabay_api_key": ""},
     "framejam": {"url": "http://localhost:2400"},
     "postiz": {"url": "", "api_key": ""},
     "github": {"token": "", "login": ""},

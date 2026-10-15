@@ -265,7 +265,7 @@
       <span class="count" x-show="missingSetup().length" x-text="missingSetup().length"></span></a>
     <div class="side-foot">
       <div class="row-s"><span class="dot" :class="status.claude?.ok?'ok':'err'"></span>Claude</div>
-      <div class="row-s"><span class="dot" :class="status.footage?.ok?'ok':'err'"></span>Stock footage</div>
+      <div class="row-s"><span class="dot" :class="status.footage?.ok&&'ok'"></span>Stock footage</div>
       <div class="row-s"><span class="dot" :class="nativeAccounts().length&&'ok'"></span><span x-text="nativeAccounts().length + ' social account' + (nativeAccounts().length===1?'':'s')"></span></div>
       <div class="row-s"><span class="dot" :class="status.framejam?.ok&&'ok'"></span>FrameJam</div>
     </div>
@@ -964,8 +964,8 @@
           <!-- Footage -->
           <div class="card">
             <div class="card-head">
-              <div class="grow"><h2>Stock footage</h2><p>A free API key for royalty-free clips.</p></div>
-              <span class="chip" :class="status.footage?.ok?'ok':'err'" x-text="status.footage?.ok?'Connected':'Not connected'"></span>
+              <div class="grow"><h2>Stock footage <span class="small muted">optional</span></h2><p>Real video clips behind each scene. Without a key, scenes use animated backgrounds in your brand colors.</p></div>
+              <span class="chip" :class="status.footage?.ok?'ok':''" x-text="status.footage?.ok?'Connected':'Not connected'"></span>
             </div>
             <template x-if="status.footage?.ok && !footageEdit">
               <div class="account">
@@ -977,9 +977,9 @@
             </template>
             <template x-if="!status.footage?.ok || footageEdit">
               <div class="stack">
-                <div class="seg"><button type="button" :class="footageProvider==='pexels'&&'on'" @click="footageProvider='pexels'">Pexels</button><button type="button" :class="footageProvider==='pixabay'&&'on'" @click="footageProvider='pixabay'">Pixabay</button></div>
-                <p class="small muted" x-show="footageProvider==='pexels'">Get a free key at <a href="https://www.pexels.com/api/" target="_blank" rel="noopener">pexels.com/api</a>. Recommended: the best vertical footage.</p>
-                <p class="small muted" x-show="footageProvider==='pixabay'">Get a free key at <a href="https://pixabay.com/api/docs/" target="_blank" rel="noopener">pixabay.com/api/docs</a>.</p>
+                <div class="seg"><button type="button" :class="footageProvider==='pixabay'&&'on'" @click="footageProvider='pixabay'">Pixabay</button><button type="button" :class="footageProvider==='pexels'&&'on'" @click="footageProvider='pexels'">Pexels</button></div>
+                <p class="small muted" x-show="footageProvider==='pixabay'">Create a free account at <a href="https://pixabay.com/accounts/register/" target="_blank" rel="noopener">pixabay.com</a>, then copy your key from <a href="https://pixabay.com/api/docs/#api_search_videos" target="_blank" rel="noopener">pixabay.com/api/docs</a> (shown once you're signed in).</p>
+                <p class="small muted" x-show="footageProvider==='pexels'">Pexels has paused new API keys. If you already have one, paste it here.</p>
                 <div class="actions" style="flex-wrap:nowrap">
                   <input x-model="footageKey" placeholder="Paste your API key" autocomplete="off" @keydown.enter="saveFootage()">
                   <button class="btn primary" @click="saveFootage()" :disabled="!footageKey.trim() || savingFootage"><span class="spin" x-show="savingFootage"></span>Verify & save</button>
@@ -1089,7 +1089,10 @@
         <button class="btn primary" @click="searchFootage()" :disabled="!picker.q.trim() || !status.footage?.ok">Search</button>
         <label class="btn"><input type="file" accept="video/*" style="display:none" @change="uploadClip($event)">Upload</label>
       </div>
-      <p class="hint" x-show="!status.footage?.ok">Add a stock footage key in Connections to search — you can still upload your own clips.</p>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn sm" @click="chooseMotion()">Use an animated background</button>
+        <span class="hint" style="margin:0" x-show="!status.footage?.ok">Add a stock footage key in Connections to search clips — uploads and brand b-roll work without one.</span>
+      </div>
       <template x-if="cur && brandById(tl.brand_id)?.clips?.length">
         <div style="margin-top:12px">
           <div class="lbl" x-text="`Brand library · ${brandById(tl.brand_id).name}`"></div>
@@ -1179,7 +1182,7 @@ function app() {
     importer: { open:false, url:'', ref:'', busy:false }, newBrand: { open:false, name:'' },
     github: { connected:false, login:'' }, githubToken: '', githubSaving: false, githubRepos: [],
     creating: false, thinking: false, ideaForm: { niche:'', language:'English' },
-    switching: false, claudeCode: '', apiKey: '', footageEdit: false, footageKey: '', footageProvider: 'pexels', savingFootage: false,
+    switching: false, claudeCode: '', apiKey: '', footageEdit: false, footageKey: '', footageProvider: 'pixabay', savingFootage: false,
     cur: null, curMissing: false, tl: { captions:{}, scenes:[] }, baseTl: '', edTitle: '', baseTitle: '', preview: null, instruction: '',
     pubIds: [], pubOpts: { youtube_visibility:'public', tiktok_method:'DIRECT_POST' },
     editorTabs: [{key:'scenes',label:'Scenes'},{key:'style',label:'Style'},{key:'review',label:'AI & review'},{key:'publish',label:'Publish'}],
@@ -1211,7 +1214,7 @@ function app() {
     platformLabel(c) { if (!c || !c.provider) return ''; return c.via === 'postiz' ? `${c.provider} via Postiz` : (PLATFORM_LABELS[c.provider] || c.provider); },
     nativeAccounts() { return this.channels.filter(c => c.via === 'native'); },
     accountsFor(key) { return this.channels.filter(c => c.via === 'native' && c.provider === key); },
-    missingSetup() { const m = []; if (this.status.claude && !this.status.claude.ok) m.push('connect Claude'); if (this.status.footage && !this.status.footage.ok) m.push('add a stock footage key'); return m; },
+    missingSetup() { return this.status.claude && !this.status.claude.ok ? ['connect Claude'] : []; },
     sourceText(s) { return { app:'Signed in here', system:"This computer's Claude Code login", api_key:'Anthropic API key' }[s] || ''; },
     voiceLabel(v) { const n = v.name.split('-').slice(2).join('-').replace(/Neural$/, '').replace(/Multilingual$/, ' (multilingual)'); return `${n} · ${v.gender || ''} · ${v.locale}`; },
     isBusy(p) { return ['queued','scripting','editing','rendering','publishing'].includes(p?.status); },
@@ -1387,6 +1390,7 @@ function app() {
       catch (e) { this.picker.error = e.message; } finally { this.picker.loading = false; }
     },
     chooseClip(r) { Object.assign(this.picker.scene, { clip:r, search:this.picker.q, clip_start:0 }); this.picker.open = false; },
+    chooseMotion() { Object.assign(this.picker.scene, { clip:{ id:'motion:' + Date.now(), provider:'motion' }, clip_start:0 }); this.picker.open = false; },
     chooseBrandClip(b, c) { Object.assign(this.picker.scene, { clip:{ brand_clip:c.id, brand_id:b.id, provider:'brand', thumb_url:this.brandUrl(b, c.thumb), duration:c.duration }, clip_start:0 }); this.picker.open = false; },
     applyBrand(b) {
       this.tl.brand_id = b?.id || null;
@@ -1562,7 +1566,7 @@ function app() {
       if (ok) { this.footageEdit = false; this.footageKey = ''; this.loadConnections(); }
     },
     removeFootage() {
-      this.confirm('Remove the footage key?', "New videos can't be created until you add a key again.", 'Remove', async () => {
+      this.confirm('Remove the footage key?', 'New scenes will use animated backgrounds (or your brand b-roll) instead of stock clips.', 'Remove', async () => {
         const p = this.cfg.footage.provider;
         if (await this.run(() => this.api('/api/settings/footage', { method:'PUT', body:{ ...this.cfg.footage, [`${p}_api_key`]: '' } }), 'Removed')) this.loadConnections();
       });

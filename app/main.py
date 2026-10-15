@@ -300,8 +300,6 @@ def projects():
 def _require_setup():
     if not settings.get("claude")["source"]:
         raise HTTPException(400, "Connect Claude first (Connections → Claude)")
-    if not render.footage_status()["ok"]:
-        raise HTTPException(400, "Add a stock footage API key first (Connections → Stock footage)")
 
 
 @app.post("/api/projects")

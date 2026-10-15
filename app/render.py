@@ -98,7 +98,44 @@ def footage_status() -> dict:
     cfg = settings.get("footage")
     provider = cfg["provider"]
     key = cfg[f"{provider}_api_key"]
-    return {"ok": bool(key), "detail": f"{provider.title()} key set" if key else f"{provider.title()} API key not set"}
+    return {"ok": bool(key), "detail": f"{provider.title()} key set" if key else "Not set — scenes use motion backgrounds"}
+
+
+# Animated gradient backgrounds: used when a scene has no footage (no stock key,
+# no results, or picked by the user). Pairs are dark enough for white captions.
+MOTION_PALETTES = [
+    ("#1E3C72", "#2A5298"), ("#42275A", "#734B6D"), ("#0F2027", "#2C5364"), ("#B2153A", "#E2531F"),
+    ("#134E5E", "#2F7D5B"), ("#3A1C71", "#B5456A"), ("#000428", "#004E92"), ("#232526", "#4B4F55"),
+]
+
+
+def _shade(hex_color: str, f: float) -> str:
+    h = hex_color.lstrip("#")
+    rgb = [int(h[i:i + 2], 16) for i in (0, 2, 4)]
+    return "#" + "".join(f"{max(0, min(255, int(c * f))):02X}" for c in rgb)
+
+
+def motion_clip(index: int, brand: dict | None = None) -> dict:
+    if brand:
+        p = brand["colors"]["primary"]
+        c0, c1 = [(_shade(p, 0.35), _shade(p, 0.85)), (_shade(p, 0.2), _shade(p, 0.6))][index % 2]
+    else:
+        c0, c1 = MOTION_PALETTES[index % len(MOTION_PALETTES)]
+    return {"id": f"motion:{c0}{c1}:{index}", "provider": "motion", "colors": [c0, c1], "seed": index + 1}
+
+
+def _gradient_src(clip: dict, size, duration: float | None = None) -> str:
+    w, h = size
+    c0, c1 = (c.lstrip("#") for c in clip["colors"])
+    src = f"gradients=s={w}x{h}:c0=0x{c0}:c1=0x{c1}:nb_colors=2:type=linear:speed=0.012:seed={clip.get('seed', 1)}:rate=30"
+    return src + (f":d={duration:.3f}" if duration else "")
+
+
+async def motion_thumbnail(pid: str, clip: dict) -> str:
+    dest = project_dir(pid) / "media" / f"motion_{_hash(clip['colors'], clip.get('seed'))}.jpg"
+    if not dest.exists():
+        await _ffmpeg("-f", "lavfi", "-i", _gradient_src(clip, (270, 480)), "-frames:v", "1", dest)
+    return str(dest)
 
 
 async def test_footage_key(provider: str, key: str) -> str | None:
@@ -360,6 +397,8 @@ def new_timeline(meta: dict, req: dict, brand: dict | None = None) -> dict:
         ],
     }
     apply_brand_style(tl, brand)
+    if not footage_status()["ok"] and not brand:
+        tl["captions"]["position"] = 0.5  # text-centric look on motion backgrounds
     return tl
 
 
@@ -404,14 +443,18 @@ async def _encode_scene(pid: str, scene: dict, clip_path: Path, voice_dur: float
     size = SIZES.get(tl["format"], SIZES["shorts"])
     cache = project_dir(pid) / "cache"
     logo = style["logo"]
+    is_motion = (scene.get("clip") or {}).get("provider") == "motion"
     key = _hash("scene", str(clip_path), voice_dur, words, scene["text"], tl["captions"], tl["motion"], size,
-                scene.get("clip_start", 0), style["family"], style["fonts_dir"], logo)
+                scene.get("clip_start", 0), style["family"], style["fonts_dir"], logo,
+                scene["clip"].get("colors") if is_motion else None)
     out = cache / f"scene_{key}.mp4"
     if out.exists():
         return out
     w, h = size
     vf = [f"scale={w}:{h}:force_original_aspect_ratio=increase"]
-    if tl.get("motion"):
+    if is_motion:
+        vf = ["noise=alls=5:allf=t", "vignette=angle=PI/5"]  # subtle grain keeps gradients from banding
+    elif tl.get("motion"):
         # Slow drift across a slightly larger frame (cheap, smooth Ken Burns).
         vf += ["scale=iw*1.12:-2", f"crop={w}:{h}:x='(iw-{w})*(0.2+0.6*t/{voice_dur:.3f})':y='(ih-{h})/2'"]
     else:
@@ -421,7 +464,10 @@ async def _encode_scene(pid: str, scene: dict, clip_path: Path, voice_dur: float
     if ass:
         (cache / f"cap_{key}.ass").write_text(ass, encoding="utf-8")
         vf.append(f"ass=cap_{key}.ass:fontsdir={style['fonts_dir']}")
-    inputs = ["-stream_loop", "-1", "-ss", scene.get("clip_start", 0), "-i", clip_path]
+    if is_motion:
+        inputs = ["-f", "lavfi", "-i", _gradient_src(scene["clip"], size, voice_dur)]
+    else:
+        inputs = ["-stream_loop", "-1", "-ss", scene.get("clip_start", 0), "-i", clip_path]
     graph = f"[0:v]{','.join(vf)}[base]"
     out_label = "[base]"
     if logo:
@@ -480,6 +526,20 @@ async def _encode_bumper(pid: str, src: Path, size) -> tuple[Path, Path, float]:
     return video, await _to_wav(src, cache, dur), dur
 
 
+async def _auto_clip(scene: dict, i: int, scenes: list, size, brand: dict | None) -> dict:
+    """Stock footage when a key is set, otherwise (or on failure) a motion background."""
+    if footage_status()["ok"]:
+        try:
+            results = await search_footage(scene["search"] or scene["text"][:60], size)
+            used = {x["clip"]["id"] for x in scenes if x.get("clip") and x["clip"].get("id")}
+            fresh = [r for r in results if r["id"] not in used] or results
+            if fresh:
+                return fresh[0]
+        except Exception as e:
+            log.warning("stock search failed for scene %s, using a motion background: %s", i + 1, e)
+    return motion_clip(i, brand)
+
+
 async def render_timeline(pid: str, tl: dict, out: Path, on_progress) -> dict:
     """Render the timeline to `out`. Mutates tl: fills clips and timings."""
     size = SIZES.get(tl["format"], SIZES["shorts"])
@@ -500,12 +560,13 @@ async def render_timeline(pid: str, tl: dict, out: Path, on_progress) -> dict:
         if s.get("clip") and s["clip"].get("path") and not Path(s["clip"]["path"]).exists():
             s["clip"] = None  # brand clip or upload was removed
         if not s.get("clip"):
-            results = await search_footage(s["search"] or s["text"][:60], size)
-            used = {x["clip"]["id"] for x in scenes if x.get("clip") and x["clip"].get("id")}
-            fresh = [r for r in results if r["id"] not in used] or results
-            if not fresh:
-                raise RuntimeError(f"No footage found for scene {i + 1} ('{s['search']}')")
-            s["clip"] = fresh[0]
+            s["clip"] = await _auto_clip(s, i, scenes, size, brand)
+        if s["clip"].get("provider") == "motion":
+            s["clip"].setdefault("colors", motion_clip(i, brand)["colors"])
+            if not s["clip"].get("thumb_local"):
+                s["clip"]["thumb_local"] = await motion_thumbnail(pid, s["clip"])
+            on_progress(0.15 + 0.2 * (i + 1) / n)
+            continue
         clip_path = await ensure_clip_file(pid, s["clip"])
         if not s["clip"].get("thumb_local") and not s["clip"].get("thumb_url"):
             s["clip"]["thumb_local"] = str(await thumbnail(clip_path))
@@ -516,7 +577,7 @@ async def render_timeline(pid: str, tl: dict, out: Path, on_progress) -> dict:
         v, a, d = await _encode_bumper(pid, style["intro"], size)
         video_parts.append(v); audio_parts.append(a); t += d  # noqa: E702
     for i, (s, (mp3, words, dur)) in enumerate(zip(scenes, voices)):
-        video_parts.append(await _encode_scene(pid, s, Path(s["clip"]["path"]), dur, words, tl, style))
+        video_parts.append(await _encode_scene(pid, s, Path(s["clip"].get("path") or "motion"), dur, words, tl, style))
         audio_parts.append(await _to_wav(mp3, cache, dur))
         s["start"], s["end"] = round(t, 2), round(t + dur, 2)
         t += dur
