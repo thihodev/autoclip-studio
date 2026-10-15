@@ -28,7 +28,7 @@ from claude_agent_sdk import (
     TextBlock, ToolUseBlock, create_sdk_mcp_server, query, tool,
 )
 
-from . import activity, brands, claude, context, render, settings, styles, tts, usage
+from . import activity, brands, claude, context, playbooks, render, settings, styles, tts, usage
 from .config import DATA_DIR
 
 log = logging.getLogger("motion")
@@ -173,6 +173,8 @@ def _brief(req: dict, brand: dict | None, resolution: str, root: Path | None = N
         guide = brands.prompt_context({**brand, "clips": []})
         if guide:
             lines += ["", "## Customizations", "", guide]
+    if root and req.get("playbook_id"):
+        lines += playbooks.brief_lines(req["playbook_id"], root)
     if root and req.get("style_id"):
         lines += styles.brief_lines(req["style_id"], root, bool(brand))
     return "\n".join(lines) + "\n"

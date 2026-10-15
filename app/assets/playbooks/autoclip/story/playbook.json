@@ -1,0 +1,14 @@
+{
+  "id": "story",
+  "name": "Story / case study",
+  "tagline": "A real story or customer case goes in, a short narrative with a turn and a lesson comes out.",
+  "description": "Narrative short: a character with a problem, rising tension, a turning point and the result, ending on the lesson. For founder stories, customer cases, history and 'how X happened' videos.",
+  "tags": [
+    "story",
+    "case study",
+    "narrative",
+    "brand"
+  ],
+  "format": "any",
+  "license": "MIT"
+}

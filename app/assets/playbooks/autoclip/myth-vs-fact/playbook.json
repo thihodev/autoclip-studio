@@ -1,0 +1,14 @@
+{
+  "id": "myth-vs-fact",
+  "name": "Myth vs fact",
+  "tagline": "A common belief goes in, a quick myth-busting video with the real facts comes out.",
+  "description": "Each beat states a popular myth, marks it clearly as false, then shows the fact with one piece of evidence. Strong for health, money, tech and science topics where people hold confident wrong ideas.",
+  "tags": [
+    "myth",
+    "fact-check",
+    "education",
+    "shorts"
+  ],
+  "format": "any",
+  "license": "MIT"
+}

@@ -9,7 +9,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import activity, brands, claude, context, db, motion, platforms, postiz, render, settings, usage
+from . import activity, brands, claude, context, db, motion, playbooks, platforms, postiz, render, settings, usage
 from .config import DATA_DIR, VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
@@ -207,7 +207,8 @@ async def run_project(pid: str):
             brand = brands.get(req.get("brand_id"))
             meta = await claude.write_script(
                 topic=req["topic"], language=req.get("language", "English"),
-                duration=int(req.get("duration", 45)), style=req.get("style", ""), notes=req.get("notes", ""),
+                duration=int(req.get("duration", 45)), style=req.get("style", ""),
+                notes="\n\n".join(filter(None, [req.get("notes", ""), playbooks.script_notes(req.get("playbook_id"))])),
                 brand_context=brands.prompt_context(brand),
                 source=source_material(req), project_id=pid, model=req.get("model"), effort=req.get("effort"),
             )

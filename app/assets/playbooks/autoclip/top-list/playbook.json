@@ -1,0 +1,14 @@
+{
+  "id": "top-list",
+  "name": "Top N list",
+  "tagline": "A topic goes in, a fast countdown of the best N items comes out.",
+  "description": "The classic short-form list: a hook that promises a payoff, then N items counted down (or up), each with one big claim and one concrete detail, and the best one saved for last. Works for tips, tools, places, facts and mistakes.",
+  "tags": [
+    "listicle",
+    "countdown",
+    "tips",
+    "shorts"
+  ],
+  "format": "any",
+  "license": "MIT"
+}

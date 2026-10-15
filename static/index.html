@@ -307,6 +307,7 @@
   .stbody .t { font-weight:600; } .stbody .d { font-size:12px; color:var(--text-2); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .stmeta { display:flex; flex-wrap:wrap; gap:4px; } .stmeta span { font-size:11px; padding:1px 6px; border-radius:6px; background:var(--surface-2); color:var(--text-2); }
   .stsrc { font-size:11px; color:var(--text-3); }
+  .stbig { padding:0 16px; font-size:22px; font-weight:800; text-align:center; color:var(--text); }
   /* Connections: one row per connection, details in a dialog */
   .conns { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 24px; align-items:start; }
   @media (max-width:1100px) { .conns { grid-template-columns:minmax(0, 1fr); max-width:760px; } }
@@ -540,6 +541,16 @@
               <select x-select x-model="form.format"><option value="shorts" x-t>Vertical 9:16 · Shorts, TikTok, Reels</option><option value="youtube" x-t>Landscape 16:9 · YouTube</option><option value="square" x-t>Square 1:1</option></select></div>
             <div class="field"><label><span x-t>Length</span></label>
               <select x-select x-model.number="form.duration"><template x-for="d in [15,30,45,60,90,120,180]"><option :value="d" x-text="d<60 ? d+t(' seconds') : (d/60)+t(' min')" :selected="d===form.duration"></option></template></select></div>
+          </div>
+          <div class="field" style="margin-top:12px">
+            <label><span x-t>Video type</span></label>
+            <button type="button" class="stylepick" @click="openPlaybooks()">
+              <span class="sthumb"><template x-if="curPlaybook()?.poster"><img :src="curPlaybook().poster" alt=""></template>
+                <template x-if="!curPlaybook()?.poster"><svg class="i"><use href="#i-layers"/></svg></template></span>
+              <span class="grow"><span class="t" x-text="curPlaybook() ? t(curPlaybook().name) : t('Any — Claude decides the structure')"></span>
+                <span class="d" x-text="curPlaybook() ? t(curPlaybook().tagline) : t('Explainer, how-to, top list, myth vs fact, product launch, timeline…')"></span></span>
+              <svg class="i chev"><use href="#i-right"/></svg>
+            </button>
           </div>
           <div class="field" style="margin-top:12px" x-show="form.engine==='motion'">
             <label><span x-t>Visual style</span></label>
@@ -1532,6 +1543,30 @@
     </div>
   </div>
 
+  <!-- video type gallery (playbooks) -->
+  <div class="modal" x-show="pbOpen" x-transition.opacity @click.self="pbOpen=false" @keydown.escape.window="pbOpen && (pbOpen=false)">
+    <div class="card wide stylegal">
+      <div class="card-head"><div class="grow"><h2><span x-t>Video type</span></h2>
+        <p><span x-t>The structure of the video: the hook, the beats, the pacing and the ending. Pair it with a visual style.</span></p></div>
+        <button class="btn ghost icon" @click="pbOpen=false" :aria-label="t('Close')"><svg class="i"><use href="#i-x"/></svg></button></div>
+      <div class="stgrid">
+        <button type="button" class="stcard" :class="!form.playbook_id && 'on'" @click="form.playbook_id=''; pbOpen=false">
+          <span class="stimg"><svg class="i"><use href="#i-layers"/></svg></span>
+          <span class="stbody"><span class="t"><span x-t>Any — Claude decides the structure</span></span><span class="d"><span x-t>Claude picks a structure that fits the topic.</span></span></span>
+        </button>
+        <template x-for="p in pbList" :key="p.id">
+          <button type="button" class="stcard" :class="form.playbook_id===p.id && 'on'" @click="form.playbook_id=p.id; pbOpen=false" :title="p.description">
+            <span class="stimg"><template x-if="p.poster"><img :src="p.poster" alt="" loading="lazy"></template>
+              <template x-if="!p.poster"><span class="stbig" x-text="t(p.name)"></span></template></span>
+            <span class="stbody"><span class="t" x-text="t(p.name)"></span><span class="d" x-text="t(p.tagline)"></span>
+              <span class="stmeta"><template x-for="tag in p.tags.slice(0,3)" :key="tag"><span x-text="tag"></span></template></span>
+              <span class="stsrc" x-text="`${p.source} · ${p.license}`"></span></span>
+          </button>
+        </template>
+      </div>
+    </div>
+  </div>
+
   <!-- visual style gallery (FrameJam + HyperFrames presets) -->
   <div class="modal" x-show="styleOpen" x-transition.opacity @click.self="styleOpen=false" @keydown.escape.window="styleOpen && (styleOpen=false)">
     <div class="card wide stylegal">
@@ -1990,7 +2025,7 @@ const VOICE_SAMPLES = {
   Italian: 'Ciao! Ecco come suonerà il tuo prossimo video.',
   Indonesian: 'Halo! Beginilah suara video Anda berikutnya.',
 };
-const COMPOSER_KEYS = ['language', 'format', 'duration', 'style', 'style_id', 'voice', 'voice_rate', 'engine', 'model', 'effort', 'channelIds', 'auto_publish', 'brand_id'];
+const COMPOSER_KEYS = ['language', 'format', 'duration', 'style', 'style_id', 'playbook_id', 'voice', 'voice_rate', 'engine', 'model', 'effort', 'channelIds', 'auto_publish', 'brand_id'];
 
 function parseRoute(pathname) {
   const p = pathname.split('/').filter(Boolean);
@@ -2007,13 +2042,13 @@ function app() {
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
     status: {}, cl: {}, cfg: { claude:{}, footage:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
     channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] },
-    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'', github_repo:'', style_id:'' },
+    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'', github_repo:'', style_id:'', playbook_id:'' },
     models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, plan: {}, planLoading: false, showTable: false, hoverDay: null,
     projUsage: {}, editModel: '', editEffort: '',
     mp: { open:false, key:'form', sub:false, pos:{}, up:false, left:false, narrow:false },
     ghPick: { open:false, q:'', pos:{}, loading:false, current:'' },
     conn: '',
-    styleList: [], styleOpen: false, styleQ: '', styleSrc: '',
+    styleList: [], styleOpen: false, styleQ: '', styleSrc: '', pbList: [], pbOpen: false,
     rv: { time:0, dur:0, playing:false, sel:null, pin:null, mode:'time', text:'', comments:[], film:null, sending:false, dragging:null },
     workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' }, siteImport: { open:false, url:'', busy:false },
     live: {}, dockOpen: true,
@@ -2188,7 +2223,7 @@ function app() {
       });
       window.addEventListener('beforeunload', e => { if (this.dirty || this.brandDirty) { e.preventDefault(); e.returnValue = ''; } });
       await this.loadComposer();
-      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers(), this.loadGithub(), this.loadStyles(),
+      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers(), this.loadGithub(), this.loadStyles(), this.loadPlaybooks(),
         this.api('/api/settings').then(s => { if (s) this.cfg = s; }).catch(() => {})]);
       // Plan limits move while videos render: keep the Usage page current.
       setInterval(() => { if (this.route.page === 'usage' && !document.hidden && !this.planLoading) this.loadPlan(); }, 60000);
@@ -2228,6 +2263,9 @@ function app() {
     },
     ghChoose(name) { this.ghPick.open = false; this._ghOnPick?.(name); },
     brandForRepo(repo) { return this.brandList.find(b => b.source?.type === 'github' && (b.source.repo || '').toLowerCase() === (repo || '').toLowerCase()); },
+    async loadPlaybooks() { this.pbList = await this.api('/api/playbooks').catch(() => this.pbList); },
+    openPlaybooks() { this.pbOpen = true; this.loadPlaybooks(); },
+    curPlaybook() { return this.form.playbook_id ? this.pbList.find(p => p.id === this.form.playbook_id) || null : null; },
     async loadStyles() { this.styleList = await this.api('/api/styles').catch(() => this.styleList); },
     openStyles() { this.styleQ = ''; this.styleSrc = ''; this.styleOpen = true; this.loadStyles(); },
     curStyle() { return this.form.style_id ? this.styleList.find(s => s.id === this.form.style_id) || null : null; },
