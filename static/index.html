@@ -315,6 +315,18 @@
               <input type="file" multiple :accept="contextAccept" @change="addFormContext($event)"></label>
             <span class="small muted" x-show="!form.context.length"><span x-t>Optional: articles, notes, product docs or transcripts for Claude to base the script on.</span></span>
           </div>
+          <div class="field" style="margin-top:12px">
+            <label><span x-t>Engine</span></label>
+            <div class="options" style="flex-direction:row;flex-wrap:wrap">
+              <button type="button" class="option" style="flex:1;min-width:240px;text-align:left;cursor:pointer;background:var(--surface);color:var(--text);font:inherit" :class="form.engine==='motion'&&'rec'" @click="form.engine='motion'" :disabled="['node','ffmpeg'].includes(motionInfo.code)">
+                <div class="grow"><div class="t"><span x-t>Claude Motion</span> <span class="chip ok" style="margin-left:4px" x-show="form.engine==='motion'"><span x-t>Selected</span></span></div>
+                  <div class="d"><span x-t>Claude designs and animates every scene as code — kinetic type, diagrams, charts, transitions. 10–20 min.</span></div></div></button>
+              <button type="button" class="option" style="flex:1;min-width:240px;text-align:left;cursor:pointer;background:var(--surface);color:var(--text);font:inherit" :class="form.engine==='classic'&&'rec'" @click="form.engine='classic'">
+                <div class="grow"><div class="t"><span x-t>Quick</span> <span class="chip ok" style="margin-left:4px" x-show="form.engine==='classic'"><span x-t>Selected</span></span></div>
+                  <div class="d"><span x-t>Voice-over with captions over stock clips or animated backgrounds. About 1 minute, editable scene by scene.</span></div></div></button>
+            </div>
+            <p class="hint" x-show="['node','ffmpeg'].includes(motionInfo.code)" x-text="t('Claude Motion needs setup: ') + t(motionInfo.detail || '')"></p>
+          </div>
           <div class="grid-3" style="margin-top:12px">
             <div class="field"><label><span x-t>Language</span></label>
               <select x-model="form.language" @change="form.voice=''; loadVoices(form.language)"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===form.language"></option></template></select></div>
@@ -419,7 +431,7 @@
 
           <div class="notice" x-show="isBusy(cur)" style="margin-bottom:16px">
             <span class="spin" style="margin-top:3px"></span>
-            <div style="flex:1"><div x-text="busyText(cur)"></div><div class="bar" style="margin-top:6px"><i :style="`width:${Math.max(4,cur.progress)}%`"></i></div></div>
+            <div style="flex:1"><div x-text="busyText(cur) + (cur.stage ? ' — ' + t(cur.stage.replace(/\d+ of \d+/, '{k} of {n}'), stageVars(cur.stage)) : '')"></div><div class="bar" style="margin-top:6px"><i :style="`width:${Math.max(4,cur.progress)}%`"></i></div></div>
           </div>
           <div class="notice err" x-show="!isBusy(cur) && cur.error" style="margin-bottom:16px">
             <svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg>
@@ -447,17 +459,35 @@
 
             <div>
               <nav class="tabs">
-                <template x-for="tab in editorTabs" :key="tab.key">
+                <template x-for="tab in editorTabs.filter(x => !(isMotion(cur) && x.key==='style'))" :key="tab.key">
                   <a :href="`/projects/${cur.id}/${tab.key}`" :class="route.sub===tab.key&&'on'" @click.prevent="nav(`/projects/${cur.id}/${tab.key}`)" x-text="t(tab.label)"></a>
                 </template>
               </nav>
 
               <template x-if="!cur.timeline">
-                <div class="card empty small" x-text="isBusy(cur) ? t('Claude is writing the scenes…') : t('This video has no scenes yet. Retry to generate them.')"></div>
+                <div class="card empty small" x-text="isBusy(cur) ? (isMotion(cur) ? t('Claude is designing the video — scenes appear here when it is rendered.') : t('Claude is writing the scenes…')) : t('This video has no scenes yet. Retry to generate them.')"></div>
               </template>
 
+              <!-- Claude Motion scenes (edited through Claude) -->
+              <div x-show="cur.timeline && isMotion(cur) && route.sub==='scenes'">
+                <div class="notice info" style="margin-bottom:12px"><svg class="i" style="margin-top:2px"><use href="#i-star"/></svg>
+                  <div><span x-t>This video was designed by Claude Motion. Describe changes to a scene and Claude re-animates it.</span></div></div>
+                <template x-for="s in (cur.timeline?.scenes||[])" :key="s.id">
+                  <div class="scene" style="grid-template-columns:1fr auto">
+                    <div style="min-width:0">
+                      <div class="meta"><strong x-text="t('Scene {n}', {n: s.frame})"></strong><span x-text="`${fmt(s.start)} – ${fmt(s.end)}`"></span></div>
+                      <div x-text="s.text"></div>
+                    </div>
+                    <div class="tools">
+                      <button type="button" class="btn ghost icon" :title="t('Play this scene')" @click="seek(s)" :disabled="!cur.video_path"><svg class="i"><use href="#i-play"/></svg></button>
+                      <button type="button" class="btn ghost icon" :title="t('Change this scene with Claude')" @click="askScene(s)" :disabled="isBusy(cur)"><svg class="i"><use href="#i-star"/></svg></button>
+                    </div>
+                  </div>
+                </template>
+              </div>
+
               <!-- Scenes -->
-              <fieldset x-show="cur.timeline && route.sub==='scenes'" :disabled="isBusy(cur)">
+              <fieldset x-show="cur.timeline && !isMotion(cur) && route.sub==='scenes'" :disabled="isBusy(cur)">
                 <div class="field" style="margin-bottom:14px"><label><span x-t>Title</span></label><input x-model="edTitle"></div>
                 <template x-for="(s, i) in tl.scenes" :key="s.id">
                   <div class="scene">
@@ -482,7 +512,7 @@
               </fieldset>
 
               <!-- Style -->
-              <fieldset x-show="cur.timeline && route.sub==='style'" :disabled="isBusy(cur)">
+              <fieldset x-show="cur.timeline && !isMotion(cur) && route.sub==='style'" :disabled="isBusy(cur)">
                 <div class="card">
                   <div class="card-head"><div class="grow"><h2><span x-t>Brand kit</span></h2><p><span x-t>Logo, colors, font, intro/outro, music and b-roll from a kit.</span></p></div>
                     <a class="btn ghost sm" x-show="tl.brand_id && brandById(tl.brand_id)" :href="`/brands/${tl.brand_id}`" @click.prevent="nav(`/brands/${tl.brand_id}`)"><span x-t>Edit kit</span></a></div>
@@ -931,7 +961,11 @@
                     <select @change="setModel($event.target.value)">
                       <template x-for="m in [['sonnet','Sonnet · fast, recommended'],['opus','Opus · best quality'],['haiku','Haiku · fastest']]"><option :value="m[0]" x-text="t(m[1])" :selected="m[0]===cl.model"></option></template>
                     </select></div>
-                  <div class="actions" style="justify-content:flex-end">
+                  <div class="field"><label><span x-t>Claude Motion model</span></label>
+                    <select @change="setMotionModel($event.target.value)">
+                      <template x-for="m in [['opus','Opus · best design, recommended'],['sonnet','Sonnet · faster, uses less']]"><option :value="m[0]" x-text="t(m[1])" :selected="m[0]===(cfg.claude?.motion_model||'opus')"></option></template>
+                    </select></div>
+                  <div class="actions" style="justify-content:flex-end;grid-column:1/-1">
                     <button class="btn" @click="switching=true"><span x-t>Switch account</span></button>
                     <button class="btn ghost danger" @click="cl.current.source==='app' ? claudeLogout() : claudeSource('')" x-text="cl.current.source==='app' ? t('Sign out') : t('Disconnect')"></button>
                   </div>
@@ -979,6 +1013,55 @@
               </div>
             </template>
             <p class="hint" style="margin-top:12px"><span x-t>Personal use only: subscription usage through the Agent SDK draws from your plan's monthly Agent SDK credit. Don't share your login with others.</span></p>
+          </div>
+
+          <!-- Claude Motion engine -->
+          <div class="card">
+            <div class="card-head">
+              <div class="grow"><h2><span x-t>Claude Motion</span></h2><p><span x-t>Claude animates each video as code with HyperFrames (open source). Runs on this computer.</span></p></div>
+              <span class="chip" :class="motionInfo.ok ? 'ok' : (motionInfo.installing ? 'warn' : '')" x-text="motionInfo.ok ? t('Ready') : (motionInfo.installing ? t('Installing…') : t('Not installed'))"></span>
+            </div>
+            <div class="small muted" x-text="t(motionInfo.detail || '')"></div>
+            <div class="notice err" x-show="motionInfo.install_error" style="margin-top:10px"><div x-text="motionInfo.install_error"></div></div>
+            <div class="actions" style="margin-top:10px" x-show="!motionInfo.ok && motionInfo.code==='install'">
+              <button class="btn primary" @click="installMotion()" :disabled="motionInfo.installing"><span class="spin" x-show="motionInfo.installing"></span><span x-text="motionInfo.installing ? t('Installing — a few minutes…') : t('Install')"></span></button>
+            </div>
+            <p class="hint" x-show="['node','ffmpeg'].includes(motionInfo.code)"><span x-t>Install it, then reload this page. Videos use the Quick engine until then.</span></p>
+          </div>
+
+          <!-- Voice -->
+          <div class="card">
+            <div class="card-head">
+              <div class="grow"><h2><span x-t>Voice-over</span></h2><p><span x-t>ElevenLabs gives natural voices in 70+ languages, including Vietnamese. Without a key, free Microsoft voices are used.</span></p></div>
+              <span class="chip" :class="status.voice?.provider==='elevenlabs'?'ok':''" x-text="status.voice?.provider==='elevenlabs' ? 'ElevenLabs' : t('Free voices')"></span>
+            </div>
+            <template x-if="status.voice?.provider==='elevenlabs' && !voiceEdit">
+              <div class="stack">
+                <div class="field"><label><span x-t>Voice</span></label>
+                  <select @change="setElevenVoice($event.target.value)">
+                    <option value="" x-t>First voice in my account</option>
+                    <template x-for="v in elevenVoices" :key="v.id"><option :value="v.id" :selected="v.id===cfg.voice?.elevenlabs_voice_id" x-text="[v.name, v.gender, v.accent, v.description].filter(Boolean).join(' · ')"></option></template>
+                  </select></div>
+                <div class="actions">
+                  <button class="btn" @click="previewVoice()" :disabled="previewing"><span class="spin" x-show="previewing"></span><svg class="i" x-show="!previewing"><use href="#i-play"/></svg><span x-t>Listen</span></button>
+                  <button class="btn" @click="voiceEdit=true; voiceKey=''"><span x-t>Change key</span></button>
+                  <button class="btn ghost danger" @click="removeVoiceKey()"><span x-t>Remove</span></button>
+                </div>
+              </div>
+            </template>
+            <template x-if="status.voice?.provider!=='elevenlabs' || voiceEdit">
+              <div class="stack">
+                <p class="small muted"><span x-t>Create a key at</span> <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">elevenlabs.io</a><span x-t>, with Text to Speech and Voices access.</span></p>
+                <div class="actions" style="flex-wrap:nowrap">
+                  <input type="password" x-model="voiceKey" :placeholder="t('Paste your ElevenLabs API key')" autocomplete="off" @keydown.enter="saveVoiceKey()">
+                  <button class="btn primary" @click="saveVoiceKey()" :disabled="!voiceKey.trim() || savingVoice"><span class="spin" x-show="savingVoice"></span><span x-t>Verify & save</span></button>
+                </div>
+                <div class="actions">
+                  <button class="btn ghost sm" x-show="voiceEdit" @click="voiceEdit=false"><span x-t>Cancel</span></button>
+                  <button class="btn ghost sm" x-show="!voiceEdit" @click="previewVoice()" :disabled="previewing"><span class="spin" x-show="previewing"></span><span x-t>Listen to the free voice</span></button>
+                </div>
+              </div>
+            </template>
           </div>
 
           <!-- Footage -->
@@ -1212,8 +1295,8 @@ function app() {
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
     status: {}, cl: {}, cfg: { claude:{}, footage:{}, framejam:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
     channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] },
-    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[] },
-    uploadingContext: false, contextAccept: '.txt,.md,.markdown,.pdf,.docx,.html,.htm,.csv,.json,.srt,.vtt,.yaml,.yml',
+    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion' },
+    uploadingContext: false, motionInfo: {}, voiceEdit: false, voiceKey: '', savingVoice: false, elevenVoices: [], previewing: false, contextAccept: '.txt,.md,.markdown,.pdf,.docx,.html,.htm,.csv,.json,.srt,.vtt,.yaml,.yml',
     brandList: [], brand: null, brandBase: '', brandMissing: false, syncing: false,
     importer: { open:false, url:'', ref:'', busy:false }, newBrand: { open:false, name:'' },
     github: { connected:false, login:'' }, githubToken: '', githubSaving: false, githubRepos: [],
@@ -1275,17 +1358,20 @@ function app() {
     missingSetup() { return this.status.claude && !this.status.claude.ok ? [this.t('connect Claude')] : []; },
     sourceText(s) { return this.t({ app:'Signed in here', system:"This computer's Claude Code login", api_key:'Anthropic API key' }[s] || ''); },
     voiceLabel(v) { const n = v.name.split('-').slice(2).join('-').replace(/Neural$/, '').replace(/Multilingual$/, ' (multilingual)'); return `${n} · ${v.gender || ''} · ${v.locale}`; },
-    isBusy(p) { return ['queued','scripting','editing','rendering','publishing'].includes(p?.status); },
-    statusText(p) { return p.status === 'rendering' ? this.t('Rendering {n}%', {n: p.progress || 0}) : this.t({ queued:'Queued', scripting:'Writing script', editing:'Claude is editing', publishing:'Publishing', ready:'Ready', published:'Published', failed:'Failed' }[p.status] || p.status); },
+    isBusy(p) { return ['queued','scripting','designing','editing','rendering','publishing'].includes(p?.status); },
+    isMotion(p) { return (p?.timeline?.engine || p?.request?.engine) === 'motion'; },
+    stageVars(stage) { const m = (stage || '').match(/(\d+) of (\d+)/); return m ? { k: m[1], n: m[2] } : {}; },
+    askScene(s) { this.instruction = this.t('Scene {n}: ', {n: s.frame}); this.nav(`/projects/${this.cur.id}/review`); this.$nextTick(() => document.querySelector('textarea[x-model="instruction"]')?.focus()); },
+    statusText(p) { if (p.status === 'rendering') return this.t('Rendering {n}%', {n: p.progress || 0}); if (p.status === 'designing') return this.t('Claude Motion {n}%', {n: p.progress || 0}); return this.t({ queued:'Queued', scripting:'Writing script', editing:'Claude is editing', publishing:'Publishing', ready:'Ready', published:'Published', failed:'Failed' }[p.status] || p.status); },
     statusTone(p) { return { ready:'ok', published:'ok', failed:'err' }[p.status] || 'warn'; },
-    busyText(p) { return p.status === 'rendering' ? this.t('Rendering version {v}…', {v: (p.version||0)+1}) : this.t({ queued:'Waiting to start…', scripting:'Claude is writing the script…', editing:'Claude is editing the video…', publishing:'Publishing…' }[p.status] || ''); },
+    busyText(p) { if (p.status === 'rendering') return this.t('Rendering version {v}…', {v: (p.version||0)+1}); if (p.status === 'designing') return this.t('Claude Motion is making version {v}', {v: (p.version||0)+1}); return this.t({ queued:'Waiting to start…', scripting:'Claude is writing the script…', editing:'Claude is editing the video…', publishing:'Publishing…' }[p.status] || ''); },
     base(path) { return (path || '').split(/[\\/]/).pop(); },
     videoUrl(p) { return p.video_path ? '/videos/' + this.base(p.video_path) : ''; },
     versions() { return (this.cur?.extra?.versions || []).slice().reverse(); },
     latestFile() { return this.base(this.cur?.video_path); },
     previewSrc() { return '/videos/' + (this.preview || this.latestFile()); },
     sceneThumb(s) { const c = s.clip; if (!c) return ''; if (c.thumb_url) return c.thumb_url; return c.thumb_local ? `/media/${this.cur.id}/${this.base(c.thumb_local)}` : (c.thumb || ''); },
-    projThumb(p) { const c = p.timeline?.scenes?.[0]?.clip; if (!c) return ''; if (c.thumb_url) return c.thumb_url; return c.thumb_local ? `/media/${p.id}/${this.base(c.thumb_local)}` : (c.thumb || ''); },
+    projThumb(p) { if (p.video_path && this.isMotion(p)) return '/videos/' + this.base(p.video_path).replace(/\.mp4$/, '.jpg'); const c = p.timeline?.scenes?.[0]?.clip; if (!c) return ''; if (c.thumb_url) return c.thumb_url; return c.thumb_local ? `/media/${p.id}/${this.base(c.thumb_local)}` : (c.thumb || ''); },
     // brand helpers
     brandById(id) { return id ? this.brandList.find(b => b.id === id) : null; },
     brandUrl(b, file) { return file ? `/brand-media/${b.id}/${file}` : ''; },
@@ -1366,7 +1452,8 @@ function app() {
       });
       window.addEventListener('beforeunload', e => { if (this.dirty || this.brandDirty) { e.preventDefault(); e.returnValue = ''; } });
       try { this.form.brand_id = localStorage.getItem('autoclip.brand') || null; } catch {}
-      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands()]);
+      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion()]);
+      if (['node','ffmpeg'].includes(this.motionInfo.code)) this.form.engine = 'classic';
       if (this.form.brand_id && !this.brandById(this.form.brand_id)) this.form.brand_id = null;
       this.ready = true;
       await this.onRoute();
@@ -1582,13 +1669,48 @@ function app() {
     },
     async githubDisconnect() { this.github = await this.api('/api/github', { method:'DELETE' }); this.githubRepos = []; this.say('GitHub disconnected'); },
 
+    // ------------------------------------------------ Claude Motion & voice
+    async loadMotion() { this.motionInfo = await this.api('/api/motion').catch(() => this.motionInfo); },
+    async installMotion() {
+      this.motionInfo = await this.api('/api/motion/install', { method:'POST' });
+      const poll = setInterval(async () => { await this.loadMotion(); if (!this.motionInfo.installing) { clearInterval(poll); this.say(this.motionInfo.ok ? 'Claude Motion is ready' : (this.motionInfo.install_error || 'Install failed'), !this.motionInfo.ok); } }, 3000);
+    },
+    async loadElevenVoices() { if (this.status.voice?.provider === 'elevenlabs') this.elevenVoices = await this.api('/api/voice/elevenlabs').catch(() => []); },
+    async saveVoiceKey() {
+      if (!this.voiceKey.trim()) return;
+      this.savingVoice = true;
+      const ok = await this.run(() => this.api('/api/settings/voice', { method:'PUT', body:{ ...this.cfg.voice, elevenlabs_api_key: this.voiceKey.trim() } }), 'Key verified and saved');
+      this.savingVoice = false;
+      if (ok) { this.voiceEdit = false; this.voiceKey = ''; await this.loadConnections(); this.loadElevenVoices(); }
+    },
+    async setElevenVoice(id) {
+      const v = this.elevenVoices.find(x => x.id === id);
+      if (await this.run(() => this.api('/api/settings/voice', { method:'PUT', body:{ ...this.cfg.voice, elevenlabs_voice_id: id, elevenlabs_voice_name: v?.name || '' } }), 'Saved')) this.loadConnections();
+    },
+    removeVoiceKey() {
+      this.confirm('Remove the ElevenLabs key?', 'Videos will use the free Microsoft voices.', 'Remove', async () => {
+        if (await this.run(() => this.api('/api/settings/voice', { method:'PUT', body:{ ...this.cfg.voice, elevenlabs_api_key: '' } }), 'Removed')) this.loadConnections();
+      });
+    },
+    async previewVoice() {
+      this.previewing = true;
+      try {
+        const lang = this.lang === 'vi' ? 'Vietnamese' : 'English';
+        const text = lang === 'Vietnamese' ? 'Xin chào! Đây là giọng đọc cho video của bạn.' : 'Hi! This is the voice of your next video.';
+        const r = await fetch('/api/voice/preview', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, language: lang }) });
+        if (!r.ok) { let m = await r.text(); try { m = JSON.parse(m).detail } catch {} ; throw new Error(m); }
+        new Audio(URL.createObjectURL(await r.blob())).play();
+      } catch (e) { this.say(e.message, true); } finally { this.previewing = false; }
+    },
+
     // ------------------------------------------------ connections
     signingIn() { return ['waiting_code','verifying'].includes(this.cl.login?.state); },
     async loadConnections() {
       const [s, c] = await Promise.all([this.api('/api/settings').catch(() => null), this.api('/api/claude').catch(() => null)]);
       if (s) { this.cfg = s; if (!this.footageEdit) this.footageProvider = s.footage.provider; }
       if (c) this.cl = c;
-      await Promise.all([this.loadChannels(), this.refreshStatus(), this.loadGithub()]);
+      await Promise.all([this.loadChannels(), this.refreshStatus(), this.loadGithub(), this.loadMotion()]);
+      this.loadElevenVoices();
     },
     async saveSection(section) { if (await this.run(() => this.api(`/api/settings/${section}`, { method:'PUT', body: this.cfg[section] }), 'Saved')) this.loadConnections(); },
     async claudeLogin() {
@@ -1617,6 +1739,7 @@ function app() {
         this.apiKey = ''; this.switching = false; this.loadConnections();
       }
     },
+    async setMotionModel(model) { if (await this.run(() => this.api('/api/settings/claude', { method:'PUT', body:{ ...this.cfg.claude, motion_model: model } }), 'Model updated')) this.loadConnections(); },
     async setModel(model) { if (await this.run(() => this.api('/api/settings/claude', { method:'PUT', body:{ ...this.cfg.claude, model } }), 'Model updated')) this.loadConnections(); },
     async claudeLogout() { if (await this.run(() => this.api('/api/claude/logout', { method:'POST' }), 'Signed out')) this.loadConnections(); },
     async saveFootage() {

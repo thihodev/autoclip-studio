@@ -20,7 +20,7 @@ import edge_tts
 import httpx
 import imageio_ffmpeg
 
-from . import brands, settings
+from . import brands, settings, tts
 from .config import DATA_DIR, FONT_PATH
 
 log = logging.getLogger("render")
@@ -275,13 +275,13 @@ async def synthesize(text: str, voice: str, rate: float, dest: Path) -> list[lis
     return words
 
 
-async def scene_voice(pid: str, text: str, voice: str, rate: float) -> tuple[Path, list, float]:
+async def scene_voice(pid: str, text: str, voice: str, rate: float, language: str = "English") -> tuple[Path, list, float]:
     """Cached TTS for one scene → (mp3, words, duration)."""
     cache = project_dir(pid) / "cache"
-    key = _hash("tts", text, voice, rate)
+    key = _hash("tts", text, voice, rate, language, tts.cache_key())
     mp3, meta = cache / f"tts_{key}.mp3", cache / f"tts_{key}.json"
     if not (mp3.exists() and meta.exists()):
-        words = await synthesize(text, voice, rate, mp3)
+        words = await tts.synthesize(text, language, voice, rate, mp3)
         meta.write_text(json.dumps({"words": words, "duration": await media_duration(mp3)}))
     data = json.loads(meta.read_text())
     return mp3, data["words"], data["duration"]
@@ -398,6 +398,8 @@ def new_timeline(meta: dict, req: dict, brand: dict | None = None) -> dict:
     if not voice and brand and brand.get("voice_name") and brand.get("language") in ("", None, language):
         voice = brand["voice_name"]
     tl = {
+        "engine": "classic",
+        "language": language,
         "format": req.get("format", "shorts"),
         "voice": re.sub(r"-(Male|Female)$", "", voice or DEFAULT_VOICES.get(language, DEFAULT_VOICES["English"])),
         "voice_rate": float(req.get("voice_rate", 1.0)),
@@ -500,6 +502,17 @@ async def _encode_scene(pid: str, scene: dict, clip_path: Path, voice_dur: float
     return out
 
 
+async def _ffmpeg_probe_size(path: Path) -> tuple[int, int]:
+    proc = await asyncio.create_subprocess_exec(
+        FFMPEG, "-hide_banner", "-i", str(path), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+    )
+    _, err = await proc.communicate()
+    m = re.search(r"Video:.*?(\d{2,5})x(\d{2,5})", err.decode(errors="replace"))
+    if not m:
+        raise RuntimeError(f"Cannot read the size of {path.name}")
+    return int(m.group(1)), int(m.group(2))
+
+
 async def _has_audio(path: Path) -> bool:
     proc = await asyncio.create_subprocess_exec(
         FFMPEG, "-hide_banner", "-i", str(path), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
@@ -566,7 +579,7 @@ async def render_timeline(pid: str, tl: dict, out: Path, on_progress) -> dict:
 
     voices = []
     for i, s in enumerate(scenes):
-        voices.append(await scene_voice(pid, s["text"], tl["voice"], tl["voice_rate"]))
+        voices.append(await scene_voice(pid, s["text"], tl["voice"], tl["voice_rate"], tl.get("language", "English")))
         on_progress(0.15 * (i + 1) / n)
 
     for i, s in enumerate(scenes):

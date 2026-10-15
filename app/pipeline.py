@@ -7,13 +7,68 @@ import time
 import uuid
 from pathlib import Path
 
-from . import brands, claude, context, db, framejam, platforms, postiz, render, settings
+from . import brands, claude, context, db, framejam, motion, platforms, postiz, render, settings
 from .config import VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
 
-# One render at a time; ffmpeg already uses all cores.
+# One render at a time; ffmpeg already uses all cores. Claude Motion runs one at a time too.
 _render_lock = asyncio.Semaphore(1)
+_motion_lock = asyncio.Semaphore(1)
+
+# Live stage label per project while Claude Motion works ("Animating scene 3 of 7").
+STAGES: dict[str, str] = {}
+
+
+def default_engine() -> str:
+    return "motion" if motion.status()["code"] in ("ready", "install") else "classic"
+
+
+def _reporter(pid: str):
+    def report(value: int, label: str):
+        STAGES[pid] = label
+        db.update_project(pid, progress=int(value))
+    return report
+
+
+def _save_version(pid: str, out: Path, tl: dict, note: str) -> dict:
+    p = db.get_project(pid)
+    extra = _extra(p)
+    version = (p.get("version") or 0) + 1
+    extra["versions"].append({"version": version, "file": out.name, "note": note, "at": time.time()})
+    db.update_project(pid, timeline=tl, video_path=str(out), version=version, extra=extra,
+                      status="ready", progress=100, error=None, publish_result=None)
+    return db.get_project(pid)
+
+
+async def _motion_version(pid: str, note: str, instruction: str | None = None) -> dict:
+    p = db.get_project(pid)
+    out = VIDEOS_DIR / f"{pid}_v{(p.get('version') or 0) + 1}.mp4"
+    db.update_project(pid, status="queued", progress=0)
+    async with _motion_lock:
+        db.update_project(pid, status="designing", progress=1)
+        try:
+            report = _reporter(pid)
+            if instruction:
+                tl = await motion.edit(pid, p["request"], instruction, out, report)
+            else:
+                tl = await motion.create(pid, p["request"], out, report)
+        finally:
+            STAGES.pop(pid, None)
+    tl["format"] = p["request"].get("format", "shorts")
+    tl["brand_id"] = p["request"].get("brand_id")
+    await render.thumbnail(out)
+    saved = _save_version(pid, out, tl, note)
+    if _extra(saved)["framejam"].get("review_id"):
+        try:
+            await send_to_framejam(pid, note)
+        except Exception:
+            log.warning("could not push to FrameJam", exc_info=True)
+    return saved
+
+
+def is_motion(p: dict) -> bool:
+    return (p.get("timeline") or {}).get("engine") == "motion" or p["request"].get("engine") == "motion"
 
 
 def _extra(p: dict) -> dict:
@@ -50,6 +105,14 @@ async def _render_version(pid: str, note: str) -> dict:
 async def run_project(pid: str):
     p = db.get_project(pid)
     req = p["request"]
+    if req.get("engine") == "motion":
+        try:
+            await _motion_version(pid, "First cut")
+            if req.get("auto_publish") and req.get("integrations"):
+                await publish_project(pid)
+        except Exception as e:
+            _fail(pid, e, status="ready" if db.get_project(pid).get("video_path") else "failed")
+        return
     try:
         if not p.get("timeline"):
             db.update_project(pid, status="scripting", progress=5)
@@ -116,6 +179,16 @@ def apply_edit(tl: dict, meta: dict, edit: dict) -> tuple[dict, dict]:
 
 async def ai_edit(pid: str, instruction: str, source: str = "prompt"):
     p = db.get_project(pid)
+    if is_motion(p):
+        try:
+            extra = _extra(p)
+            extra["history"].append({"at": time.time(), "source": source, "instruction": instruction[:2000],
+                                     "summary": instruction.splitlines()[0][:160] if source == "prompt" else "Applied FrameJam comments"})
+            db.update_project(pid, extra=extra, error=None)
+            await _motion_version(pid, extra["history"][-1]["summary"], instruction)
+        except Exception as e:
+            _fail(pid, e, status="ready" if p.get("video_path") else "failed")
+        return
     try:
         db.update_project(pid, status="editing", progress=0, error=None)
         edit = await claude.edit_timeline(
@@ -271,6 +344,7 @@ async def _autopilot_run(cfg: dict):
             "integrations": cfg.get("integrations", []),
             "publish_options": cfg.get("publish_options", {}),
             "brand_id": cfg.get("brand_id"),
+            "engine": cfg.get("engine") or default_engine(),
             "source": "autopilot",
         })
         await run_project(p["id"])

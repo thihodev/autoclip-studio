@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import brands, claude, context, db, framejam, pipeline, platforms, postiz, render, settings
+from . import brands, claude, context, db, framejam, motion, pipeline, platforms, postiz, render, settings, tts
 from .config import ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -74,6 +74,7 @@ class ProjectIn(BaseModel):
     publish_options: dict = {}
     brand_id: str | None = None
     context_ids: list[str] = []
+    engine: str | None = None  # motion | classic (default: motion when available)
 
 
 class PublishIn(BaseModel):
@@ -148,6 +149,8 @@ async def status():
     return {
         "claude": claude_s,
         "footage": render.footage_status(),
+        "voice": tts.status(),
+        "motion": motion.status(),
         "framejam": fj,
         "postiz": pz,
         "accounts": {"ok": bool(accounts) or postiz.configured(), "detail": f"{len(accounts)} account(s)"},
@@ -167,6 +170,12 @@ def get_settings(request: Request):
 async def put_settings(section: str, value=Body(...)):
     if section not in settings.DEFAULTS:
         raise HTTPException(404)
+    if section == "voice" and isinstance(value, dict):
+        key = (value.get("elevenlabs_api_key") or "").strip()
+        if key and not key.startswith(settings.MASK):
+            if err := await tts.eleven_check(key):
+                raise HTTPException(400, err)
+            value["elevenlabs_api_key"] = key
     if section == "footage" and isinstance(value, dict):
         # Validate keys that actually changed (masked values mean "unchanged").
         for provider in ("pexels", "pixabay"):
@@ -294,9 +303,14 @@ async def ideas(body: IdeasIn):
         raise HTTPException(500, str(e))
 
 
+def _with_stage(p: dict) -> dict:
+    p["stage"] = pipeline.STAGES.get(p["id"])
+    return p
+
+
 @app.get("/api/projects")
 def projects():
-    return db.list_projects()
+    return [_with_stage(p) for p in db.list_projects()]
 
 
 def _require_setup():
@@ -311,6 +325,9 @@ async def create_project(body: ProjectIn):
         raise HTTPException(400, "That brand kit no longer exists")
     req = body.model_dump(exclude={"context_ids"})
     req["context"] = [m for cid in body.context_ids if (m := context.get(cid))]
+    req["engine"] = body.engine or pipeline.default_engine()
+    if req["engine"] == "motion" and (st := motion.status())["code"] in ("node", "ffmpeg"):
+        raise HTTPException(400, f"Claude Motion needs setup: {st['detail']}")
     p = db.create_project(req)
     pipeline.start(p["id"])
     return p
@@ -318,7 +335,7 @@ async def create_project(body: ProjectIn):
 
 @app.get("/api/projects/{pid}")
 def get_project(pid: str):
-    return _project(pid)
+    return _with_stage(_project(pid))
 
 
 @app.delete("/api/projects/{pid}")
@@ -393,6 +410,8 @@ async def save_timeline(pid: str, body: TimelineIn):
     p = _project(pid)
     if not p.get("timeline"):
         raise HTTPException(400, "Video has no timeline yet")
+    if pipeline.is_motion(p):
+        raise HTTPException(400, "Claude Motion videos are edited with Claude (AI & review)")
     _bg(pipeline.manual_edit(pid, body.timeline, body.title))
     return {"ok": True}
 
@@ -492,7 +511,7 @@ def video(name: str):
     path = VIDEOS_DIR / Path(name).name
     if not path.exists():
         raise HTTPException(404)
-    return FileResponse(path, media_type="video/mp4")
+    return FileResponse(path, media_type="video/mp4" if path.suffix == ".mp4" else None)
 
 
 @app.get("/media/{pid}/{name}")
@@ -623,6 +642,73 @@ async def github_repos():
         return await brands.github_repos()
     except Exception as e:
         raise HTTPException(502, f"GitHub: {e}")
+
+
+# ------------------------------------------------------------------ Claude Motion engine
+
+_install = {"running": False, "error": None}
+
+
+@app.get("/api/motion")
+def motion_status():
+    return {**motion.status(), "installing": _install["running"], "install_error": _install["error"],
+            "default_engine": pipeline.default_engine()}
+
+
+@app.post("/api/motion/install")
+async def motion_install():
+    if _install["running"]:
+        return motion_status()
+
+    async def run():
+        _install.update(running=True, error=None)
+        try:
+            await motion.install()
+        except Exception as e:
+            logging.exception("motion install failed")
+            _install["error"] = str(e)[:500]
+        finally:
+            _install["running"] = False
+
+    _bg(run())
+    await asyncio.sleep(0.1)
+    return motion_status()
+
+
+# ------------------------------------------------------------------ voice-over (ElevenLabs)
+
+class VoiceTestIn(BaseModel):
+    text: str = Field(min_length=1, max_length=400)
+    language: str = "English"
+
+
+@app.get("/api/voice")
+def voice_status():
+    return tts.status()
+
+
+@app.get("/api/voice/elevenlabs")
+async def eleven_voices():
+    if not settings.get("voice")["elevenlabs_api_key"]:
+        return []
+    try:
+        return await tts.eleven_voices()
+    except Exception as e:
+        raise HTTPException(502, f"ElevenLabs: {e}")
+
+
+@app.post("/api/voice/preview")
+async def voice_preview(body: VoiceTestIn):
+    out = render.project_dir("_uploads") / f"preview_{uuid.uuid4().hex[:8]}.mp3"
+    voice = render.DEFAULT_VOICES.get(body.language, render.DEFAULT_VOICES["English"])
+    try:
+        await tts.synthesize(body.text, body.language, voice, 1.0, out)
+    except Exception as e:
+        raise HTTPException(502, str(e)[:300])
+    data = out.read_bytes()
+    out.unlink(missing_ok=True)
+    from fastapi import Response
+    return Response(data, media_type="audio/mpeg")
 
 
 # ------------------------------------------------------------------ voices

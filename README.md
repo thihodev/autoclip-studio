@@ -1,6 +1,8 @@
 # AutoClip Studio
 
-An open-source tool that creates short-form videos (YouTube Shorts, TikTok, Facebook Reels, 16:9 YouTube), lets you edit them by hand or with AI, and publishes them to your accounts. Everything is set up from the web UI: no `.env`, no Docker, no system ffmpeg.
+An open-source tool that creates short-form videos (YouTube Shorts, TikTok, Facebook Reels, 16:9 YouTube), lets you edit them by hand or with AI, and publishes them to your accounts. Everything is set up from the web UI: no `.env`, no Docker.
+
+By default videos are made with **Claude Motion**: like Anthropic's [Claude Motion](https://support.claude.com/en/articles/17454997-get-started-with-claude-motion), Claude designs and animates every scene as code — kinetic typography, diagrams, charts, shapes and transitions — here rendered locally with [HyperFrames](https://github.com/heygen-com/hyperframes). A **Quick** engine (voice-over and captions over stock clips or animated backgrounds) is there when you need a video in a minute.
 
 ```
  Topic / Niche ─► Claude ─► scenes ─► edge-tts voice + stock clips ─► ffmpeg render ─► edit loop ─► YouTube / TikTok / Facebook
@@ -23,15 +25,31 @@ The only required step is **Claude** (Connections → Claude): click **Sign in w
 
 Everything else is optional and can be connected at any time from the same tab:
 
+- **Voice-over**: an [ElevenLabs](https://elevenlabs.io/app/settings/api-keys) API key for natural voices (pick the voice and listen in Connections). Without it, free Microsoft voices are used.
+- **Claude Motion**: click **Install** once (downloads HyperFrames, its skills and Chrome). Requires Node.js 22+ and FFmpeg.
 - **Stock footage**: a free [Pixabay](https://pixabay.com/api/docs/) key (or an existing Pexels key — Pexels has paused new keys) adds real video clips behind each scene. Without one, scenes use animated gradient backgrounds in your brand colors, and you can still upload your own clips or use brand b-roll.
 - Social accounts, GitHub, FrameJam and Postiz.
+
+## Engines
+
+| | Claude Motion (default) | Quick |
+|---|---|---|
+| How | A Claude agent runs HyperFrames' `faceless-explainer` workflow: picks a design preset, writes the storyboard and script, records the voice-over, animates each scene in its own sub-agent (HTML + GSAP), checks every frame, renders | Claude writes scenes; voice-over + word-by-word captions over stock clips, brand b-roll or animated backgrounds; ffmpeg |
+| Time | ~10–20 min per video | ~1 min |
+| Editing | Describe changes ("make scene 3 a bar chart"); Claude re-animates; FrameJam comments | Scene-by-scene editor, footage swap, caption styles, AI edits |
+| Needs | Node.js 22+, FFmpeg with ffprobe; HyperFrames + Chrome are installed from Connections (one click) | Nothing extra |
+
+Claude Motion uses noticeably more of your Claude plan per video than the Quick engine.
+
+HyperFrames' own skill installer writes into your global agent folders (`~/.claude/skills`, `~/.agents/skills`, …). AutoClip never lets it: it installs the skills into `data/hyperframes/` with an app-owned `HOME` and links them into each video project, and the agent runs with a command allow/deny policy, file writes limited to the project folder, and no web access.
 
 ## Built on
 
 | Component | Project | Role |
 |---|---|---|
 | LLM | [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python) | Ideas, scene-by-scene scripts, AI edits. Bundles the Claude Code CLI, so it signs in with your Claude subscription. |
-| Voice | [edge-tts](https://github.com/rany2/edge-tts) | Natural voices in many languages, with word timings for captions. |
+| Voice | [ElevenLabs](https://elevenlabs.io) (optional) · [edge-tts](https://github.com/rany2/edge-tts) | ElevenLabs v4/v3 voices in 70+ languages including Vietnamese, with character timestamps for captions; free Microsoft voices otherwise. |
+| Motion graphics | [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0) | HTML + GSAP compositions rendered to MP4 in headless Chrome; agent skills for design presets, animation blueprints and checks. |
 | Footage | Pixabay / Pexels APIs (optional) | Royalty-free stock clips per scene, swappable in the editor. Falls back to animated gradient backgrounds rendered by ffmpeg. |
 | Render | ffmpeg via [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg) | Crop, slow camera drift, word-by-word captions (libass), concat. Each scene is cached, so edits re-encode only what changed. |
 | Review | [FrameJam](https://github.com/moritzkremb/framejam) (MIT) | Comment on exact frames; Claude applies the comments and renders the next version. |

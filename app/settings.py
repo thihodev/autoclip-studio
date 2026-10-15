@@ -2,9 +2,10 @@
 from . import db
 
 DEFAULTS = {
-    "claude": {"source": "", "api_key": "", "model": "sonnet"},  # source: "" until the user picks
+    "claude": {"source": "", "api_key": "", "model": "sonnet", "motion_model": "opus"},  # source: "" until the user picks
     "footage": {"provider": "pixabay", "pexels_api_key": "", "pixabay_api_key": ""},
     "framejam": {"url": "http://localhost:2400"},
+    "voice": {"elevenlabs_api_key": "", "elevenlabs_voice_id": "", "elevenlabs_voice_name": "", "elevenlabs_model": ""},
     "postiz": {"url": "", "api_key": ""},
     "github": {"token": "", "login": ""},
     "apps": {
@@ -15,7 +16,7 @@ DEFAULTS = {
     "public_url": "",
 }
 
-SECRET_KEYS = {"api_key", "pexels_api_key", "pixabay_api_key", "client_secret", "app_secret", "token"}
+SECRET_KEYS = {"api_key", "pexels_api_key", "pixabay_api_key", "client_secret", "app_secret", "token", "elevenlabs_api_key"}
 MASK = "••••"
 
 

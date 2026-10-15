@@ -73,7 +73,7 @@ def init():
         c.execute(
             "UPDATE projects SET error='Interrupted by server restart', "
             "status=CASE WHEN video_path IS NOT NULL THEN 'ready' ELSE 'failed' END "
-            "WHERE status IN ('queued','scripting','editing','rendering','publishing')"
+            "WHERE status IN ('queued','scripting','designing','editing','rendering','publishing')"
         )
 
 
