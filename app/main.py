@@ -366,6 +366,22 @@ def _require_setup():
         raise HTTPException(400, "Connect Claude first (Connections → Claude)")
 
 
+# The composer remembers its last choices (not the topic or files) for the next video.
+COMPOSER_KEYS = {"language", "format", "duration", "style", "voice", "voice_rate", "engine", "model", "effort",
+                 "framejam", "channelIds", "auto_publish", "brand_id"}
+
+
+@app.get("/api/composer")
+def get_composer():
+    return db.get_setting("composer", {}) or {}
+
+
+@app.put("/api/composer")
+def put_composer(value: dict = Body(...)):
+    db.set_setting("composer", {k: v for k, v in value.items() if k in COMPOSER_KEYS})
+    return {"ok": True}
+
+
 @app.post("/api/projects")
 async def create_project(body: ProjectIn):
     _require_setup()

@@ -1801,6 +1801,7 @@ function tr(key, vars) {
 
 const PLATFORM_LABELS = { youtube:'YouTube', tiktok:'TikTok', facebook:'Facebook' };
 const EDITOR_TABS = ['scenes', 'style', 'review', 'publish'];
+const COMPOSER_KEYS = ['language', 'format', 'duration', 'style', 'voice', 'voice_rate', 'engine', 'model', 'effort', 'framejam', 'channelIds', 'auto_publish', 'brand_id'];
 
 function parseRoute(pathname) {
   const p = pathname.split('/').filter(Boolean);
@@ -1982,17 +1983,33 @@ function app() {
         this.onRoute();
       });
       window.addEventListener('beforeunload', e => { if (this.dirty || this.brandDirty) { e.preventDefault(); e.returnValue = ''; } });
-      try { this.form.brand_id = localStorage.getItem('autoclip.brand') || null; } catch {}
+      await this.loadComposer();
       await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers(),
         this.api('/api/settings').then(s => { if (s) this.cfg = s; }).catch(() => {})]);
       // Plan limits move while videos render: keep the Usage page current.
       setInterval(() => { if (this.route.page === 'usage' && !document.hidden && !this.planLoading) this.loadPlan(); }, 60000);
       if (['node','ffmpeg'].includes(this.motionInfo.code)) this.form.engine = 'classic';
       if (this.form.brand_id && !this.brandById(this.form.brand_id)) this.form.brand_id = null;
+      this.form.channelIds = this.form.channelIds.filter(id => this.channels.some(c => c.id === id));
+      // Remember the composer's choices for the next video (saved shortly after each change).
+      this.$watch('form', () => { clearTimeout(this._composerT); this._composerT = setTimeout(() => this.saveComposer(), 500); });
       this.ready = true;
       await this.onRoute();
       setInterval(() => { this.loadProjects(); this.loadLive(); }, 2500);
       setInterval(() => this.refreshStatus(), 30000);
+    },
+    composerChoices() { return Object.fromEntries(COMPOSER_KEYS.map(k => [k, this.form[k]])); },
+    async loadComposer() {
+      const saved = await this.api('/api/composer').catch(() => ({}));
+      if (!('brand_id' in saved)) { try { saved.brand_id = localStorage.getItem('autoclip.brand') || null; } catch {} }  // older versions kept only the brand, in the browser
+      for (const k of COMPOSER_KEYS) if (saved[k] !== undefined) this.form[k] = saved[k];
+      this._composerSaved = JSON.stringify(this.composerChoices());
+    },
+    async saveComposer() {
+      const json = JSON.stringify(this.composerChoices());
+      if (json === this._composerSaved) return;  // typing the topic doesn't count
+      this._composerSaved = json;
+      await this.api('/api/composer', { method:'PUT', body: JSON.parse(json) }).catch(() => {});
     },
     async refreshStatus() { this.status = await this.api('/api/status').catch(() => this.status); },
     async loadChannels() { this.channels = await this.api('/api/channels').catch(() => []); },
@@ -2019,7 +2036,6 @@ function app() {
     async create() {
       this.creating = true;
       const { channelIds, ...f } = this.form;
-      try { this.form.brand_id ? localStorage.setItem('autoclip.brand', this.form.brand_id) : localStorage.removeItem('autoclip.brand'); } catch {}
       const { context, ...rest } = f;
       const p = await this.run(() => this.api('/api/projects', { method:'POST', body:{ ...rest, workspace_id: this.ws()?.id || null, model: rest.model || null, effort: rest.effort || null, context_ids: context.map(c => c.id), auto_publish: f.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }));
       this.creating = false;
