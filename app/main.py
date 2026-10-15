@@ -869,7 +869,8 @@ def models():
     cfg = settings.get("claude")
     return {"models": usage.MODELS, "efforts": usage.EFFORTS,
             "defaults": {"script": {"model": cfg["model"], "effort": cfg["effort"]},
-                         "motion": {"model": cfg["motion_model"], "effort": cfg["motion_effort"]}}}
+                         "motion": {"model": cfg["motion_model"], "effort": cfg["motion_effort"]},
+                         "designer": {"model": cfg["designer_model"], "effort": cfg["designer_effort"]}}}
 
 
 @app.get("/api/usage")

@@ -20,7 +20,8 @@ MODELS = [
 EFFORTS = ["", "low", "medium", "high", "xhigh", "max"]  # "" = model default
 
 # Defaults per task: (settings key for model, settings key for effort)
-TASKS = {"script": ("model", "effort"), "motion": ("motion_model", "motion_effort")}
+TASKS = {"script": ("model", "effort"), "motion": ("motion_model", "motion_effort"),
+         "designer": ("designer_model", "designer_effort")}  # Claude Motion's per-frame designers
 
 
 def choose(task: str, model: str | None = None, effort: str | None = None) -> tuple[str, str | None]:
@@ -28,6 +29,8 @@ def choose(task: str, model: str | None = None, effort: str | None = None) -> tu
     cfg = settings.get("claude")
     mk, ek = TASKS[task]
     model = model or cfg.get(mk) or ("opus" if task == "motion" else "sonnet")
+    if task == "designer" and model == "inherit":
+        return "inherit", effort or cfg.get(ek) or None
     effort = effort if effort in EFFORTS and effort else (cfg.get(ek) or None)
     return model, effort
 

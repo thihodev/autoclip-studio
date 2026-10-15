@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 
 from claude_agent_sdk import (
-    AssistantMessage, ClaudeAgentOptions, PermissionResultAllow, PermissionResultDeny, ResultMessage,
+    AgentDefinition, AssistantMessage, ClaudeAgentOptions, PermissionResultAllow, PermissionResultDeny, ResultMessage,
     TextBlock, ToolUseBlock, create_sdk_mcp_server, query, tool,
 )
 
@@ -281,12 +281,15 @@ Hard rules:
   shape the workflow expects. Then continue with `audio.mjs sync-durations`. Skip `fetch-sfx` (no SFX catalog).
 - Skip sign-in and preference recording steps (`hyperframes auth status`, `prefs.mjs`) — not available here.
 - Do Step 4 (time-coded shot sequence per frame) properly before building.
-- Step 5: dispatch ONE sub-agent (Task/Agent tool) PER FRAME with `_role.md` + that frame's packet, as the workflow
-  says. Never generate frames with a shell script, heredoc template or loop — every frame is designed individually.
+- Step 5: dispatch ONE `frame-designer` sub-agent PER FRAME (Agent tool, subagent_type "frame-designer") with `_role.md`
+  + that frame's packet, as the workflow says. Send ALL of them in a single message so they run in parallel, in the
+  foreground: never run them in the background, never sleep, poll or schedule wake-ups while they work — the tool call
+  returns when they're done. Never generate frames with a shell script, heredoc template or loop — every frame is
+  designed individually.
 - Length: keep the total narration within ±15% of the brief's `length` (Vietnamese ≈ 2.6 spoken words per second,
   English ≈ 2.5). Cut lines rather than overrun.
 - Visual QA is mandatory (Step 6): run `npx hyperframes snapshot` at every frame's midpoint and OPEN the contact sheet
-  image with the Read tool. Fix what you see, re-snapshot, and repeat (max 3 rounds) until none of these remain:
+  image with the Read tool. Fix what you see, re-snapshot, and repeat (max 2 rounds) until none of these remain:
   text or shapes cut off by the canvas edge; content crammed into a corner with the rest of the frame empty;
   overlapping text; unreadable contrast; a frame that is blank or nearly blank; captions colliding with content.
   Keep a safe margin of at least 6% of the canvas on every side.
@@ -295,7 +298,19 @@ Hard rules:
   letter-spacing below -0.02em, and never clip text containers vertically — diacritics like Ổ, Ỗ, Ầ must be fully visible.
 - Before the final render run `npx hyperframes lint` and `npx hyperframes check` and fix real problems.
 - Final render: `npx hyperframes render --quality delivery -o renders/video.mp4`. You are done when that file exists.
+- Keep your context small — every turn re-reads it: pipe long command output through `| tail -n 40` (or grep for
+  errors), read files with offset/limit when you need part of them, and don't re-read a skill or file you've already
+  read. Edit files in place instead of printing them.
 - Keep the final message short: what the video shows, frame by frame, in one line each."""
+
+DESIGNER = """You design and animate ONE HyperFrames frame for AutoClip Studio, from the `_role.md` and frame packet you
+are given. Follow them exactly (look, timing, Vietnamese typography rules, safe margins). Write only your frame's
+composition file, inside the project folder. Run `npx hyperframes lint` on it when done and fix real problems. Keep
+command output short (`| tail -n 40`) and don't re-read files. Reply with one line: the file you wrote and what it shows."""
+
+# Waiting tools would make the orchestrator wake up again and again, re-reading its whole context each time.
+IDLE_TOOLS = ["ScheduleWakeup", "CronCreate", "CronDelete", "CronList", "Monitor", "RemoteTrigger", "SendMessage",
+              "WebFetch", "WebSearch"]
 
 
 def _bash_ok(cmd: str) -> str | None:
@@ -365,6 +380,7 @@ async def _agent(pid: str, root: Path, req: dict, brand: dict | None, task: str,
                  model: str | None = None, effort: str | None = None) -> str:
     log_path = root / "agent.log"
     model, effort = usage.choose("motion", model or req.get("model"), effort or req.get("effort"))
+    d_model, d_effort = usage.choose("designer")
     meter = usage.Meter(kind, pid, model, effort)
     options = ClaudeAgentOptions(
         cwd=str(root),
@@ -376,6 +392,11 @@ async def _agent(pid: str, root: Path, req: dict, brand: dict | None, task: str,
         skills="all",
         system_prompt={"type": "preset", "preset": "claude_code", "append": RULES},
         allowed_tools=["Read", "Glob", "Grep", "TodoWrite", "Task", "Agent", "mcp__autoclip__voiceover"],
+        disallowed_tools=IDLE_TOOLS,
+        agents={"frame-designer": AgentDefinition(
+            description="Designs and animates one video frame from its packet (Step 5). Use one per frame.",
+            prompt=DESIGNER, model=d_model, effort=d_effort if d_effort else None, background=False,
+            disallowedTools=IDLE_TOOLS + ["Agent", "Task"], maxTurns=60)},
         can_use_tool=_make_permission(root),
         mcp_servers={"autoclip": _voiceover_server(pid, root, req, brand)},
         max_turns=400,

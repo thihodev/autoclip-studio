@@ -816,7 +816,7 @@
 
                 <div class="card" x-show="projUsage.total?.runs">
                   <div class="card-head"><div class="grow"><h2><span x-t>Claude usage for this video</span></h2>
-                    <p x-text="apiMode() ? t('{runs} runs · {tokens} tokens · {cost} · {time}', {runs: projUsage.total?.runs||0, tokens: fmtTokens(totalTokens(projUsage.total)), cost: fmtCost(projUsage.total?.cost_usd), time: fmtDur(projUsage.total?.duration_s)}) : t('{runs} runs · {tokens} tokens · {time}', {runs: projUsage.total?.runs||0, tokens: fmtTokens(totalTokens(projUsage.total)), time: fmtDur(projUsage.total?.duration_s)})"></p></div>
+                    <p x-text="apiMode() ? t('{runs} runs · {tokens} tokens · {cost} · {time}', {runs: projUsage.total?.runs||0, tokens: fmtTokens(totalTokens(projUsage.total)), cost: fmtCost(projUsage.total?.cost_usd), time: fmtDur(projUsage.total?.duration_s)}) : t('{runs} runs · {tokens} tokens · {time}', {runs: projUsage.total?.runs||0, tokens: fmtTokens(totalTokens(projUsage.total)), time: fmtDur(projUsage.total?.duration_s)}) + cacheNote(projUsage.total)"></p></div>
                     <a class="btn ghost sm" href="/usage" @click.prevent="nav('/usage')"><span x-t>All usage</span></a></div>
                   <div class="tablewrap"><table class="data">
                     <thead><tr><th><span x-t>When</span></th><th><span x-t>Task</span></th><th><span x-t>Model</span></th><th class="n"><span x-t>Tokens</span></th><th class="n" x-show="apiMode()"><span x-t>Cost</span></th><th class="n"><span x-t>Time</span></th></tr></thead>
@@ -1496,12 +1496,12 @@
                   </div>
                 </div>
                 <div class="stack" style="margin-top:14px">
-                  <template x-for="task in [['script','Scripts, ideas & quick edits'],['motion','Claude Motion videos']]" :key="task[0]">
+                  <template x-for="task in [['script','Scripts, ideas & quick edits'],['motion','Claude Motion videos'],['designer','Claude Motion · designing each scene']]" :key="task[0]">
                     <div class="actions" style="justify-content:space-between"><span x-text="t(task[1])"></span>
                       <button type="button" class="mpchip" aria-haspopup="menu" :aria-expanded="String(mp.open && mp.key==='default:' + task[0])" @click="mpOpen('default:' + task[0], $el)"><span x-text="modelShort(mpModel('default:' + task[0]))"></span><span class="e" x-text="effortShort(mpEffort('default:' + task[0]))"></span><svg class="i"><use href="#i-down"/></svg></button>
                     </div>
                   </template>
-                  <p class="hint"><span x-t>Defaults for new videos and edits. You can pick another model and effort for any video.</span></p>
+                  <p class="hint"><span x-t>Defaults for new videos and edits. You can pick another model and effort for any video.</span> <span x-t>Each Claude Motion scene is designed by its own sub-agent; Sonnet costs about half as much as Opus there.</span></p>
                 </div>
                 <div class="grid-2" style="margin-top:4px">
                   <div class="actions" style="justify-content:flex-end;grid-column:1/-1">
@@ -2445,7 +2445,7 @@ function app() {
     // ------------------------------------------------ models & usage
     async loadModels() { this.models = await this.api('/api/models').catch(() => this.models); },
     async setDefault(task, field, value) {
-      const key = task === 'motion' ? (field === 'model' ? 'motion_model' : 'motion_effort') : field;
+      const key = task === 'script' ? field : `${task}_${field}`;  // model/effort, motion_*, designer_*
       if (await this.run(() => this.api('/api/settings/claude', { method:'PUT', body:{ ...this.cfg.claude, [key]: value } }), 'Saved')) { await this.loadConnections(); this.loadModels(); }
     },
     async loadUsage() { this.usageInfo = await this.api(`/api/usage?days=${this.usageDays}`).catch(() => this.usageInfo); },
@@ -2521,6 +2521,8 @@ function app() {
     },
     maxDaily() { return Math.max(0, ...this.dailySeries().map(d => d.v)); },
     // A Claude plan isn't billed per token: its usage is shown as tokens and time; an API key's as cost.
+    // Most tokens of an agent run are re-reads of its context from the cache, which cost ~10× less than fresh ones.
+    cacheNote(sum) { const c = +sum?.cache_read_tokens || 0, all = this.totalTokens(sum); return all && c / all > 0.3 ? ' · ' + this.t('{pct}% read from cache (~10× cheaper)', {pct: Math.round(c / all * 100)}) : ''; },
     apiMode() { return (this.usageInfo.mode || this.projUsage.mode) === 'api'; },
     fmtMetric(v) { return this.apiMode() ? this.fmtCost(v) : this.t('{n} tokens', {n: this.fmtTokens(v)}); },
     barHeight(v) { const m = this.maxDaily(); return m ? Math.max(1.5, v / m * 100) : 1.5; },
