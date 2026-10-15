@@ -55,7 +55,7 @@
   .prefs select, .prefs .cselect { padding:5px 8px; font-size:12px; }
   .prefs .seg { display:flex; } .prefs .seg button { flex:1; padding:4px 6px; font-size:12px; }
   .dot { width:7px; height:7px; border-radius:50%; background:var(--text-3); flex:none; }
-  .dot.ok { background:var(--ok); } .dot.err { background:var(--err); }
+  .dot.ok { background:var(--ok); } .dot.err { background:var(--err); } .dot.warn { background:var(--warn); }
   .content { min-width:0; }
   .page { max-width:1180px; margin:0 auto; padding:28px 28px 120px; }
   .page-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px; flex-wrap:wrap; }
@@ -263,6 +263,20 @@
   .cselect .i { width:14px; height:14px; flex:none; color:var(--text-3); }
   .cselect:disabled { opacity:.5; cursor:not-allowed; }
   .cmenu { position:fixed; z-index:45; overflow:auto; }
+  /* Connections: one row per connection, details in a dialog */
+  .conns { max-width:760px; }
+  .chead { margin:24px 0 8px; font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--text-3); }
+  .conns .chead:first-child { margin-top:8px; }
+  .clist { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .crow { display:flex; align-items:center; gap:14px; width:100%; padding:14px 16px; border:0; border-top:1px solid var(--border); background:none; color:var(--text); font:inherit; text-align:left; cursor:pointer; }
+  .clist > .crow:first-child, .clist > template + .crow { border-top:0; }
+  .crow:hover, .crow:focus-visible { background:var(--surface-2); outline:none; }
+  .crow .grow { flex:1; min-width:0; } .crow .t { display:block; font-weight:600; }
+  .crow .d { display:block; font-size:13px; color:var(--text-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .crow .chev { width:16px; height:16px; color:var(--text-3); flex:none; }
+  .ctile { width:36px; height:36px; flex:none; border-radius:10px; background:var(--surface-2); color:var(--text-2); display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .ctile .i { width:18px; height:18px; }
+  .modal .card.cmodal { width:min(620px, 100%); }
   .mpchip { display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--surface); color:var(--text); font:inherit; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
   .mpchip:hover, .mpchip[aria-expanded=true] { background:var(--surface-2); }
   .mpchip .e { color:var(--text-2); font-weight:500; } .mpchip .i { width:14px; height:14px; color:var(--text-3); }
@@ -335,6 +349,7 @@
   <symbol id="i-down" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
   <symbol id="i-right" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
   <symbol id="i-star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
@@ -1248,283 +1263,70 @@
 
     <!-- ===================================================== CONNECTIONS -->
     <section class="page" x-show="route.page==='connections'">
-      <div class="page-head"><div><h1><span x-t>Connections</span></h1><p class="sub"><span x-t>Only Claude is required. Stock footage, social accounts, GitHub, FrameJam and Postiz are optional.</span></p></div></div>
+      <div class="page-head"><div><h1><span x-t>Connections</span></h1><p class="sub"><span x-t>Only Claude is required. Everything else is optional.</span></p></div></div>
 
-      <div class="grid-2">
-        <div>
-          <!-- Claude -->
-          <div class="card">
-            <div class="card-head">
-              <div class="grow"><h2><span x-t>Claude</span></h2><p><span x-t>Writes scripts, ideas and edits through the Claude Agent SDK.</span></p></div>
-              <span class="chip" :class="{connected:'ok', expired:'warn', disconnected:'err'}[cl.state]" x-text="{connected:t('Connected'), expired:t('Needs sign-in'), disconnected:t('Not connected')}[cl.state] || t('Checking…')"></span>
-            </div>
-
-            <template x-if="!cl.state"><div class="small muted"><span class="spin"></span></div></template>
-
-            <!-- connected -->
-            <template x-if="cl.state==='connected' && !switching && !signingIn()">
-              <div>
-                <div class="account">
-                  <span class="avatar lg" x-text="initial(cl.current.email || t('K'))"></span>
-                  <div class="grow"><div class="t" x-text="cl.current.email || cl.current.detail"></div>
-                    <div class="d" x-text="sourceText(cl.current.source) + (cl.current.email && cl.current.detail.includes('·') ? t(' · ') + cl.current.detail.split('·').slice(1).join('·').trim() + t(' plan') : '')"></div></div>
-                </div>
-                <a class="small" href="/usage" @click.prevent="nav('/usage')" style="display:block;margin-top:10px" x-show="cl.current.source!=='api_key' && sessionLimit()" x-text="sessionLimit() ? t('Current session: {n}% used', {n: Math.round(sessionLimit().percent||0)}) + ' · ' + t('Resets {when}', {when: resetsIn(sessionLimit().resets_at)}) : ''"></a>
-                <div class="field" style="margin-top:14px"><label><span x-t>Connect with</span></label>
-                  <div class="options">
-                    <div class="option" :class="cl.current.source==='app' && 'rec'">
-                      <div class="grow"><div class="t"><span x-t>Claude subscription, signed in here</span></div>
-                        <div class="d" x-text="cl.app?.ok ? cl.app.detail + ' · ' + t('plan limits apply') : t('Any Claude Pro, Max or Team account.')"></div></div>
-                      <span class="chip ok" x-show="cl.current.source==='app'"><span x-t>In use</span></span>
-                      <button class="btn sm" x-show="cl.current.source!=='app'" @click="cl.app?.ok ? claudeSource('app') : claudeLogin()" x-text="cl.app?.ok ? t('Use') : t('Sign in')"></button>
-                    </div>
-                    <div class="option" x-show="cl.system?.ok" :class="cl.current.source==='system' && 'rec'">
-                      <div class="grow"><div class="t"><span x-t>This computer's Claude Code login</span></div>
-                        <div class="d" x-text="(cl.system?.detail || '') + ' · ' + t('plan limits apply')"></div></div>
-                      <span class="chip ok" x-show="cl.current.source==='system'"><span x-t>In use</span></span>
-                      <button class="btn sm" x-show="cl.current.source!=='system'" @click="claudeSource('system')"><span x-t>Use</span></button>
-                    </div>
-                    <div class="option" :class="cl.current.source==='api_key' && 'rec'">
-                      <div class="grow"><div class="t"><span x-t>Anthropic API key</span></div>
-                        <div class="d" x-text="cl.api_key ? t('Key {hint} · billed per token, no plan limits', {hint: cl.api_key}) : t('Pay as you go from the Claude Console, no plan limits.')"></div>
-                        <div class="actions" style="margin-top:8px;flex-wrap:nowrap" x-show="!cl.api_key || keyEdit">
-                          <input type="password" x-model="apiKey" placeholder="sk-ant-…" autocomplete="off" @keydown.enter="useApiKey()" :aria-label="t('Anthropic API key')">
-                          <button class="btn" @click="useApiKey()" :disabled="!apiKey.trim().startsWith('sk-') || savingKey"><span class="spin" x-show="savingKey"></span><span x-t>Check and use</span></button>
-                          <button class="btn ghost" x-show="keyEdit" @click="keyEdit=false; apiKey=''"><span x-t>Cancel</span></button>
-                        </div></div>
-                      <span class="chip ok" x-show="cl.current.source==='api_key'"><span x-t>In use</span></span>
-                      <button class="btn sm" x-show="cl.api_key && cl.current.source!=='api_key' && !keyEdit" @click="claudeSource('api_key')"><span x-t>Use</span></button>
-                      <button class="btn ghost sm" x-show="cl.api_key && !keyEdit" @click="keyEdit=true"><span x-t>Replace</span></button>
-                      <button class="btn ghost icon danger" x-show="cl.api_key && !keyEdit" :title="t('Remove the API key')" :aria-label="t('Remove the API key')" @click="removeApiKey()"><svg class="i"><use href="#i-trash"/></svg></button>
-                    </div>
-                  </div>
-                </div>
-                <div class="stack" style="margin-top:14px">
-                  <template x-for="task in [['script','Scripts, ideas & quick edits'],['motion','Claude Motion videos']]" :key="task[0]">
-                    <div class="actions" style="justify-content:space-between"><span x-text="t(task[1])"></span>
-                      <button type="button" class="mpchip" aria-haspopup="menu" :aria-expanded="String(mp.open && mp.key==='default:' + task[0])" @click="mpOpen('default:' + task[0], $el)"><span x-text="modelShort(mpModel('default:' + task[0]))"></span><span class="e" x-text="effortShort(mpEffort('default:' + task[0]))"></span><svg class="i"><use href="#i-down"/></svg></button>
-                    </div>
-                  </template>
-                  <p class="hint"><span x-t>Defaults for new videos and edits. You can pick another model and effort for any video.</span></p>
-                </div>
-                <div class="grid-2" style="margin-top:4px">
-                  <div class="actions" style="justify-content:flex-end;grid-column:1/-1">
-                    <button class="btn" @click="switching=true"><span x-t>Switch account</span></button>
-                    <button class="btn ghost danger" @click="cl.current.source==='app' ? claudeLogout() : claudeSource('')" x-text="cl.current.source==='app' ? t('Sign out') : t('Disconnect')"></button>
-                  </div>
-                </div>
-              </div>
-            </template>
-
-            <!-- signing in -->
-            <template x-if="signingIn()">
-              <div class="stack">
-                <ol class="steps">
-                  <li><span x-t>Approve access on the Claude page that opened in a new tab.</span> <a :href="cl.login.url" target="_blank" rel="noopener" x-show="cl.login.url"><span x-t>Open it again ↗</span></a></li>
-                  <li><span x-t>Copy the code Claude shows and paste it here.</span></li>
-                </ol>
-                <div class="actions" style="flex-wrap:nowrap">
-                  <input x-model="claudeCode" :placeholder="t('Paste the code')" @keydown.enter="claudeSubmitCode()" :disabled="cl.login.state!=='waiting_code'" autocomplete="off">
-                  <button class="btn primary" @click="claudeSubmitCode()" :disabled="!claudeCode.trim() || cl.login.state!=='waiting_code'">
-                    <span class="spin" x-show="cl.login.state==='verifying'"></span><span x-text="cl.login.state==='verifying' ? t('Connecting…') : t('Connect')"></span></button>
-                </div>
-                <button class="btn ghost sm" @click="claudeCancel()" :disabled="cl.login.state==='verifying'"><span x-t>Cancel</span></button>
-              </div>
-            </template>
-
-            <!-- chooser -->
-            <template x-if="cl.state && (cl.state!=='connected' || switching) && !signingIn()">
-              <div class="stack">
-                <div class="notice" x-show="cl.state==='expired'"><svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg><div><span x-t>The saved Claude connection no longer works. Choose how to connect again.</span></div></div>
-                <div class="notice err" x-show="cl.login?.state==='error'"><svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg><div x-text="cl.login?.error"></div></div>
-                <div class="options">
-                  <div class="option rec">
-                    <div class="grow"><div class="t"><span x-t>Sign in with Claude</span></div><div class="d"><span x-t>Any Claude Pro, Max or Team account. Kept separate from your terminal login.</span></div></div>
-                    <button class="btn primary" @click="claudeLogin()" :disabled="cl.login?.state==='starting'"><span class="spin" x-show="cl.login?.state==='starting'"></span><span x-t>Sign in</span></button>
-                  </div>
-                  <div class="option" x-show="cl.system?.ok && !(cl.current?.source==='system' && cl.state==='connected')">
-                    <div class="grow"><div class="t"><span x-t>Use this computer's Claude Code login</span></div><div class="d" x-text="cl.system?.email || cl.system?.detail"></div></div>
-                    <button class="btn" @click="claudeSource('system')"><span x-t>Use</span></button>
-                  </div>
-                  <div class="option">
-                    <div class="grow"><div class="t"><span x-t>Anthropic API key</span></div><div class="d"><span x-t>Pay as you go from the Claude Console.</span></div>
-                      <div class="actions" style="margin-top:8px;flex-wrap:nowrap"><input type="password" x-model="apiKey" placeholder="sk-ant-…" autocomplete="off" @keydown.enter="useApiKey()">
-                        <button class="btn" @click="useApiKey()" :disabled="!apiKey.trim().startsWith('sk-') || savingKey"><span class="spin" x-show="savingKey"></span><span x-t>Use key</span></button></div></div>
-                  </div>
-                </div>
-                <button class="btn ghost sm" x-show="switching" @click="switching=false"><span x-t>Cancel</span></button>
-              </div>
-            </template>
-            <p class="hint" style="margin-top:12px"><span x-t>Personal use only: subscription usage through the Agent SDK draws from your plan's monthly Agent SDK credit. Don't share your login with others.</span></p>
-          </div>
-
-          <!-- Claude Motion engine -->
-          <div class="card">
-            <div class="card-head">
-              <div class="grow"><h2><span x-t>Claude Motion</span></h2><p><span x-t>Claude animates each video as code with HyperFrames (open source). Runs on this computer.</span></p></div>
-              <span class="chip" :class="motionInfo.ok ? 'ok' : (motionInfo.installing ? 'warn' : '')" x-text="motionInfo.ok ? t('Ready') : (motionInfo.installing ? t('Installing…') : t('Not installed'))"></span>
-            </div>
-            <div class="small muted" x-text="t(motionInfo.detail || '')"></div>
-            <div class="notice err" x-show="motionInfo.install_error" style="margin-top:10px"><div x-text="motionInfo.install_error"></div></div>
-            <div class="actions" style="margin-top:10px" x-show="!motionInfo.ok && motionInfo.code==='install'">
-              <button class="btn primary" @click="installMotion()" :disabled="motionInfo.installing"><span class="spin" x-show="motionInfo.installing"></span><span x-text="motionInfo.installing ? t('Installing — a few minutes…') : t('Install')"></span></button>
-            </div>
-            <p class="hint" x-show="['node','ffmpeg'].includes(motionInfo.code)"><span x-t>Install it, then reload this page. Videos use the Quick engine until then.</span></p>
-          </div>
-
-          <!-- Voice -->
-          <div class="card">
-            <div class="card-head">
-              <div class="grow"><h2><span x-t>Voice-over</span></h2><p><span x-t>ElevenLabs gives natural voices in 70+ languages, including Vietnamese. Without a key, free Microsoft voices are used.</span></p></div>
-              <span class="chip" :class="status.voice?.provider==='elevenlabs'?'ok':''" x-text="status.voice?.provider==='elevenlabs' ? 'ElevenLabs' : t('Free voices')"></span>
-            </div>
-            <template x-if="status.voice?.provider==='elevenlabs' && !voiceEdit">
-              <div class="stack">
-                <div class="field"><label><span x-t>Voice</span></label>
-                  <select x-select @change="setElevenVoice($event.target.value)">
-                    <option value="" x-t>First voice in my account</option>
-                    <template x-for="v in elevenVoices" :key="v.id"><option :value="v.id" :selected="v.id===cfg.voice?.elevenlabs_voice_id" x-text="[v.name, v.gender, v.accent, v.description].filter(Boolean).join(' · ')"></option></template>
-                  </select></div>
-                <div class="actions">
-                  <button class="btn" @click="previewVoice()" :disabled="previewing"><span class="spin" x-show="previewing"></span><svg class="i" x-show="!previewing"><use href="#i-play"/></svg><span x-t>Listen</span></button>
-                  <button class="btn" @click="voiceEdit=true; voiceKey=''"><span x-t>Change key</span></button>
-                  <button class="btn ghost danger" @click="removeVoiceKey()"><span x-t>Remove</span></button>
-                </div>
-              </div>
-            </template>
-            <template x-if="status.voice?.provider!=='elevenlabs' || voiceEdit">
-              <div class="stack">
-                <p class="small muted"><span x-t>Create a key at</span> <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">elevenlabs.io</a><span x-t>, with Text to Speech and Voices access.</span></p>
-                <div class="actions" style="flex-wrap:nowrap">
-                  <input type="password" x-model="voiceKey" :placeholder="t('Paste your ElevenLabs API key')" autocomplete="off" @keydown.enter="saveVoiceKey()">
-                  <button class="btn primary" @click="saveVoiceKey()" :disabled="!voiceKey.trim() || savingVoice"><span class="spin" x-show="savingVoice"></span><span x-t>Verify & save</span></button>
-                </div>
-                <div class="actions">
-                  <button class="btn ghost sm" x-show="voiceEdit" @click="voiceEdit=false"><span x-t>Cancel</span></button>
-                  <button class="btn ghost sm" x-show="!voiceEdit" @click="previewVoice()" :disabled="previewing"><span class="spin" x-show="previewing"></span><span x-t>Listen to the free voice</span></button>
-                </div>
-              </div>
-            </template>
-          </div>
-
-          <!-- Footage -->
-          <div class="card">
-            <div class="card-head">
-              <div class="grow"><h2><span x-t>Stock footage</span> <span class="small muted"><span x-t>optional</span></span></h2><p><span x-t>Real video clips behind each scene. Without a key, scenes use animated backgrounds in your brand colors.</span></p></div>
-              <span class="chip" :class="status.footage?.ok?'ok':''" x-text="status.footage?.ok?t('Connected'):t('Not connected')"></span>
-            </div>
-            <template x-if="status.footage?.ok && !footageEdit">
-              <div class="account">
-                <div class="grow"><div class="t" x-text="cfg.footage.provider==='pexels' ? t('Pexels') : t('Pixabay')"></div>
-                  <div class="d" x-text="t('API key ') + (cfg.footage[cfg.footage.provider + '_api_key'] || '')"></div></div>
-                <button class="btn" @click="footageEdit=true; footageKey=''"><span x-t>Change</span></button>
-                <button class="btn ghost danger" @click="removeFootage()"><span x-t>Remove</span></button>
-              </div>
-            </template>
-            <template x-if="!status.footage?.ok || footageEdit">
-              <div class="stack">
-                <div class="seg"><button type="button" :class="footageProvider==='pixabay'&&'on'" @click="footageProvider='pixabay'"><span x-t>Pixabay</span></button><button type="button" :class="footageProvider==='pexels'&&'on'" @click="footageProvider='pexels'"><span x-t>Pexels</span></button></div>
-                <p class="small muted" x-show="footageProvider==='pixabay'"><span x-t>Create a free account at</span> <a href="https://pixabay.com/accounts/register/" target="_blank" rel="noopener"><span x-t>pixabay.com</span></a><span x-t>, then copy your key from</span> <a href="https://pixabay.com/api/docs/#api_search_videos" target="_blank" rel="noopener"><span x-t>pixabay.com/api/docs</span></a> <span x-t>(shown once you're signed in).</span></p>
-                <p class="small muted" x-show="footageProvider==='pexels'"><span x-t>Pexels has paused new API keys. If you already have one, paste it here.</span></p>
-                <div class="actions" style="flex-wrap:nowrap">
-                  <input x-model="footageKey" :placeholder="t('Paste your API key')" autocomplete="off" @keydown.enter="saveFootage()">
-                  <button class="btn primary" @click="saveFootage()" :disabled="!footageKey.trim() || savingFootage"><span class="spin" x-show="savingFootage"></span><span x-t>Verify & save</span></button>
-                </div>
-                <button class="btn ghost sm" x-show="footageEdit" @click="footageEdit=false"><span x-t>Cancel</span></button>
-              </div>
-            </template>
-          </div>
-
-          <!-- FrameJam -->
-          <div class="card">
-            <div class="card-head">
-              <div class="grow"><h2><span x-t>FrameJam</span> <span class="small muted"><span x-t>optional</span></span></h2><p><span x-t>Review renders frame by frame; Claude applies your comments.</span></p></div>
-              <span class="chip" :class="status.framejam?.ok?'ok':''" x-text="status.framejam?.ok?t('Running'):t('Not running')"></span>
-            </div>
-            <label class="toggle small"><input type="checkbox" :checked="cfg.framejam?.auto !== false" @change="cfg.framejam.auto = $event.target.checked; saveSection('framejam')"> <span x-t>Send every render to FrameJam and start it automatically</span></label>
-            <div class="actions" style="margin-top:10px" x-show="!status.framejam?.ok">
-              <button class="btn" @click="startFramejam()" :disabled="startingFj"><span class="spin" x-show="startingFj"></span><span x-t>Start FrameJam</span></button>
-              <span class="small muted"><span x-t>Needs Node 22+.</span></span>
-            </div>
-            <details style="margin-top:10px"><summary><span x-t>Address</span></summary>
-              <div class="actions" style="margin-top:8px;flex-wrap:nowrap"><input x-model="cfg.framejam.url"><button class="btn" @click="saveSection('framejam')"><span x-t>Save</span></button></div>
-            </details>
-          </div>
-
-          <!-- GitHub -->
-          <div class="card">
-            <div class="card-head">
-              <div class="grow"><h2><span x-t>GitHub</span> <span class="small muted"><span x-t>optional</span></span></h2><p><span x-t>Import brand kits from your repositories. Public repos work without connecting.</span></p></div>
-              <span class="chip" :class="github.connected?'ok':''" x-text="github.connected?t('Connected'):t('Not connected')"></span>
-            </div>
-            <template x-if="github.connected">
-              <div class="account"><span class="avatar lg"><svg class="i"><use href="#i-github"/></svg></span>
-                <div class="grow"><div class="t" x-text="github.login"></div><div class="d"><span x-t>Can read your repositories</span></div></div>
-                <button class="btn ghost danger" @click="githubDisconnect()"><span x-t>Disconnect</span></button></div>
-            </template>
-            <template x-if="!github.connected">
-              <div class="stack">
-                <p class="small muted"><span x-t>Create a</span> <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener"><span x-t>fine-grained token</span></a> <span x-t>with read-only</span> <em>Contents</em> <span x-t>access to the repos you want to import.</span></p>
-                <div class="actions" style="flex-wrap:nowrap"><input type="password" x-model="githubToken" placeholder="github_pat_…" autocomplete="off" @keydown.enter="githubConnect()">
-                  <button class="btn primary" @click="githubConnect()" :disabled="!githubToken.trim() || githubSaving"><span class="spin" x-show="githubSaving"></span><span x-t>Connect</span></button></div>
-              </div>
-            </template>
-          </div>
+      <div class="conns">
+        <h3 class="chead"><span x-t>Claude</span></h3>
+        <div class="clist">
+          <button type="button" class="crow" @click="openConn('claude')">
+            <span class="ctile"><svg class="i"><use href="#i-star"/></svg></span>
+            <span class="grow"><span class="t"><span x-t>Claude</span></span><span class="d" x-text="connClaudeStatus()"></span></span>
+            <span class="dot" :class="{ok: cl.state==='connected', warn: cl.state==='expired', err: cl.state==='disconnected'}"></span><svg class="i chev"><use href="#i-right"/></svg>
+          </button>
         </div>
 
-        <div>
-          <!-- Social platforms -->
-          <template x-for="pl in (cfg.platforms||[])" :key="pl.key">
-            <div class="card">
-              <div class="card-head">
-                <div class="grow"><h2 x-text="t(pl.label)"></h2>
-                  <p x-text="accountsFor(pl.key).length ? t(accountsFor(pl.key).length>1 ? '{n} accounts connected' : '{n} account connected', {n: accountsFor(pl.key).length}) : (pl.configured ? t('Ready to connect') : t('Needs a developer app (one-time setup)'))"></p></div>
-                <span class="chip" :class="accountsFor(pl.key).length ? 'ok' : (pl.configured ? 'warn' : '')" x-text="accountsFor(pl.key).length ? t('Connected') : (pl.configured ? t('Not connected') : t('Not set up'))"></span>
-              </div>
-              <template x-for="a in accountsFor(pl.key)" :key="a.id">
-                <div class="acct-row">
-                  <span class="avatar"><img x-show="a.avatar" :src="a.avatar" alt=""><span x-show="!a.avatar" x-text="initial(a.name)"></span></span>
-                  <div class="grow" x-text="a.name"></div>
-                  <button class="btn ghost sm danger" @click="askDisconnect(a)"><span x-t>Disconnect</span></button>
-                </div>
-              </template>
-              <div class="actions" style="margin-top:10px" x-show="pl.configured">
-                <a class="btn" :class="!accountsFor(pl.key).length && 'primary'" :href="`/oauth/${pl.key}/start`"
-                   x-text="accountsFor(pl.key).length ? t('Connect another') : t('Connect {name}', {name: pl.label})"></a>
-              </div>
-              <details :open="!pl.configured" style="margin-top:12px">
-                <summary x-text="pl.configured ? t('Developer app settings') : t('Set up the developer app')"></summary>
-                <div class="stack" style="margin-top:10px">
-                  <p class="small muted" x-text="t(pl.notes)"></p>
-                  <div class="field"><label><span x-t>Redirect URI to register</span></label>
-                    <div class="copy"><code x-text="pl.redirect_uri"></code><button class="btn sm" :title="t('Copy')" @click="copy(pl.redirect_uri)"><svg class="i"><use href="#i-copy"/></svg></button></div></div>
-                  <template x-for="f in pl.fields"><div class="field"><label x-text="t(f.label)"></label><input x-model="cfg.apps[pl.key][f.key]" autocomplete="off"></div></template>
-                  <div class="actions"><button class="btn" @click="saveSection('apps')"><span x-t>Save</span></button><a class="btn ghost sm" :href="pl.docs" target="_blank" rel="noopener"><span x-t>Docs</span> <svg class="i"><use href="#i-ext"/></svg></a></div>
-                </div>
-              </details>
-            </div>
-          </template>
+        <h3 class="chead"><span x-t>Making videos</span></h3>
+        <div class="clist">
+          <button type="button" class="crow" @click="openConn('motion')">
+            <span class="ctile"><svg class="i"><use href="#i-layers"/></svg></span>
+            <span class="grow"><span class="t"><span x-t>Claude Motion</span></span><span class="d" x-text="motionInfo.ok ? t('Ready') + ' · ' + t(motionInfo.detail || '') : (motionInfo.installing ? t('Installing…') : t('Not installed — videos use the Quick engine'))"></span></span>
+            <span class="dot" :class="{ok: motionInfo.ok, warn: motionInfo.installing}"></span><svg class="i chev"><use href="#i-right"/></svg>
+          </button>
+          <button type="button" class="crow" @click="openConn('voice')">
+            <span class="ctile"><svg class="i"><use href="#i-play"/></svg></span>
+            <span class="grow"><span class="t"><span x-t>Voice-over</span></span><span class="d" x-text="status.voice?.provider==='elevenlabs' ? 'ElevenLabs' + (cfg.voice?.elevenlabs_voice_name ? ' · ' + cfg.voice.elevenlabs_voice_name : '') : t('Free Microsoft voices · add ElevenLabs for natural voices')"></span></span>
+            <span class="dot" :class="{ok: status.voice?.provider==='elevenlabs'}"></span><svg class="i chev"><use href="#i-right"/></svg>
+          </button>
+          <button type="button" class="crow" @click="openConn('footage')">
+            <span class="ctile"><svg class="i"><use href="#i-film"/></svg></span>
+            <span class="grow"><span class="t"><span x-t>Stock footage</span></span><span class="d" x-text="status.footage?.ok ? (cfg.footage?.provider==='pexels' ? 'Pexels' : 'Pixabay') : t('Off · scenes use animated backgrounds')"></span></span>
+            <span class="dot" :class="{ok: status.footage?.ok}"></span><svg class="i chev"><use href="#i-right"/></svg>
+          </button>
+          <button type="button" class="crow" @click="openConn('framejam')">
+            <span class="ctile"><svg class="i"><use href="#i-send"/></svg></span>
+            <span class="grow"><span class="t">FrameJam</span><span class="d" x-text="(status.framejam?.ok ? t('Running') : t('Not running')) + ' · ' + (cfg.framejam?.auto !== false ? t('every render is sent for review') : t('send renders yourself'))"></span></span>
+            <span class="dot" :class="{ok: status.framejam?.ok}"></span><svg class="i chev"><use href="#i-right"/></svg>
+          </button>
+        </div>
 
-          <!-- Advanced -->
-          <div class="card">
-            <div class="card-head"><div class="grow"><h2><span x-t>Advanced</span> <span class="small muted"><span x-t>optional</span></span></h2></div></div>
-            <details><summary><span x-t>Public URL for sign-in redirects</span></summary>
-              <div class="stack" style="margin-top:10px">
-                <p class="small muted"><span x-t>Leave empty to use this page's address. TikTok needs HTTPS: run</span> <code>cloudflared tunnel --url http://localhost:8000</code> <span x-t>and paste the tunnel URL.</span></p>
-                <div class="actions" style="flex-wrap:nowrap"><input x-model="cfg.public_url" placeholder="https://my-tunnel.trycloudflare.com"><button class="btn" @click="saveSection('public_url')"><span x-t>Save</span></button></div>
-              </div>
-            </details>
-            <div class="divider"></div>
-            <details><summary><span x-t>Postiz — publish to more networks</span></summary>
-              <div class="stack" style="margin-top:10px">
-                <p class="small muted"><span x-t>Instagram, LinkedIn, X, Threads and more through a</span> <a href="https://github.com/gitroomhq/postiz-app" target="_blank" rel="noopener"><span x-t>Postiz</span></a> <span x-t>instance.</span></p>
-                <div class="field"><label><span x-t>API URL</span></label><input x-model="cfg.postiz.url" placeholder="https://api.postiz.com or http://localhost:4007/api"></div>
-                <div class="field"><label><span x-t>API key</span></label><input x-model="cfg.postiz.api_key" autocomplete="off"></div>
-                <div class="actions"><button class="btn" @click="saveSection('postiz')"><span x-t>Save</span></button><span class="small muted" x-text="status.postiz?.detail"></span></div>
-                <template x-for="c in channels.filter(c=>c.via==='postiz')"><div class="acct-row"><span class="avatar" x-text="initial(c.name)"></span><div class="grow" x-text="`${c.name} · ${c.provider}`"></div></div></template>
-              </div>
-            </details>
-          </div>
+        <h3 class="chead"><span x-t>Publish videos</span></h3>
+        <div class="clist">
+          <template x-for="pl in (cfg.platforms||[])" :key="pl.key">
+            <button type="button" class="crow" @click="openConn('pl:' + pl.key)">
+              <span class="ctile" x-text="pl.label[0]"></span>
+              <span class="grow"><span class="t" x-text="t(pl.label)"></span><span class="d" x-text="accountsFor(pl.key).length ? accountsFor(pl.key).map(a => a.name).join(', ') : (pl.configured ? t('Ready to connect') : t('Needs a developer app (one-time setup)'))"></span></span>
+              <span class="dot" :class="{ok: accountsFor(pl.key).length, warn: pl.configured && !accountsFor(pl.key).length}"></span><svg class="i chev"><use href="#i-right"/></svg>
+            </button>
+          </template>
+          <button type="button" class="crow" @click="openConn('postiz')">
+            <span class="ctile"><svg class="i"><use href="#i-send"/></svg></span>
+            <span class="grow"><span class="t">Postiz</span><span class="d" x-text="status.postiz?.ok ? status.postiz.detail : t('Instagram, LinkedIn, X, Threads and more')"></span></span>
+            <span class="dot" :class="{ok: status.postiz?.ok}"></span><svg class="i chev"><use href="#i-right"/></svg>
+          </button>
+        </div>
+
+        <h3 class="chead"><span x-t>Other</span></h3>
+        <div class="clist">
+          <button type="button" class="crow" @click="openConn('github')">
+            <span class="ctile"><svg class="i"><use href="#i-github"/></svg></span>
+            <span class="grow"><span class="t">GitHub</span><span class="d" x-text="github.connected ? github.login + ' · ' + t('private repositories too') : t('Public repositories work without connecting')"></span></span>
+            <span class="dot" :class="{ok: github.connected}"></span><svg class="i chev"><use href="#i-right"/></svg>
+          </button>
+          <button type="button" class="crow" @click="openConn('url')">
+            <span class="ctile"><svg class="i"><use href="#i-link"/></svg></span>
+            <span class="grow"><span class="t"><span x-t>Public URL</span></span><span class="d" x-text="cfg.public_url || t('This page\'s address · set one for TikTok (HTTPS)')"></span></span>
+            <span class="dot" :class="{ok: !!cfg.public_url}"></span><svg class="i chev"><use href="#i-right"/></svg>
+          </button>
         </div>
       </div>
     </section>
@@ -1635,6 +1437,233 @@
       <div class="actions" style="margin-top:16px;justify-content:flex-end">
         <button class="btn" @click="newBrand.open=false"><span x-t>Cancel</span></button>
         <button class="btn primary" @click="createBrand()" :disabled="!newBrand.name.trim()"><span x-t>Create</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- connection details, opened from a row on the Connections page -->
+  <div class="modal" x-show="conn" x-transition.opacity @click.self="conn=''" @keydown.escape.window="conn && !dialog.open && !mp.open && !ghPick.open && (conn='')">
+    <div class="card cmodal">
+      <div class="card-head"><div class="grow"><h2 x-text="connInfo().title"></h2><p x-text="connInfo().desc"></p></div>
+        <button class="btn ghost icon" @click="conn=''" :aria-label="t('Close')"><svg class="i"><use href="#i-x"/></svg></button></div>
+      <div x-show="conn==='claude'">
+
+            <template x-if="!cl.state"><div class="small muted"><span class="spin"></span></div></template>
+
+            <!-- connected -->
+            <template x-if="cl.state==='connected' && !switching && !signingIn()">
+              <div>
+                <div class="account">
+                  <span class="avatar lg" x-text="initial(cl.current.email || t('K'))"></span>
+                  <div class="grow"><div class="t" x-text="cl.current.email || cl.current.detail"></div>
+                    <div class="d" x-text="sourceText(cl.current.source) + (cl.current.email && cl.current.detail.includes('·') ? t(' · ') + cl.current.detail.split('·').slice(1).join('·').trim() + t(' plan') : '')"></div></div>
+                </div>
+                <a class="small" href="/usage" @click.prevent="nav('/usage')" style="display:block;margin-top:10px" x-show="cl.current.source!=='api_key' && sessionLimit()" x-text="sessionLimit() ? t('Current session: {n}% used', {n: Math.round(sessionLimit().percent||0)}) + ' · ' + t('Resets {when}', {when: resetsIn(sessionLimit().resets_at)}) : ''"></a>
+                <div class="field" style="margin-top:14px"><label><span x-t>Connect with</span></label>
+                  <div class="options">
+                    <div class="option" :class="cl.current.source==='app' && 'rec'">
+                      <div class="grow"><div class="t"><span x-t>Claude subscription, signed in here</span></div>
+                        <div class="d" x-text="cl.app?.ok ? cl.app.detail + ' · ' + t('plan limits apply') : t('Any Claude Pro, Max or Team account.')"></div></div>
+                      <span class="chip ok" x-show="cl.current.source==='app'"><span x-t>In use</span></span>
+                      <button class="btn sm" x-show="cl.current.source!=='app'" @click="cl.app?.ok ? claudeSource('app') : claudeLogin()" x-text="cl.app?.ok ? t('Use') : t('Sign in')"></button>
+                    </div>
+                    <div class="option" x-show="cl.system?.ok" :class="cl.current.source==='system' && 'rec'">
+                      <div class="grow"><div class="t"><span x-t>This computer's Claude Code login</span></div>
+                        <div class="d" x-text="(cl.system?.detail || '') + ' · ' + t('plan limits apply')"></div></div>
+                      <span class="chip ok" x-show="cl.current.source==='system'"><span x-t>In use</span></span>
+                      <button class="btn sm" x-show="cl.current.source!=='system'" @click="claudeSource('system')"><span x-t>Use</span></button>
+                    </div>
+                    <div class="option" :class="cl.current.source==='api_key' && 'rec'">
+                      <div class="grow"><div class="t"><span x-t>Anthropic API key</span></div>
+                        <div class="d" x-text="cl.api_key ? t('Key {hint} · billed per token, no plan limits', {hint: cl.api_key}) : t('Pay as you go from the Claude Console, no plan limits.')"></div>
+                        <div class="actions" style="margin-top:8px;flex-wrap:nowrap" x-show="!cl.api_key || keyEdit">
+                          <input type="password" x-model="apiKey" placeholder="sk-ant-…" autocomplete="off" @keydown.enter="useApiKey()" :aria-label="t('Anthropic API key')">
+                          <button class="btn" @click="useApiKey()" :disabled="!apiKey.trim().startsWith('sk-') || savingKey"><span class="spin" x-show="savingKey"></span><span x-t>Check and use</span></button>
+                          <button class="btn ghost" x-show="keyEdit" @click="keyEdit=false; apiKey=''"><span x-t>Cancel</span></button>
+                        </div></div>
+                      <span class="chip ok" x-show="cl.current.source==='api_key'"><span x-t>In use</span></span>
+                      <button class="btn sm" x-show="cl.api_key && cl.current.source!=='api_key' && !keyEdit" @click="claudeSource('api_key')"><span x-t>Use</span></button>
+                      <button class="btn ghost sm" x-show="cl.api_key && !keyEdit" @click="keyEdit=true"><span x-t>Replace</span></button>
+                      <button class="btn ghost icon danger" x-show="cl.api_key && !keyEdit" :title="t('Remove the API key')" :aria-label="t('Remove the API key')" @click="removeApiKey()"><svg class="i"><use href="#i-trash"/></svg></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="stack" style="margin-top:14px">
+                  <template x-for="task in [['script','Scripts, ideas & quick edits'],['motion','Claude Motion videos']]" :key="task[0]">
+                    <div class="actions" style="justify-content:space-between"><span x-text="t(task[1])"></span>
+                      <button type="button" class="mpchip" aria-haspopup="menu" :aria-expanded="String(mp.open && mp.key==='default:' + task[0])" @click="mpOpen('default:' + task[0], $el)"><span x-text="modelShort(mpModel('default:' + task[0]))"></span><span class="e" x-text="effortShort(mpEffort('default:' + task[0]))"></span><svg class="i"><use href="#i-down"/></svg></button>
+                    </div>
+                  </template>
+                  <p class="hint"><span x-t>Defaults for new videos and edits. You can pick another model and effort for any video.</span></p>
+                </div>
+                <div class="grid-2" style="margin-top:4px">
+                  <div class="actions" style="justify-content:flex-end;grid-column:1/-1">
+                    <button class="btn ghost danger" @click="cl.current.source==='app' ? claudeLogout() : claudeSource('')" x-text="cl.current.source==='app' ? t('Sign out') : t('Disconnect')"></button>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- signing in -->
+            <template x-if="signingIn()">
+              <div class="stack">
+                <ol class="steps">
+                  <li><span x-t>Approve access on the Claude page that opened in a new tab.</span> <a :href="cl.login.url" target="_blank" rel="noopener" x-show="cl.login.url"><span x-t>Open it again ↗</span></a></li>
+                  <li><span x-t>Copy the code Claude shows and paste it here.</span></li>
+                </ol>
+                <div class="actions" style="flex-wrap:nowrap">
+                  <input x-model="claudeCode" :placeholder="t('Paste the code')" @keydown.enter="claudeSubmitCode()" :disabled="cl.login.state!=='waiting_code'" autocomplete="off">
+                  <button class="btn primary" @click="claudeSubmitCode()" :disabled="!claudeCode.trim() || cl.login.state!=='waiting_code'">
+                    <span class="spin" x-show="cl.login.state==='verifying'"></span><span x-text="cl.login.state==='verifying' ? t('Connecting…') : t('Connect')"></span></button>
+                </div>
+                <button class="btn ghost sm" @click="claudeCancel()" :disabled="cl.login.state==='verifying'"><span x-t>Cancel</span></button>
+              </div>
+            </template>
+
+            <!-- chooser -->
+            <template x-if="cl.state && (cl.state!=='connected' || switching) && !signingIn()">
+              <div class="stack">
+                <div class="notice" x-show="cl.state==='expired'"><svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg><div><span x-t>The saved Claude connection no longer works. Choose how to connect again.</span></div></div>
+                <div class="notice err" x-show="cl.login?.state==='error'"><svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg><div x-text="cl.login?.error"></div></div>
+                <div class="options">
+                  <div class="option rec">
+                    <div class="grow"><div class="t"><span x-t>Sign in with Claude</span></div><div class="d"><span x-t>Any Claude Pro, Max or Team account. Kept separate from your terminal login.</span></div></div>
+                    <button class="btn primary" @click="claudeLogin()" :disabled="cl.login?.state==='starting'"><span class="spin" x-show="cl.login?.state==='starting'"></span><span x-t>Sign in</span></button>
+                  </div>
+                  <div class="option" x-show="cl.system?.ok && !(cl.current?.source==='system' && cl.state==='connected')">
+                    <div class="grow"><div class="t"><span x-t>Use this computer's Claude Code login</span></div><div class="d" x-text="cl.system?.email || cl.system?.detail"></div></div>
+                    <button class="btn" @click="claudeSource('system')"><span x-t>Use</span></button>
+                  </div>
+                  <div class="option">
+                    <div class="grow"><div class="t"><span x-t>Anthropic API key</span></div><div class="d"><span x-t>Pay as you go from the Claude Console.</span></div>
+                      <div class="actions" style="margin-top:8px;flex-wrap:nowrap"><input type="password" x-model="apiKey" placeholder="sk-ant-…" autocomplete="off" @keydown.enter="useApiKey()">
+                        <button class="btn" @click="useApiKey()" :disabled="!apiKey.trim().startsWith('sk-') || savingKey"><span class="spin" x-show="savingKey"></span><span x-t>Use key</span></button></div></div>
+                  </div>
+                </div>
+                <button class="btn ghost sm" x-show="switching" @click="switching=false"><span x-t>Cancel</span></button>
+              </div>
+            </template>
+            <p class="hint" style="margin-top:12px"><span x-t>Personal use only: subscription usage through the Agent SDK draws from your plan's monthly Agent SDK credit. Don't share your login with others.</span></p>
+      </div>
+      <div x-show="conn==='motion'">
+            <div class="small muted" x-text="t(motionInfo.detail || '')"></div>
+            <div class="notice err" x-show="motionInfo.install_error" style="margin-top:10px"><div x-text="motionInfo.install_error"></div></div>
+            <div class="actions" style="margin-top:10px" x-show="!motionInfo.ok && motionInfo.code==='install'">
+              <button class="btn primary" @click="installMotion()" :disabled="motionInfo.installing"><span class="spin" x-show="motionInfo.installing"></span><span x-text="motionInfo.installing ? t('Installing — a few minutes…') : t('Install')"></span></button>
+            </div>
+            <p class="hint" x-show="['node','ffmpeg'].includes(motionInfo.code)"><span x-t>Install it, then reload this page. Videos use the Quick engine until then.</span></p>
+      </div>
+      <div x-show="conn==='voice'">
+            <template x-if="status.voice?.provider==='elevenlabs' && !voiceEdit">
+              <div class="stack">
+                <div class="field"><label><span x-t>Voice</span></label>
+                  <select x-select @change="setElevenVoice($event.target.value)">
+                    <option value="" x-t>First voice in my account</option>
+                    <template x-for="v in elevenVoices" :key="v.id"><option :value="v.id" :selected="v.id===cfg.voice?.elevenlabs_voice_id" x-text="[v.name, v.gender, v.accent, v.description].filter(Boolean).join(' · ')"></option></template>
+                  </select></div>
+                <div class="actions">
+                  <button class="btn" @click="previewVoice()" :disabled="previewing"><span class="spin" x-show="previewing"></span><svg class="i" x-show="!previewing"><use href="#i-play"/></svg><span x-t>Listen</span></button>
+                  <button class="btn" @click="voiceEdit=true; voiceKey=''"><span x-t>Change key</span></button>
+                  <button class="btn ghost danger" @click="removeVoiceKey()"><span x-t>Remove</span></button>
+                </div>
+              </div>
+            </template>
+            <template x-if="status.voice?.provider!=='elevenlabs' || voiceEdit">
+              <div class="stack">
+                <p class="small muted"><span x-t>Create a key at</span> <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">elevenlabs.io</a><span x-t>, with Text to Speech and Voices access.</span></p>
+                <div class="actions" style="flex-wrap:nowrap">
+                  <input type="password" x-model="voiceKey" :placeholder="t('Paste your ElevenLabs API key')" autocomplete="off" @keydown.enter="saveVoiceKey()">
+                  <button class="btn primary" @click="saveVoiceKey()" :disabled="!voiceKey.trim() || savingVoice"><span class="spin" x-show="savingVoice"></span><span x-t>Verify & save</span></button>
+                </div>
+                <div class="actions">
+                  <button class="btn ghost sm" x-show="voiceEdit" @click="voiceEdit=false"><span x-t>Cancel</span></button>
+                  <button class="btn ghost sm" x-show="!voiceEdit" @click="previewVoice()" :disabled="previewing"><span class="spin" x-show="previewing"></span><span x-t>Listen to the free voice</span></button>
+                </div>
+              </div>
+            </template>
+      </div>
+      <div x-show="conn==='footage'">
+            <template x-if="status.footage?.ok && !footageEdit">
+              <div class="account">
+                <div class="grow"><div class="t" x-text="cfg.footage.provider==='pexels' ? t('Pexels') : t('Pixabay')"></div>
+                  <div class="d" x-text="t('API key ') + (cfg.footage[cfg.footage.provider + '_api_key'] || '')"></div></div>
+                <button class="btn" @click="footageEdit=true; footageKey=''"><span x-t>Change</span></button>
+                <button class="btn ghost danger" @click="removeFootage()"><span x-t>Remove</span></button>
+              </div>
+            </template>
+            <template x-if="!status.footage?.ok || footageEdit">
+              <div class="stack">
+                <div class="seg"><button type="button" :class="footageProvider==='pixabay'&&'on'" @click="footageProvider='pixabay'"><span x-t>Pixabay</span></button><button type="button" :class="footageProvider==='pexels'&&'on'" @click="footageProvider='pexels'"><span x-t>Pexels</span></button></div>
+                <p class="small muted" x-show="footageProvider==='pixabay'"><span x-t>Create a free account at</span> <a href="https://pixabay.com/accounts/register/" target="_blank" rel="noopener"><span x-t>pixabay.com</span></a><span x-t>, then copy your key from</span> <a href="https://pixabay.com/api/docs/#api_search_videos" target="_blank" rel="noopener"><span x-t>pixabay.com/api/docs</span></a> <span x-t>(shown once you're signed in).</span></p>
+                <p class="small muted" x-show="footageProvider==='pexels'"><span x-t>Pexels has paused new API keys. If you already have one, paste it here.</span></p>
+                <div class="actions" style="flex-wrap:nowrap">
+                  <input x-model="footageKey" :placeholder="t('Paste your API key')" autocomplete="off" @keydown.enter="saveFootage()">
+                  <button class="btn primary" @click="saveFootage()" :disabled="!footageKey.trim() || savingFootage"><span class="spin" x-show="savingFootage"></span><span x-t>Verify & save</span></button>
+                </div>
+                <button class="btn ghost sm" x-show="footageEdit" @click="footageEdit=false"><span x-t>Cancel</span></button>
+              </div>
+            </template>
+      </div>
+      <div x-show="conn==='framejam'">
+            <label class="toggle small"><input type="checkbox" :checked="cfg.framejam?.auto !== false" @change="cfg.framejam.auto = $event.target.checked; saveSection('framejam')"> <span x-t>Send every render to FrameJam and start it automatically</span></label>
+            <div class="actions" style="margin-top:10px" x-show="!status.framejam?.ok">
+              <button class="btn" @click="startFramejam()" :disabled="startingFj"><span class="spin" x-show="startingFj"></span><span x-t>Start FrameJam</span></button>
+              <span class="small muted"><span x-t>Needs Node 22+.</span></span>
+            </div>
+            <div class="field" style="margin-top:14px"><label><span x-t>Address</span></label>
+              <div class="actions" style="flex-wrap:nowrap"><input x-model="cfg.framejam.url"><button class="btn" @click="saveSection('framejam')"><span x-t>Save</span></button></div></div>
+      </div>
+      <div x-show="conn==='github'">
+            <template x-if="github.connected">
+              <div class="account"><span class="avatar lg"><svg class="i"><use href="#i-github"/></svg></span>
+                <div class="grow"><div class="t" x-text="github.login"></div><div class="d"><span x-t>Can read your repositories</span></div></div>
+                <button class="btn ghost danger" @click="githubDisconnect()"><span x-t>Disconnect</span></button></div>
+            </template>
+            <template x-if="!github.connected">
+              <div class="stack">
+                <p class="small muted"><span x-t>Create a</span> <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener"><span x-t>fine-grained token</span></a> <span x-t>with read-only</span> <em>Contents</em> <span x-t>access to the repos you want to import.</span></p>
+                <div class="actions" style="flex-wrap:nowrap"><input type="password" x-model="githubToken" placeholder="github_pat_…" autocomplete="off" @keydown.enter="githubConnect()">
+                  <button class="btn primary" @click="githubConnect()" :disabled="!githubToken.trim() || githubSaving"><span class="spin" x-show="githubSaving"></span><span x-t>Connect</span></button></div>
+              </div>
+            </template>
+      </div>
+      <template x-for="pl in (cfg.platforms||[]).filter(p => conn==='pl:' + p.key)" :key="pl.key">
+        <div>
+              <template x-for="a in accountsFor(pl.key)" :key="a.id">
+                <div class="acct-row">
+                  <span class="avatar"><img x-show="a.avatar" :src="a.avatar" alt=""><span x-show="!a.avatar" x-text="initial(a.name)"></span></span>
+                  <div class="grow" x-text="a.name"></div>
+                  <button class="btn ghost sm danger" @click="askDisconnect(a)"><span x-t>Disconnect</span></button>
+                </div>
+              </template>
+              <div class="actions" style="margin-top:10px" x-show="pl.configured">
+                <a class="btn" :class="!accountsFor(pl.key).length && 'primary'" :href="`/oauth/${pl.key}/start`"
+                   x-text="accountsFor(pl.key).length ? t('Connect another') : t('Connect {name}', {name: pl.label})"></a>
+              </div>
+              <h3 class="chead" style="margin-top:20px"><span x-t>Developer app</span></h3>
+                <div class="stack" style="margin-top:10px">
+                  <p class="small muted" x-text="t(pl.notes)"></p>
+                  <div class="field"><label><span x-t>Redirect URI to register</span></label>
+                    <div class="copy"><code x-text="pl.redirect_uri"></code><button class="btn sm" :title="t('Copy')" @click="copy(pl.redirect_uri)"><svg class="i"><use href="#i-copy"/></svg></button></div></div>
+                  <template x-for="f in pl.fields"><div class="field"><label x-text="t(f.label)"></label><input x-model="cfg.apps[pl.key][f.key]" autocomplete="off"></div></template>
+                  <div class="actions"><button class="btn" @click="saveSection('apps')"><span x-t>Save</span></button><a class="btn ghost sm" :href="pl.docs" target="_blank" rel="noopener"><span x-t>Docs</span> <svg class="i"><use href="#i-ext"/></svg></a></div>
+                </div>
+        </div>
+      </template>
+      <div x-show="conn==='postiz'">
+              <div class="stack" style="margin-top:10px">
+                <p class="small muted"><span x-t>Instagram, LinkedIn, X, Threads and more through a</span> <a href="https://github.com/gitroomhq/postiz-app" target="_blank" rel="noopener"><span x-t>Postiz</span></a> <span x-t>instance.</span></p>
+                <div class="field"><label><span x-t>API URL</span></label><input x-model="cfg.postiz.url" placeholder="https://api.postiz.com or http://localhost:4007/api"></div>
+                <div class="field"><label><span x-t>API key</span></label><input x-model="cfg.postiz.api_key" autocomplete="off"></div>
+                <div class="actions"><button class="btn" @click="saveSection('postiz')"><span x-t>Save</span></button><span class="small muted" x-text="status.postiz?.detail"></span></div>
+                <template x-for="c in channels.filter(c=>c.via==='postiz')"><div class="acct-row"><span class="avatar" x-text="initial(c.name)"></span><div class="grow" x-text="`${c.name} · ${c.provider}`"></div></div></template>
+              </div>
+      </div>
+      <div x-show="conn==='url'">
+              <div class="stack" style="margin-top:10px">
+                <p class="small muted"><span x-t>Leave empty to use this page's address. TikTok needs HTTPS: run</span> <code>cloudflared tunnel --url http://localhost:8000</code> <span x-t>and paste the tunnel URL.</span></p>
+                <div class="actions" style="flex-wrap:nowrap"><input x-model="cfg.public_url" placeholder="https://my-tunnel.trycloudflare.com"><button class="btn" @click="saveSection('public_url')"><span x-t>Save</span></button></div>
+              </div>
       </div>
     </div>
   </div>
@@ -1804,7 +1833,7 @@ const CSelect = {
       const items = [...menu.querySelectorAll('.mpi:not(:disabled)')], i = items.indexOf(document.activeElement);
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus(); }
       else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); items[e.key === 'Home' ? 0 : items.length - 1]?.focus(); }
-      else if (e.key === 'Escape') { e.preventDefault(); this.close(); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.close(); }
       else if (e.key === 'Tab') this.close(false);
     });
     document.body.append(menu);
@@ -1859,6 +1888,7 @@ function app() {
     projUsage: {}, editModel: '', editEffort: '',
     mp: { open:false, key:'form', sub:false, pos:{}, up:false, left:false, narrow:false },
     ghPick: { open:false, q:'', pos:{}, loading:false, current:'' },
+    conn: '',
     workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' }, siteImport: { open:false, url:'', busy:false },
     live: {}, dockOpen: true, startingFj: false,
     uploadingContext: false, motionInfo: {}, voiceEdit: false, voiceKey: '', savingVoice: false, elevenVoices: [], previewing: false, contextAccept: '.txt,.md,.markdown,.pdf,.docx,.html,.htm,.csv,.json,.srt,.vtt,.yaml,.yml',
@@ -1995,6 +2025,7 @@ function app() {
       if (r.page === 'studio' && r.id !== prev.id) { this.wsOpen = false; this.syncWsForm(); }
       if (r.page === 'brand' && (prev.page !== 'brand' || prev.id !== r.id || !this.brand)) this.loadBrand(r.id);
       if (r.page === 'project' && (prev.page !== 'project' || prev.id !== r.id || !this.cur)) await this.openProject(r.id);
+      this.conn = '';
       if (r.page === 'connections') this.loadConnections();
       if (r.page === 'autopilot') this.loadAutopilot();
     },
@@ -2061,6 +2092,33 @@ function app() {
     },
     ghChoose(name) { this.ghPick.open = false; this._ghOnPick?.(name); },
     brandForRepo(repo) { return this.brandList.find(b => b.source?.type === 'github' && (b.source.repo || '').toLowerCase() === (repo || '').toLowerCase()); },
+    openConn(key) { this.conn = key; this.switching = false; this.keyEdit = false; if (key === 'claude' && this.cl.state === 'connected') this.loadPlan(); },
+    connInfo() {
+      const k = this.conn;
+      if (k.startsWith('pl:')) {
+        const pl = (this.cfg.platforms || []).find(p => 'pl:' + p.key === k);
+        return { title: pl ? this.t(pl.label) : '', desc: this.t('Publish your videos straight from AutoClip.') };
+      }
+      const info = {
+        claude: ['Claude', 'Writes scripts, ideas and edits through the Claude Agent SDK.'],
+        motion: ['Claude Motion', 'Claude animates each video as code with HyperFrames (open source). Runs on this computer.'],
+        voice: ['Voice-over', 'ElevenLabs gives natural voices in 70+ languages, including Vietnamese. Without a key, free Microsoft voices are used.'],
+        footage: ['Stock footage', 'Real video clips behind each scene. Without a key, scenes use animated backgrounds in your brand colors.'],
+        framejam: ['FrameJam', 'Review renders frame by frame; Claude applies your comments.'],
+        github: ['GitHub', 'Pick repositories when creating videos and import brand kits from them. Public repositories work without connecting.'],
+        postiz: ['Postiz', 'Instagram, LinkedIn, X, Threads and more through a Postiz instance.'],
+        url: ['Public URL', 'Where YouTube, TikTok and Facebook send you back after you sign in.'],
+      }[k] || ['', ''];
+      return { title: this.t(info[0]), desc: this.t(info[1]) };
+    },
+    connClaudeStatus() {
+      const c = this.cl;
+      if (c.state === 'connected') {
+        const s = this.sessionLimit();
+        return [c.current.email || c.current.detail, this.sourceText(c.current.source), c.current.source !== 'api_key' && s ? this.t('session {n}% used', {n: Math.round(s.percent || 0)}) : ''].filter(Boolean).join(' · ');
+      }
+      return this.t({ expired:'Needs sign-in', disconnected:'Not connected · required to make videos' }[c.state] || 'Checking…');
+    },
     composerChoices() { return Object.fromEntries(COMPOSER_KEYS.map(k => [k, this.form[k]])); },
     async loadComposer() {
       const saved = await this.api('/api/composer').catch(() => ({}));
