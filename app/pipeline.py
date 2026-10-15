@@ -29,7 +29,7 @@ async def run_project(pid: str):
         # 1. Script with Claude
         db.update_project(pid, status="scripting", progress=5)
         meta = await claude.write_script(
-            topic=req["topic"], language=req.get("language", "Vietnamese"),
+            topic=req["topic"], language=req.get("language", "English"),
             duration=int(req.get("duration", 45)), style=req.get("style", ""),
             notes=req.get("notes", ""),
         )
@@ -38,7 +38,7 @@ async def run_project(pid: str):
         # 2. Render with MoneyPrinterTurbo
         async with _render_lock:
             db.update_project(pid, status="rendering", progress=20)
-            language = req.get("language", "Vietnamese")
+            language = req.get("language", "English")
             params = {
                 "video_subject": req["topic"],
                 "video_script": meta["script"],
@@ -123,7 +123,7 @@ async def autopilot_loop():
 
 async def _autopilot_run(cfg: dict):
     count = int(cfg.get("videos_per_run", 1))
-    ideas = await claude.suggest_ideas(cfg["niche"], cfg.get("language", "Vietnamese"), count=count + 3)
+    ideas = await claude.suggest_ideas(cfg["niche"], cfg.get("language", "English"), count=count + 3)
     used = set(db.get_setting("autopilot_used_topics", []))
     fresh = [i for i in ideas if i.get("topic") and i["topic"] not in used] or ideas
     random.shuffle(fresh)
@@ -131,7 +131,7 @@ async def _autopilot_run(cfg: dict):
         used.add(idea["topic"])
         p = db.create_project({
             "topic": f'{idea["topic"]} — hook: {idea.get("hook", "")}',
-            "language": cfg.get("language", "Vietnamese"),
+            "language": cfg.get("language", "English"),
             "duration": cfg.get("duration", 45),
             "format": cfg.get("format", "shorts"),
             "style": cfg.get("style", ""),

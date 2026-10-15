@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -47,8 +47,8 @@
 <header>
   <h1>Auto<span>Clip</span> Studio</h1>
   <nav>
-    <button :class="tab==='create'&&'on'" @click="tab='create'">Tạo video</button>
-    <button :class="tab==='ideas'&&'on'" @click="tab='ideas'">Ý tưởng</button>
+    <button :class="tab==='create'&&'on'" @click="tab='create'">Create</button>
+    <button :class="tab==='ideas'&&'on'" @click="tab='ideas'">Ideas</button>
     <button :class="tab==='autopilot'&&'on'" @click="tab='autopilot'">Autopilot</button>
   </nav>
   <div class="pills">
@@ -62,42 +62,42 @@
   <!-- CREATE -->
   <div class="grid" x-show="tab==='create'">
     <div class="card">
-      <strong>Video mới</strong>
-      <label>Chủ đề</label>
-      <textarea x-model="form.topic" placeholder="VD: 5 sự thật thú vị về não bộ con người"></textarea>
+      <strong>New video</strong>
+      <label>Topic</label>
+      <textarea x-model="form.topic" placeholder="e.g. 5 surprising facts about the human brain"></textarea>
       <div class="row">
-        <div><label>Ngôn ngữ</label>
-          <select x-model="form.language"><option>Vietnamese</option><option>English</option></select></div>
-        <div><label>Định dạng</label>
+        <div><label>Language</label>
+          <select x-model="form.language"><option>English</option><option>Vietnamese</option></select></div>
+        <div><label>Format</label>
           <select x-model="form.format">
-            <option value="shorts">Dọc 9:16 (Shorts/TikTok/Reels)</option>
-            <option value="youtube">Ngang 16:9 (YouTube)</option>
-            <option value="square">Vuông 1:1</option>
+            <option value="shorts">Vertical 9:16 (Shorts/TikTok/Reels)</option>
+            <option value="youtube">Landscape 16:9 (YouTube)</option>
+            <option value="square">Square 1:1</option>
           </select></div>
       </div>
       <div class="row">
-        <div><label>Độ dài (giây)</label><input type="number" x-model.number="form.duration" min="10" max="600"></div>
-        <div><label>Nguồn footage</label>
+        <div><label>Length (seconds)</label><input type="number" x-model.number="form.duration" min="10" max="600"></div>
+        <div><label>Footage source</label>
           <select x-model="form.video_source"><option value="pexels">Pexels</option><option value="pixabay">Pixabay</option></select></div>
       </div>
-      <label>Phong cách / giọng điệu</label>
-      <input x-model="form.style" placeholder="hài hước, kể chuyện, giáo dục...">
-      <label>Giọng đọc (edge-tts, để trống = mặc định)</label>
-      <input x-model="form.voice" placeholder="vi-VN-NamMinhNeural-Male">
-      <label>Kênh đăng</label>
-      <template x-if="!channels.length"><div class="muted">Chưa có kênh — kết nối TikTok/YouTube/Facebook trong Postiz.</div></template>
+      <label>Style / tone</label>
+      <input x-model="form.style" placeholder="funny, storytelling, educational...">
+      <label>Voice (edge-tts, leave empty for default)</label>
+      <input x-model="form.voice" placeholder="en-US-AndrewMultilingualNeural-Male">
+      <label>Publish to</label>
+      <template x-if="!channels.length"><div class="muted">No channels yet — connect TikTok/YouTube/Facebook in Postiz.</div></template>
       <template x-for="c in channels" :key="c.id">
         <label class="chk"><input type="checkbox" :value="c.id" x-model="form.channelIds"><span x-text="`${c.provider} · ${c.name}`"></span></label>
       </template>
-      <label class="chk"><input type="checkbox" x-model="form.auto_publish"> Tự động đăng khi render xong</label>
-      <div style="margin-top:12px"><button class="primary" @click="create()" :disabled="busy || !form.topic">Tạo video</button></div>
+      <label class="chk"><input type="checkbox" x-model="form.auto_publish"> Auto-publish when rendering finishes</label>
+      <div style="margin-top:12px"><button class="primary" @click="create()" :disabled="busy || !form.topic">Create video</button></div>
     </div>
 
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <strong>Dự án</strong><span class="muted" x-text="projects.length + ' video'"></span>
+        <strong>Projects</strong><span class="muted" x-text="projects.length + ' videos'"></span>
       </div>
-      <template x-if="!projects.length"><p class="muted">Chưa có video nào.</p></template>
+      <template x-if="!projects.length"><p class="muted">No videos yet.</p></template>
       <template x-for="p in projects" :key="p.id">
         <div class="proj">
           <div class="thumb">
@@ -111,17 +111,17 @@
             <div class="err" x-show="p.error" x-text="p.error"></div>
             <div class="row" style="margin-top:8px;flex-wrap:wrap;gap:6px">
               <template x-if="p.video_path">
-                <button class="ghost" @click="publish(p)" :disabled="!form.channelIds.length">Đăng lên kênh đã chọn</button>
+                <button class="ghost" @click="publish(p)" :disabled="!form.channelIds.length">Publish to selected channels</button>
               </template>
-              <template x-if="p.video_path"><a class="ghost" :href="`/videos/${p.id}.mp4`" download style="text-decoration:none;color:inherit;border:1px solid var(--line);border-radius:6px;padding:6px 10px">Tải về</a></template>
-              <template x-if="p.status==='failed'"><button class="ghost" @click="retry(p)">Thử lại</button></template>
-              <button class="ghost" @click="remove(p)">Xoá</button>
+              <template x-if="p.video_path"><a class="ghost" :href="`/videos/${p.id}.mp4`" download style="text-decoration:none;color:inherit;border:1px solid var(--line);border-radius:6px;padding:6px 10px">Download</a></template>
+              <template x-if="p.status==='failed'"><button class="ghost" @click="retry(p)">Retry</button></template>
+              <button class="ghost" @click="remove(p)">Delete</button>
             </div>
-            <details x-show="p.script"><summary>Kịch bản & caption</summary>
+            <details x-show="p.script"><summary>Script & caption</summary>
               <pre x-text="p.script?.script"></pre>
               <pre x-text="(p.script?.description||'') + '\n\n' + (p.script?.hashtags||[]).map(h=>'#'+h).join(' ')"></pre>
             </details>
-            <details x-show="p.publish_result"><summary>Kết quả đăng</summary><pre x-text="JSON.stringify(p.publish_result?.response, null, 2)"></pre></details>
+            <details x-show="p.publish_result"><summary>Publish result</summary><pre x-text="JSON.stringify(p.publish_result?.response, null, 2)"></pre></details>
           </div>
         </div>
       </template>
@@ -131,15 +131,15 @@
   <!-- IDEAS -->
   <div class="grid" x-show="tab==='ideas'">
     <div class="card">
-      <strong>Claude gợi ý ý tưởng</strong>
-      <label>Ngách / chủ đề kênh</label>
-      <input x-model="ideaForm.niche" placeholder="tài chính cá nhân, lịch sử Việt Nam, mẹo công nghệ...">
-      <label>Ngôn ngữ</label>
-      <select x-model="ideaForm.language"><option>Vietnamese</option><option>English</option></select>
-      <div style="margin-top:12px"><button class="primary" @click="getIdeas()" :disabled="busy || !ideaForm.niche" x-text="busy?'Đang nghĩ...':'Gợi ý'"></button></div>
+      <strong>Idea generator</strong>
+      <label>Niche / channel topic</label>
+      <input x-model="ideaForm.niche" placeholder="personal finance, history, tech tips...">
+      <label>Language</label>
+      <select x-model="ideaForm.language"><option>English</option><option>Vietnamese</option></select>
+      <div style="margin-top:12px"><button class="primary" @click="getIdeas()" :disabled="busy || !ideaForm.niche" x-text="busy?'Thinking...':'Suggest ideas'"></button></div>
     </div>
     <div class="card">
-      <template x-if="!ideas.length"><p class="muted">Bấm vào một ý tưởng để chuyển sang tạo video.</p></template>
+      <template x-if="!ideas.length"><p class="muted">Click an idea to start a video from it.</p></template>
       <template x-for="i in ideas"><div class="idea" @click="useIdea(i)">
         <strong x-text="i.topic"></strong><div x-text="'“'+i.hook+'”'"></div><div class="muted" x-text="i.why"></div>
       </div></template>
@@ -149,25 +149,25 @@
   <!-- AUTOPILOT -->
   <div class="card" x-show="tab==='autopilot'" style="max-width:560px">
     <strong>Autopilot</strong>
-    <p class="muted">Định kỳ Claude nghĩ ý tưởng theo ngách → render → (tuỳ chọn) tự đăng.</p>
-    <label class="chk"><input type="checkbox" x-model="auto.enabled"> Bật autopilot</label>
-    <label>Ngách</label><input x-model="auto.niche">
+    <p class="muted">On a schedule, Claude comes up with ideas for your niche → renders them → (optionally) publishes.</p>
+    <label class="chk"><input type="checkbox" x-model="auto.enabled"> Enable autopilot</label>
+    <label>Niche</label><input x-model="auto.niche">
     <div class="row">
-      <div><label>Mỗi (giờ)</label><input type="number" x-model.number="auto.every_hours" min="1"></div>
-      <div><label>Số video / lượt</label><input type="number" x-model.number="auto.videos_per_run" min="1" max="10"></div>
-      <div><label>Độ dài (giây)</label><input type="number" x-model.number="auto.duration"></div>
+      <div><label>Every (hours)</label><input type="number" x-model.number="auto.every_hours" min="1"></div>
+      <div><label>Videos per run</label><input type="number" x-model.number="auto.videos_per_run" min="1" max="10"></div>
+      <div><label>Length (seconds)</label><input type="number" x-model.number="auto.duration"></div>
     </div>
     <div class="row">
-      <div><label>Ngôn ngữ</label><select x-model="auto.language"><option>Vietnamese</option><option>English</option></select></div>
-      <div><label>Định dạng</label><select x-model="auto.format"><option value="shorts">9:16</option><option value="youtube">16:9</option></select></div>
+      <div><label>Language</label><select x-model="auto.language"><option>English</option><option>Vietnamese</option></select></div>
+      <div><label>Format</label><select x-model="auto.format"><option value="shorts">9:16</option><option value="youtube">16:9</option></select></div>
     </div>
-    <label>Phong cách</label><input x-model="auto.style">
-    <label>Kênh đăng</label>
+    <label>Style</label><input x-model="auto.style">
+    <label>Publish to</label>
     <template x-for="c in channels" :key="c.id">
       <label class="chk"><input type="checkbox" :value="c.id" x-model="auto.channelIds"><span x-text="`${c.provider} · ${c.name}`"></span></label>
     </template>
-    <label class="chk"><input type="checkbox" x-model="auto.auto_publish"> Tự động đăng</label>
-    <div style="margin-top:12px"><button class="primary" @click="saveAuto()">Lưu</button> <span class="muted" x-text="saved"></span></div>
+    <label class="chk"><input type="checkbox" x-model="auto.auto_publish"> Auto-publish</label>
+    <div style="margin-top:12px"><button class="primary" @click="saveAuto()">Save</button> <span class="muted" x-text="saved"></span></div>
   </div>
 </main>
 
@@ -176,8 +176,8 @@ function app() {
   return {
     tab: 'create', busy: false, saved: '',
     status: {}, channels: [], projects: [], ideas: [],
-    form: { topic:'', language:'Vietnamese', format:'shorts', duration:45, video_source:'pexels', style:'', voice:'', channelIds:[], auto_publish:false },
-    ideaForm: { niche:'', language:'Vietnamese' },
+    form: { topic:'', language:'English', format:'shorts', duration:45, video_source:'pexels', style:'', voice:'', channelIds:[], auto_publish:false },
+    ideaForm: { niche:'', language:'English' },
     auto: { channelIds: [] },
     async api(path, opts={}) {
       const r = await fetch(path, { headers:{'Content-Type':'application/json'}, ...opts, body: opts.body && JSON.stringify(opts.body) });
@@ -209,7 +209,7 @@ function app() {
     async saveAuto() {
       const { channelIds, ...a } = this.auto;
       await this.api('/api/autopilot', { method:'PUT', body:{ ...a, integrations: this.pick(channelIds) } });
-      this.saved = 'Đã lưu'; setTimeout(() => this.saved = '', 2000);
+      this.saved = 'Saved'; setTimeout(() => this.saved = '', 2000);
     },
   };
 }

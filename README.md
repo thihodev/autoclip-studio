@@ -1,94 +1,94 @@
 # AutoClip Studio
 
-Công cụ mã nguồn mở tự động tạo video ngắn (YouTube Shorts, TikTok, Facebook Reels, YouTube 16:9) và đăng lên mạng xã hội. Phần AI chạy bằng **tài khoản Claude bạn đang dùng cho Claude Code**.
+An open-source tool that automatically creates short-form videos (YouTube Shorts, TikTok, Facebook Reels, 16:9 YouTube) and publishes them to social networks. The AI runs on **the Claude account you already use for Claude Code**.
 
 ```
- Chủ đề / Ngách ──► Claude (Agent SDK)  ──► MoneyPrinterTurbo ──► Postiz ──► TikTok / YouTube / Facebook / Instagram / ...
-                    ý tưởng, kịch bản,       footage Pexels,        OAuth kênh,
-                    từ khoá, caption,        TTS, phụ đề, nhạc,      đăng ngay / hẹn giờ
-                    hashtag, tag SEO         ghép video
+ Topic / Niche ──► Claude (Agent SDK) ──► MoneyPrinterTurbo ──► Postiz ──► TikTok / YouTube / Facebook / Instagram / ...
+                   ideas, script,          stock footage,         channel OAuth,
+                   search terms, caption,  TTS, subtitles,        post now / schedule
+                   hashtags, SEO tags      music, compositing
 ```
 
-## Dùng những open-source nào
+## Built on
 
-| Thành phần | Dự án | Vai trò |
+| Component | Project | Role |
 |---|---|---|
-| LLM | [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python) | Viết kịch bản, gợi ý ý tưởng. Dùng lại login của Claude Code (Pro/Max/Team). |
-| Render video | [MoneyPrinterTurbo](https://github.com/harry0703/MoneyPrinterTurbo) (MIT, đang trending) | Footage Pexels/Pixabay, giọng đọc edge-tts, phụ đề, nhạc nền, ghép MoviePy/FFmpeg. |
-| Đăng bài | [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0) | Kết nối 20+ mạng: TikTok, YouTube, Facebook, Instagram, Threads, X, LinkedIn... |
-| Web UI / API | FastAPI + Alpine.js | Giao diện tạo video, ý tưởng, autopilot. |
+| LLM | [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python) | Writes scripts and suggests ideas. Reuses your Claude Code login (Pro/Max/Team). |
+| Rendering | [MoneyPrinterTurbo](https://github.com/harry0703/MoneyPrinterTurbo) (MIT) | Pexels/Pixabay footage, edge-tts voice-over, subtitles, background music, MoviePy/FFmpeg compositing. |
+| Publishing | [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0) | Connects 20+ networks: TikTok, YouTube, Facebook, Instagram, Threads, X, LinkedIn... |
+| Web UI / API | FastAPI + Alpine.js | Create videos, browse ideas, run autopilot. |
 
-## Cài đặt
+## Setup
 
-Yêu cầu: Python 3.11+, Docker, [Claude Code](https://claude.com/claude-code) đã đăng nhập.
+Requirements: Python 3.11+, Docker, and [Claude Code](https://claude.com/claude-code) logged in.
 
 ```bash
-# 1. Engine render + đăng bài (Docker)
+# 1. Render + publishing engines (Docker)
 ./scripts/setup-engines.sh
-#    - Sửa vendor/MoneyPrinterTurbo/config.toml: pexels_api_keys = ["..."]  (miễn phí)
-#    - Mở http://localhost:4007, tạo tài khoản Postiz, kết nối TikTok/YouTube/Facebook
-#      (mỗi nền tảng cần tạo app developer — xem https://docs.postiz.com/providers)
-#    - Postiz → Settings → Public API → copy key
+#    - Edit vendor/MoneyPrinterTurbo/config.toml: pexels_api_keys = ["..."]  (free)
+#    - Open http://localhost:4007, create a Postiz account, connect TikTok/YouTube/Facebook
+#      (each platform needs its own developer app — see https://docs.postiz.com/providers)
+#    - Postiz → Settings → Public API → copy the key
 
 # 2. App
-cp .env.example .env        # dán POSTIZ_API_KEY
+cp .env.example .env        # paste POSTIZ_API_KEY
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/uvicorn app.main:app --port 8000
 ```
 
-Mở http://localhost:8000 — 3 chấm trạng thái trên header (Claude / MoneyPrinterTurbo / Postiz) phải xanh.
+Open http://localhost:8000 — the three status dots in the header (Claude / MoneyPrinterTurbo / Postiz) should be green.
 
-## Kết nối Claude subscription
+## Connecting your Claude subscription
 
-App gọi Claude qua **Claude Agent SDK**, SDK chạy Claude Code CLI ở dưới nên dùng đúng cách đăng nhập của Claude Code:
+The app calls Claude through the **Claude Agent SDK**, which runs the Claude Code CLI under the hood, so it authenticates exactly like Claude Code:
 
-1. **Máy cá nhân**: chỉ cần đã chạy `claude` và đăng nhập — không cần cấu hình gì.
-2. **Server / Docker / không có trình duyệt**: chạy `claude setup-token` trên máy bạn, dán token vào `CLAUDE_CODE_OAUTH_TOKEN` trong `.env`.
-3. **Dùng API key thay subscription**: đặt `ANTHROPIC_API_KEY`.
+1. **Personal machine**: if you have run `claude` and logged in, there is nothing to configure.
+2. **Server / Docker / no browser**: run `claude setup-token` on your machine and paste the token into `CLAUDE_CODE_OAUTH_TOKEN` in `.env`.
+3. **API key instead of a subscription**: set `ANTHROPIC_API_KEY`.
 
-**Dùng acc Claude khác với acc đang login ở terminal:**
+**Using a different Claude account than the one logged in to your terminal:**
 
-- Thư mục cấu hình riêng: chạy `CLAUDE_CONFIG_DIR=~/.claude-autoclip claude`, login bằng acc thứ 2, rồi đặt `CLAUDE_CONFIG_DIR=/Users/<you>/.claude-autoclip` trong `.env`.
-- Hoặc chạy `claude setup-token`, approve bằng acc thứ 2 trên trình duyệt (cửa sổ ẩn danh), rồi dán vào `CLAUDE_CODE_OAUTH_TOKEN`. Lệnh này không ghi đè login hiện tại.
+- Separate config directory: run `CLAUDE_CONFIG_DIR=~/.claude-autoclip claude`, log in with the second account, then set `CLAUDE_CONFIG_DIR=/Users/<you>/.claude-autoclip` in `.env`.
+- Or run `claude setup-token`, approve with the second account in the browser (use a private window), and paste the result into `CLAUDE_CODE_OAUTH_TOKEN`. This does not overwrite your existing login.
 
-Thứ tự ưu tiên: `ANTHROPIC_API_KEY` > `CLAUDE_CODE_OAUTH_TOKEN` > login trong `CLAUDE_CONFIG_DIR` (mặc định `~/.claude`). Rê chuột vào đèn **Claude** trên UI để xem đang dùng acc nào.
+Precedence: `ANTHROPIC_API_KEY` > `CLAUDE_CODE_OAUTH_TOKEN` > the login in `CLAUDE_CONFIG_DIR` (default `~/.claude`). Hover the **Claude** dot in the UI to see which account is in use.
 
-> ⚠️ Dùng subscription cho **cá nhân bạn**. Từ 15/06/2026, lượt gọi qua Agent SDK trên gói subscription trừ vào hạn mức "Agent SDK credit" hằng tháng, tách riêng khỏi hạn mức chat. Không chia sẻ login/token của bạn cho người khác dùng chung; nếu triển khai cho nhiều người, mỗi người dùng tài khoản của họ hoặc dùng API key. Xem [Authentication docs](https://code.claude.com/docs/en/authentication).
+> ⚠️ Use your subscription for **yourself only**. Since June 15, 2026, Agent SDK usage on subscription plans draws from a monthly "Agent SDK credit", separate from your chat limits. Don't share your login or token with other people; if you deploy this for several users, each one should use their own account or an API key. See the [authentication docs](https://code.claude.com/docs/en/authentication).
 
-## Tính năng
+## Features
 
-- **Tạo video**: nhập chủ đề → Claude viết kịch bản + caption + hashtag → render → xem trước → đăng.
-- **Ý tưởng**: nhập ngách, Claude gợi ý các chủ đề dễ viral kèm câu hook.
-- **Autopilot**: mỗi N giờ tự nghĩ ý tưởng → render → tự đăng lên các kênh đã chọn.
-- **Đăng đa kênh** một lần qua Postiz; TikTok hỗ trợ `DIRECT_POST` hoặc `UPLOAD` (vào inbox để duyệt tay).
+- **Create video**: enter a topic → Claude writes the script, caption and hashtags → render → preview → publish.
+- **Ideas**: enter a niche and Claude suggests topics likely to go viral, each with an opening hook.
+- **Autopilot**: every N hours, generate ideas → render → auto-publish to the selected channels.
+- **Multi-channel publishing** in one call through Postiz; TikTok supports `DIRECT_POST` or `UPLOAD` (sent to the inbox for manual review).
 
 ## API
 
 | Method | Path | |
 |---|---|---|
-| GET | `/api/status` | Trạng thái Claude / MPT / Postiz |
-| GET | `/api/integrations` | Các kênh đã kết nối trong Postiz |
+| GET | `/api/status` | Claude / MPT / Postiz status |
+| GET | `/api/integrations` | Channels connected in Postiz |
 | POST | `/api/ideas` | `{niche, language, count}` |
 | POST | `/api/projects` | `{topic, language, duration, format, style, voice, auto_publish, integrations}` |
 | POST | `/api/projects/{id}/publish` | `{integrations, publish_options}` |
-| GET/PUT | `/api/autopilot` | Cấu hình autopilot |
+| GET/PUT | `/api/autopilot` | Autopilot settings |
 
 `publish_options`: `youtube_visibility` (`public|unlisted|private`), `tiktok_privacy`, `tiktok_method` (`DIRECT_POST|UPLOAD`), `schedule_at` (ISO 8601).
 
-## Lưu ý nền tảng
+## Platform notes
 
-- **TikTok**: app chưa qua audit chỉ đăng được ở chế độ `SELF_ONLY` (riêng tư). Muốn public cần submit app cho TikTok duyệt Content Posting API.
-- **YouTube**: project Google Cloud mới bị giới hạn quota (~6 video/ngày) và video upload từ app chưa verify bị khoá private cho tới khi qua audit.
-- **Facebook/Instagram**: cần Meta app với quyền `pages_manage_posts` / `instagram_content_publish`.
-- Gắn nhãn nội dung AI theo chính sách từng nền tảng (TikTok settings đã bật `video_made_with_ai`).
+- **TikTok**: unaudited apps can only post as `SELF_ONLY` (private). To post publicly, submit your app for Content Posting API review.
+- **YouTube**: new Google Cloud projects have a limited quota (~6 uploads/day), and videos uploaded by unverified apps are locked to private until the app passes an audit.
+- **Facebook/Instagram**: requires a Meta app with `pages_manage_posts` / `instagram_content_publish` permissions.
+- Label AI-generated content according to each platform's policy (the TikTok settings already set `video_made_with_ai`).
 
-## Lộ trình gợi ý
+## Roadmap ideas
 
-- Thêm giọng đọc tự nhiên hơn: [Kokoro TTS](https://github.com/hexgrad/kokoro), [F5-TTS](https://github.com/SWivid/F5-TTS) (clone giọng).
-- Video AI thay stock footage: ComfyUI + Wan 2.x / LTX-Video.
-- Template motion graphics: [Remotion](https://github.com/remotion-dev/remotion) hoặc Hyperframes.
-- Cắt clip từ video dài: [faster-whisper](https://github.com/SYSTRAN/faster-whisper) + Claude chọn đoạn hay.
+- More natural voices: [Kokoro TTS](https://github.com/hexgrad/kokoro), [F5-TTS](https://github.com/SWivid/F5-TTS) (voice cloning).
+- AI-generated video instead of stock footage: ComfyUI + Wan 2.x / LTX-Video.
+- Motion-graphics templates: [Remotion](https://github.com/remotion-dev/remotion) or Hyperframes.
+- Clip long videos into shorts: [faster-whisper](https://github.com/SYSTRAN/faster-whisper) + Claude picking the best moments.
 
 ## License
 
-[MIT](LICENSE). AutoClip Studio chỉ gọi MoneyPrinterTurbo (MIT) và Postiz (AGPL-3.0) qua API, không đóng gói code của hai dự án này. `scripts/setup-engines.sh` clone chúng vào `vendor/` (không commit), mỗi dự án giữ license riêng.
+[MIT](LICENSE). AutoClip Studio only talks to MoneyPrinterTurbo (MIT) and Postiz (AGPL-3.0) over their APIs and does not bundle their code. `scripts/setup-engines.sh` clones them into `vendor/` (not committed); each project keeps its own license.

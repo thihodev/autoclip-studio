@@ -33,7 +33,7 @@ class Channel(BaseModel):
 
 class ProjectIn(BaseModel):
     topic: str = Field(min_length=3)
-    language: str = "Vietnamese"
+    language: str = "English"
     duration: int = Field(45, ge=10, le=600)
     format: str = "shorts"  # shorts | tiktok | youtube | square
     style: str = ""
@@ -54,14 +54,14 @@ class PublishIn(BaseModel):
 
 class IdeasIn(BaseModel):
     niche: str
-    language: str = "Vietnamese"
+    language: str = "English"
     count: int = Field(8, ge=1, le=20)
 
 
 class AutopilotIn(BaseModel):
     enabled: bool = False
     niche: str = ""
-    language: str = "Vietnamese"
+    language: str = "English"
     every_hours: float = 24
     videos_per_run: int = Field(1, ge=1, le=10)
     duration: int = 45
