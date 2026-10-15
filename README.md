@@ -9,7 +9,7 @@ By default videos are made with **Claude Motion**: like Anthropic's [Claude Moti
                  (Agent SDK)          (word timings)   (Pexels/Pixabay)  (captions burned in)  │
                                                                                          manual edits,
                                                                                          "edit with AI",
-                                                                                         FrameJam frame comments
+                                                                                         review comments on the video
 ```
 
 ## Quick start
@@ -28,7 +28,7 @@ Everything else is optional and can be connected at any time from the same tab:
 - **Voice-over**: an [ElevenLabs](https://elevenlabs.io/app/settings/api-keys) API key for natural voices (pick the voice and listen in Connections). Without it, free Microsoft voices are used.
 - **Claude Motion**: click **Install** once (downloads HyperFrames, its skills and Chrome). Requires Node.js 22+ and FFmpeg.
 - **Stock footage**: a free [Pixabay](https://pixabay.com/api/docs/) key (or an existing Pexels key — Pexels has paused new keys) adds real video clips behind each scene. Without one, scenes use animated gradient backgrounds in your brand colors, and you can still upload your own clips or use brand b-roll.
-- Social accounts, GitHub, FrameJam and Postiz.
+- Social accounts, GitHub and Postiz.
 
 ## Engines
 
@@ -36,7 +36,7 @@ Everything else is optional and can be connected at any time from the same tab:
 |---|---|---|
 | How | A Claude agent runs HyperFrames' `faceless-explainer` workflow: picks a design preset, writes the storyboard and script, records the voice-over, animates each scene in its own sub-agent (HTML + GSAP), checks every frame, renders | Claude writes scenes; voice-over + word-by-word captions over stock clips, brand b-roll or animated backgrounds; ffmpeg |
 | Time | ~10–20 min per video | ~1 min |
-| Editing | Describe changes ("make scene 3 a bar chart"); Claude re-animates; FrameJam comments | Scene-by-scene editor, footage swap, caption styles, AI edits |
+| Editing | Describe changes ("make scene 3 a bar chart"); Claude re-animates; review comments on moments, ranges and spots | Scene-by-scene editor, footage swap, caption styles, AI edits |
 | Needs | Node.js 22+, FFmpeg with ffprobe; HyperFrames + Chrome are installed from Connections (one click) | Nothing extra |
 
 Claude Motion uses noticeably more of your Claude plan per video than the Quick engine.
@@ -52,7 +52,6 @@ HyperFrames' own skill installer writes into your global agent folders (`~/.clau
 | Motion graphics | [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0) | HTML + GSAP compositions rendered to MP4 in headless Chrome; agent skills for design presets, animation blueprints and checks. |
 | Footage | Pixabay / Pexels APIs (optional) | Royalty-free stock clips per scene, swappable in the editor. Falls back to animated gradient backgrounds rendered by ffmpeg. |
 | Render | ffmpeg via [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg) | Crop, slow camera drift, word-by-word captions (libass), concat. Each scene is cached, so edits re-encode only what changed. |
-| Review | [FrameJam](https://github.com/moritzkremb/framejam) (MIT) | Comment on exact frames; Claude applies the comments and renders the next version. |
 | Publishing | YouTube Data API, TikTok Content Posting API, Facebook Graph API | Native OAuth from the UI. Optional [Postiz](https://github.com/gitroomhq/postiz-app) for more networks. |
 | Captions font | [Be Vietnam Pro](https://github.com/bettergui/BeVietnamPro) (OFL) | Default caption font; covers Latin scripts including Vietnamese. Brand kits can bring their own. |
 | Web UI / API | FastAPI + Alpine.js | |
@@ -67,17 +66,16 @@ HyperFrames' own skill installer writes into your global agent folders (`~/.clau
   - **swap footage** from search results or **upload your own clip**;
   - caption style (bold with a highlighted word, box, minimal, none), colors, position, voice and speed, camera drift;
   - **Edit with AI**: describe the change ("punchier hook, shorten scene 3, captions at the top") and Claude edits the timeline;
-  - **FrameJam review**: send the render to FrameJam, click frames and comment, then **Apply feedback**;
+  - **Review**: comment on a moment, a range (drag on the filmstrip) or a spot (click the video); **Apply with Claude** sends them all, each with its scene number, time and — for Claude Motion — the frame with the spot marked;
   - every render is kept as a version (v1, v2, …) you can preview and compare.
 - **Projects**: group videos per product or channel (`/w/<id>`). A project carries a website, a brand kit, instructions for Claude and context files, and every video in it uses them.
 - **Design from a website**: when a topic or project names a domain (e.g. `pickcourt.com`) and no brand kit is chosen, AutoClip opens the site in headless Chrome (HyperFrames `capture`), lets Claude look at it and builds a brand kit — colors, fonts, logo, voice, call to action, the site's copy as knowledge, and real product images that Claude Motion features. Also available as **Brand kits → Import from website**.
 - **Live view**: while a video is being made, the editor shows what Claude is doing step by step with the latest frame it looked at; elsewhere in the app a corner dock keeps every running video's progress in view.
-- **FrameJam on by default**: AutoClip starts FrameJam if it isn't running and sends every render to its review. Turn it on or off for each video when you create it (the default is in Connections).
 - **Models & effort**: pick the Claude model (Opus 5.5, Sonnet 5.5, Haiku 5.5, Fable 5.1) and effort level (low → max) as defaults for scripts/edits and for Claude Motion in Connections, and override them per video or per AI edit. Each version records the model and effort that made it.
 - **Usage** (`/usage`) shows the way Claude is connected now. On a Claude plan: how much of the 5-hour session and weekly limits (overall and per model) is used and when each resets — the same numbers as `/usage` in Claude Code, read from the Claude CLI without sending a message — plus tokens, runs and Claude time per day, model and task (no dollar amounts: a plan isn't billed per token). With an API key: what you pay, per day, model, task and run. Runs made the other way are left out; each video shows its own usage the same way.
 - **Context files** (optional): attach articles, notes, product docs or transcripts (TXT, MD, PDF, DOCX, HTML, CSV, JSON, SRT/VTT) when creating a video, or later in the editor. Claude uses them as source material for the script and for AI edits.
 - **GitHub repository** (optional): pick one of your repositories (connect GitHub to list private ones too) or paste any public `owner/repo`. Claude reads its description, README and latest release and bases the video on it; without a brand kit chosen, the repository's kit is reused or built from it first. The topic can stay empty — the repository is the topic.
-- **The composer remembers** its last language, format, length, style, voice, engine, model, effort, FrameJam choice, publishing targets and brand kit for the next video.
+- **The composer remembers** its last language, format, length, style, voice, engine, model, effort, publishing targets and brand kit for the next video.
 - **Brand kits**: a design system for videos — see below.
 - **Ideas**: Claude suggests topics for a niche, each with an opening hook.
 - **Autopilot**: every N hours, generate ideas → render → optionally auto-publish.
@@ -135,13 +133,15 @@ Each platform requires your own developer app. The Connections tab shows, for ea
 
 AI-generated content is labeled where the platform supports it (`containsSyntheticMedia` on YouTube, `is_aigc` on TikTok).
 
-## FrameJam review loop
+## Review loop
 
-```bash
-npx -y framejam start     # Node 22+, runs at http://localhost:2400
-```
+Open a video's **AI & review** tab. The player gets a filmstrip split by scene:
 
-In the editor click **Open in FrameJam**, comment on frames in the review page, then **Apply feedback**. Claude maps each comment's timestamp to a scene, edits the timeline and renders a new version, which is pushed to the same FrameJam review automatically.
+- pause and type to comment on **the current moment**, drag across the filmstrip for **a range**, click the video to pin **a spot**, or choose **Whole video**;
+- comments show on the video while it plays past them, and in the list on the right;
+- **Apply with Claude** sends the round as one edit: each comment carries its scene number and time; with Claude Motion, pinned comments also come with the frame and the spot marked on it. Claude changes only those places and renders the next version, which starts a new round.
+
+Keys: `Space` play/pause, `←/→` one frame, `Shift+←/→` one second, `C` comment.
 
 ## Configuration
 
@@ -153,7 +153,7 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 
 | Method | Path | |
 |---|---|---|
-| GET | `/api/status` | Claude / footage / accounts / FrameJam / Postiz status |
+| GET | `/api/status` | Claude / footage / accounts / Postiz status |
 | GET, PUT | `/api/settings`, `/api/settings/{section}` | Connections settings (secrets are masked on read) |
 | GET, POST | `/api/claude`, `/api/claude/login/{start,code,cancel}`, `/api/claude/{source,logout}` | Claude connection |
 | POST, DELETE | `/api/claude/api-key` | Check and save an Anthropic API key `{key, use}` / remove it |
@@ -165,7 +165,7 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 | POST, DELETE | `/api/context`, `/api/context/{id}` | Upload a context file (multipart `file`) before creating a video; pass the ids as `context_ids` |
 | POST, DELETE | `/api/projects/{id}/context`, `/api/projects/{id}/context/{cid}` | Add / remove context files of a video |
 | POST | `/api/ideas` | `{niche, language, count}` |
-| GET, POST | `/api/projects` | List / create `{topic, language, duration, format, engine, model, effort, framejam, github_repo, style, voice, voice_rate, brand_id, context_ids, auto_publish, integrations}` |
+| GET, POST | `/api/projects` | List / create `{topic, language, duration, format, engine, model, effort, github_repo, style, voice, voice_rate, brand_id, context_ids, auto_publish, integrations}` |
 | GET, PUT | `/api/composer` | The composer's remembered choices |
 | DELETE | `/api/projects/{id}` | Delete a video completely: stops its job, removes every version, its work files, Claude's session logs and context files only it uses |
 | GET, DELETE | `/api/leftovers`, `/api/leftovers?id=` | Files still on disk from videos deleted by earlier versions; delete one or all |
@@ -173,7 +173,9 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 | POST | `/api/projects/{id}/ai-edit` | `{instruction, model?, effort?}` |
 | GET | `/api/projects/{id}/footage?q=` | Search stock footage |
 | POST | `/api/projects/{id}/upload` | Upload your own clip (multipart `file`) |
-| POST | `/api/projects/{id}/framejam`, `/api/projects/{id}/framejam/apply` | FrameJam review loop |
+| GET, POST, DELETE | `/api/projects/{id}/review`, `/api/projects/{id}/review/{cid}` | Review comments on the current version `{text, t?, t2?, x?, y?}` |
+| POST | `/api/projects/{id}/review/apply` | Send the round's comments to Claude `{model?, effort?}` |
+| GET | `/api/projects/{id}/filmstrip` | Frame strip of the current version for the review timeline |
 | POST | `/api/projects/{id}/publish` | `{integrations, publish_options}` |
 | GET, POST | `/api/brands` | List / create brand kits |
 | GET, PUT, DELETE | `/api/brands/{id}` | Read / update / delete a kit |
@@ -182,7 +184,6 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 | POST | `/api/brands/import-website` | Build a brand kit from a website `{url}` |
 | GET, POST, PUT, DELETE | `/api/workspaces`, `/api/workspaces/{id}`, `/api/workspaces/{id}/context` | Projects: settings, instructions and context files |
 | GET | `/api/projects/{id}/activity` | Live steps and latest preview while a video is made |
-| POST | `/api/framejam/start` | Start FrameJam |
 | GET, POST, DELETE | `/api/github`, `/api/github/repos` | GitHub connection and repo list |
 | GET, PUT | `/api/autopilot` | Autopilot settings |
 | GET | `/api/models` | Available models, effort levels and current defaults |
@@ -200,4 +201,4 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 
 ## License
 
-[MIT](LICENSE). The bundled Be Vietnam Pro font is under the [SIL Open Font License](app/assets/fonts/OFL.txt). FrameJam and Postiz are separate projects used over their APIs and keep their own licenses.
+[MIT](LICENSE). The bundled Be Vietnam Pro font is under the [SIL Open Font License](app/assets/fonts/OFL.txt). Postiz is a separate project used over its API and keeps its own license. The review page is inspired by [FrameJam](https://github.com/moritzkremb/framejam) (MIT).

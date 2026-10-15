@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS projects (
     error TEXT,
     timeline TEXT,                 -- JSON: editable scenes, captions, voice
     version INTEGER DEFAULT 0,
-    extra TEXT                     -- JSON: framejam review id, versions, edit history
+    extra TEXT                     -- JSON: versions, edit history, review comments per version
 );
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,

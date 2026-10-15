@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import activity, brands, claude, context, db, framejam, leftovers, motion, pipeline, platforms, postiz, render, settings, tts, usage
+from . import activity, brands, claude, context, db, leftovers, motion, pipeline, platforms, postiz, render, settings, tts, usage
 from .config import DATA_DIR, ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -28,8 +28,6 @@ async def lifespan(app: FastAPI):
     settings.migrate()
     context.cleanup(_context_in_use())
     task = asyncio.create_task(pipeline.autopilot_loop())
-    if framejam.auto() and shutil.which("npx"):
-        asyncio.create_task(framejam.start())
     yield
     task.cancel()
     render.kill_running()
@@ -83,7 +81,6 @@ class ProjectIn(BaseModel):
     workspace_id: str | None = None
     model: str | None = None   # Claude model for this video (default: Connections setting for the engine)
     effort: str | None = None  # low | medium | high | xhigh | max (default: Connections setting)
-    framejam: bool | None = None  # send renders to FrameJam for review (default: Connections setting)
     github_repo: str | None = None  # owner/repo: Claude bases the video on it (README, description, latest release)
 
 
@@ -159,16 +156,13 @@ def _public_base(request: Request) -> str:
 
 @app.get("/api/status")
 async def status():
-    claude_s, fj, pz = await asyncio.gather(
-        asyncio.to_thread(claude.auth_status), framejam.health(), postiz.health()
-    )
+    claude_s, pz = await asyncio.gather(asyncio.to_thread(claude.auth_status), postiz.health())
     accounts = db.list_accounts()
     return {
         "claude": claude_s,
         "footage": render.footage_status(),
         "voice": tts.status(),
         "motion": motion.status(),
-        "framejam": fj,
         "postiz": pz,
         "accounts": {"ok": bool(accounts) or postiz.configured(), "detail": f"{len(accounts)} account(s)"},
     }
@@ -371,7 +365,7 @@ def _require_setup():
 
 # The composer remembers its last choices (not the topic or files) for the next video.
 COMPOSER_KEYS = {"language", "format", "duration", "style", "voice", "voice_rate", "engine", "model", "effort",
-                 "framejam", "channelIds", "auto_publish", "brand_id"}
+                 "channelIds", "auto_publish", "brand_id"}
 
 
 @app.get("/api/composer")
@@ -543,24 +537,80 @@ async def upload_clip(pid: str, file: UploadFile = File(...)):
             "duration": await render.media_duration(dest)}
 
 
-@app.post("/api/projects/{pid}/framejam")
-async def framejam_open(pid: str):
+# ------------------------------------------------------------------ review (comments on the render)
+
+class CommentIn(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+    t: float | None = None   # seconds; None = the whole video
+    t2: float | None = None  # end of a range
+    x: float | None = Field(None, ge=0, le=1)  # a spot pinned on the frame, as a fraction of width/height
+    y: float | None = Field(None, ge=0, le=1)
+
+
+def _review_view(p: dict, version: int | None = None) -> dict:
+    extra = p.get("extra") or {}
+    return {"version": version or p.get("version") or 0, "comments": pipeline.review_comments(p, version),
+            "rounds": {v: len(c) for v, c in (extra.get("reviews") or {}).items()}}
+
+
+@app.get("/api/projects/{pid}/review")
+def get_review(pid: str, version: int | None = None):
+    return _review_view(_project(pid), version)
+
+
+@app.post("/api/projects/{pid}/review")
+def add_comment(pid: str, body: CommentIn):
     p = _project(pid)
     if not p.get("video_path"):
         raise HTTPException(400, "Render the video first")
-    try:
-        return await pipeline.send_to_framejam(pid)
-    except Exception as e:
-        raise HTTPException(502, f"FrameJam: {e}")
+    extra = pipeline._extra(p)
+    c = {"id": uuid.uuid4().hex[:8], "text": body.text.strip(), "at": time.time(),
+         "t": round(body.t, 2) if body.t is not None else None,
+         "t2": round(body.t2, 2) if body.t is not None and body.t2 is not None and body.t2 > body.t else None,
+         "x": body.x if body.t is not None and body.x is not None and body.y is not None else None,
+         "y": body.y if body.t is not None and body.x is not None and body.y is not None else None}
+    extra["reviews"].setdefault(str(p.get("version") or 0), []).append(c)
+    db.update_project(pid, extra=extra)
+    return _review_view(db.get_project(pid))
 
 
-@app.post("/api/projects/{pid}/framejam/apply")
-async def framejam_apply(pid: str):
-    _project(pid)
+@app.delete("/api/projects/{pid}/review/{cid}")
+def delete_comment(pid: str, cid: str):
+    p = _project(pid)
+    extra = pipeline._extra(p)
+    key = str(p.get("version") or 0)
+    extra["reviews"][key] = [c for c in extra["reviews"].get(key, []) if c["id"] != cid or c.get("sent")]
+    db.update_project(pid, extra=extra)
+    return _review_view(db.get_project(pid))
+
+
+@app.post("/api/projects/{pid}/review/apply")
+async def apply_review(pid: str, body: dict = Body(default={})):
+    p = _project(pid)
+    if p["status"] not in ("ready", "failed", "published"):
+        raise HTTPException(409, "Wait for the current job to finish")
+    _require_setup()
     try:
-        return await pipeline.apply_framejam_feedback(pid)
-    except Exception as e:
+        n = await pipeline.apply_review(pid, body.get("model") or None, body.get("effort") or None)
+    except ValueError as e:
         raise HTTPException(400, str(e))
+    return {"sent": n}
+
+
+@app.get("/api/projects/{pid}/filmstrip")
+async def filmstrip(pid: str):
+    """A strip of evenly spaced frames of the current version, for the review timeline."""
+    p = _project(pid)
+    if not p.get("video_path") or not Path(p["video_path"]).exists():
+        raise HTTPException(404)
+    src = Path(p["video_path"])
+    out = VIDEOS_DIR / f"{src.stem}_strip.jpg"
+    dur = await render.media_duration(src)
+    count = max(8, min(60, round(dur)))
+    if not out.exists():
+        await render._ffmpeg("-i", src, "-vf", f"fps={count / dur:.5f},scale=-2:90,tile={count}x1", "-frames:v", "1",
+                             "-q:v", "5", out)
+    return {"url": f"/videos/{out.name}", "count": count, "duration": dur}
 
 
 @app.post("/api/projects/{pid}/publish")
@@ -896,9 +946,6 @@ def motion_status():
             "default_engine": pipeline.default_engine()}
 
 
-@app.post("/api/framejam/start")
-async def framejam_start():
-    return await framejam.start()
 
 
 @app.post("/api/motion/install")

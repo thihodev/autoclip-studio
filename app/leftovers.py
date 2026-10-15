@@ -42,7 +42,7 @@ def _scan() -> dict[str, dict]:
         return found.setdefault(pid, {"renders": [], "thumbs": [], "folder": None, "logs": []})
 
     for f in VIDEOS_DIR.iterdir() if VIDEOS_DIR.is_dir() else []:
-        m = re.fullmatch(r"([0-9a-f]{12})_v\d+\.(mp4|jpg)", f.name)
+        m = re.fullmatch(r"([0-9a-f]{12})_v\d+(?:_strip)?\.(mp4|jpg)", f.name)
         if m and m[1] not in known:
             item(m[1])["renders" if m[2] == "mp4" else "thumbs"].append(f)
     for d in PROJECTS.iterdir() if PROJECTS.is_dir() else []:

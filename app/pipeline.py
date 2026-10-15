@@ -9,7 +9,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import activity, brands, claude, context, db, framejam, motion, platforms, postiz, render, settings, usage
+from . import activity, brands, claude, context, db, motion, platforms, postiz, render, settings, usage
 from .config import DATA_DIR, VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
@@ -63,14 +63,7 @@ async def _motion_version(pid: str, note: str, instruction: str | None = None, m
     tl["format"] = p["request"].get("format", "shorts")
     tl["brand_id"] = p["request"].get("brand_id")
     await render.thumbnail(out)
-    saved = _save_version(pid, out, tl, note, model, effort)
-    if _wants_framejam(saved):
-        try:
-            await send_to_framejam(pid, note)
-            activity.add(pid, "Sent to FrameJam for review", "done")
-        except Exception:
-            log.warning("could not push to FrameJam", exc_info=True)
-    return saved
+    return _save_version(pid, out, tl, note, model, effort)
 
 
 async def prepare_request(pid: str) -> dict:
@@ -161,7 +154,10 @@ def is_motion(p: dict) -> bool:
 
 
 def _extra(p: dict) -> dict:
-    return p.get("extra") or {"versions": [], "history": [], "framejam": {}}
+    extra = p.get("extra") or {}
+    for k, v in (("versions", []), ("history", []), ("reviews", {})):
+        extra.setdefault(k, v)
+    return extra
 
 
 def _fail(pid: str, e: Exception, status: str = "failed"):
@@ -183,12 +179,6 @@ async def _render_version(pid: str, note: str) -> dict:
     extra["versions"].append({"version": version, "file": out.name, "note": note, "at": time.time()})
     db.update_project(pid, timeline=tl, video_path=str(out), version=version, extra=extra,
                       status="ready", progress=100, error=None, publish_result=None)
-    if _wants_framejam(db.get_project(pid)):
-        try:
-            await send_to_framejam(pid, note)
-            activity.add(pid, "Sent to FrameJam for review", "done")
-        except Exception:
-            log.warning("could not push v%s to FrameJam", version, exc_info=True)
     return db.get_project(pid)
 
 
@@ -304,7 +294,7 @@ async def ai_edit(pid: str, instruction: str, source: str = "prompt", model: str
         try:
             extra = _extra(p)
             extra["history"].append({"at": time.time(), "source": source, "instruction": instruction[:2000],
-                                     "summary": instruction.splitlines()[0][:160] if source == "prompt" else "Applied FrameJam comments"})
+                                     "summary": instruction.splitlines()[0][:160] if source == "prompt" else "Applied review comments"})
             db.update_project(pid, extra=extra, error=None)
             await _motion_version(pid, extra["history"][-1]["summary"], instruction, model, effort)
         except Exception as e:
@@ -353,48 +343,67 @@ async def manual_edit(pid: str, timeline: dict, title: str | None = None):
         _fail(pid, e, status="ready")
 
 
-# ---------- FrameJam review loop ----------
+# ---------- review: comments on the render, applied by Claude ----------
 
-def _wants_framejam(p: dict) -> bool:
-    """Send this render for review? Once a video has a review, every version goes there;
-    otherwise the choice made when creating it, else the Connections default."""
-    if _extra(p)["framejam"].get("review_id"):
-        return True
-    choice = p["request"].get("framejam")
-    return framejam.auto() if choice is None else bool(choice)
+def review_comments(p: dict, version: int | None = None) -> list[dict]:
+    """Comments on one version (default: the current one). Each version keeps its own round of comments."""
+    return _extra(p)["reviews"].get(str(version or p.get("version") or 0), [])
 
 
-async def send_to_framejam(pid: str, note: str = "") -> dict:
-    if not (await framejam.health())["ok"]:
-        await framejam.start()
+def _scene_at(scenes: list[dict], t: float) -> int | None:
+    for i, s in enumerate(scenes, 1):
+        if s.get("start") is not None and s["start"] <= t < (s.get("end") or 0) + 0.01:
+            return i
+    return len(scenes) if scenes and t >= (scenes[-1].get("end") or 0) else None
+
+
+def _where(c: dict, scenes: list[dict]) -> str:
+    if c.get("t") is None:
+        return "Whole video"
+    a = _scene_at(scenes, c["t"])
+    if c.get("t2") is not None:
+        b = _scene_at(scenes, c["t2"])
+        sc = (f"Scene {a}" if a == b else f"Scenes {a}–{b}") if a else "Time"
+        return f"{sc} · {c['t']:.1f}s–{c['t2']:.1f}s"
+    return f"{'Scene ' + str(a) if a else 'Time'} · {c['t']:.1f}s"
+
+
+async def apply_review(pid: str, model: str | None = None, effort: str | None = None) -> int:
+    """Hand the current round's comments to Claude as one edit. Returns how many were sent."""
     p = db.get_project(pid)
     extra = _extra(p)
-    fj = extra.get("framejam", {})
-    res = await framejam.send_version(
-        str(Path(p["video_path"]).resolve()), p["script"].get("title") or p["request"]["topic"][:60],
-        fj.get("review_id"), note or f"Version {p['version']}",
-    )
-    extra["framejam"] = {"review_id": res.get("reviewId") or fj.get("review_id"),
-                         "url": res.get("url") or fj.get("url"), "version": res.get("version")}
+    round_ = extra["reviews"].get(str(p.get("version") or 0), [])
+    todo = [c for c in round_ if not c.get("sent")]
+    if not todo:
+        raise ValueError("Add a comment first")
+    scenes = (p.get("timeline") or {}).get("scenes") or []
+    root = motion.project_root(pid) if is_motion(p) else None
+    lines = []
+    for i, c in enumerate(todo, 1):
+        where = _where(c, scenes)
+        if c.get("x") is not None:
+            spot = f"pinned at {c['x'] * 100:.0f}% across, {c['y'] * 100:.0f}% down"
+            if root and c.get("t") is not None:
+                # Claude Motion's agent can look at the frame: draw the pin on it.
+                img = root / "review" / f"{c['id']}.jpg"
+                img.parent.mkdir(exist_ok=True)
+                try:
+                    await render._ffmpeg("-ss", f"{c['t']:.3f}", "-i", p["video_path"], "-frames:v", "1", "-vf",
+                                         f"drawbox=x=iw*{c['x']:.4f}-28:y=ih*{c['y']:.4f}-28:w=56:h=56:color=red@0.95:t=6",
+                                         img)
+                    spot += f" — open review/{img.name} to see the spot (red square)"
+                except Exception:
+                    log.warning("could not extract review frame", exc_info=True)
+            where += f", {spot}"
+        lines.append(f"{i}. [{where}] {c['text']}")
+    instruction = (f"Apply these review comments on version {p.get('version')}. Each says where in the video it "
+                   "applies (scene number, seconds from the start). Change only what they ask; keep everything else.\n"
+                   + "\n".join(lines))
+    for c in todo:
+        c["sent"] = True
     db.update_project(pid, extra=extra)
-    return extra["framejam"]
-
-
-async def apply_framejam_feedback(pid: str) -> dict:
-    p = db.get_project(pid)
-    review_id = _extra(p).get("framejam", {}).get("review_id")
-    if not review_id:
-        raise ValueError("Open this video in FrameJam first")
-    feedback = await framejam.get_feedback(review_id)
-    if feedback.get("status") == "empty" or not feedback.get("comments"):
-        return {"applied": False, "detail": "No comments in FrameJam yet — comment on the review page first"}
-    comments = feedback.get("markdown") or json.dumps(feedback["comments"], ensure_ascii=False)
-    instruction = (
-        "Apply this reviewer feedback from FrameJam. Each comment has a timestamp (seconds) or range; "
-        "map it to the scene whose start/end contains it.\n" + comments[:12000]
-    )
-    spawn(pid, ai_edit(pid, instruction, source="framejam"))
-    return {"applied": True}
+    spawn(pid, ai_edit(pid, instruction, source="review", model=model, effort=effort))
+    return len(todo)
 
 
 # ---------- publishing ----------

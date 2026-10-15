@@ -263,6 +263,31 @@
   .cselect .i { width:14px; height:14px; flex:none; color:var(--text-3); }
   .cselect:disabled { opacity:.5; cursor:not-allowed; }
   .cmenu { position:fixed; z-index:45; overflow:auto; }
+  /* Review: comment on a moment, a range or a spot of the render */
+  .rvwrap { position:relative; }
+  .rvhit { position:absolute; inset:0; cursor:crosshair; }
+  .rvpin { position:absolute; transform:translate(-14px, -100%); max-width:60%; pointer-events:none; }
+  .rvpin span { display:inline-block; padding:4px 8px; border-radius:10px 10px 10px 2px; background:#ffd23f; color:#1a1a1a; font-size:12px; font-weight:600; box-shadow:0 2px 8px rgba(0,0,0,.35); white-space:pre-wrap; }
+  .rvpin.new span { background:var(--accent); color:#fff; padding:2px 9px; }
+  .rvnotes { position:absolute; left:8px; top:8px; display:grid; gap:4px; max-width:75%; pointer-events:none; }
+  .rvnotes div { background:rgba(10,12,16,.75); color:#fff; font-size:12px; padding:5px 8px; border-radius:8px; }
+  .rvbar { display:flex; align-items:center; gap:10px; margin-top:10px; }
+  .rvstrip { position:relative; height:56px; margin-top:8px; border-radius:8px; overflow:hidden; background:var(--surface-2); cursor:pointer; touch-action:none; user-select:none; }
+  .rvstrip .tiles { position:absolute; inset:0; background-size:100% 100%; opacity:.85; }
+  .rvstrip .scn { position:absolute; top:0; bottom:0; border-left:2px solid rgba(255,255,255,.9); pointer-events:none; }
+  .rvstrip .scn span { position:absolute; top:3px; left:3px; font-size:10px; font-weight:700; padding:0 4px; border-radius:4px; background:rgba(10,12,16,.7); color:#fff; }
+  .rvstrip .sel { position:absolute; top:0; bottom:0; background:rgba(232,56,90,.28); border:2px solid var(--accent); border-radius:4px; pointer-events:none; }
+  .rvstrip .ph { position:absolute; top:0; bottom:0; width:2px; margin-left:-1px; background:var(--accent); box-shadow:0 0 0 1px rgba(0,0,0,.4); pointer-events:none; }
+  .rvstrip .mk { position:absolute; bottom:4px; width:11px; height:11px; margin-left:-5px; border-radius:50%; background:#ffd23f; border:2px solid #1a1a1a; pointer-events:none; }
+  .rvstrip .mk.sent { background:#9aa1ad; }
+  .rvstrip .mkr { position:absolute; bottom:8px; height:3px; background:#ffd23f; pointer-events:none; }
+  .rvbox { margin-top:10px; border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:8px; }
+  .rvbox.off { opacity:.5; pointer-events:none; }
+  .rvbox textarea { border:0; box-shadow:none; min-height:52px; padding:6px 2px; resize:vertical; }
+  .rvatt { display:inline-flex; align-items:center; font-size:12px; font-weight:600; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); }
+  .rvlist { display:grid; gap:8px; }
+  .rvc { padding:10px 12px; border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; }
+  .rvc:hover { background:var(--surface-2); } .rvc.sent { opacity:.6; }
   /* Connections: one row per connection, details in a dialog */
   .conns { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 24px; align-items:start; }
   @media (max-width:1100px) { .conns { grid-template-columns:minmax(0, 1fr); max-width:760px; } }
@@ -351,6 +376,7 @@
   <symbol id="i-down" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
   <symbol id="i-right" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
@@ -386,7 +412,6 @@
       <div class="row-s"><span class="dot" :class="status.claude?.ok?'ok':'err'"></span><span x-t>Claude</span></div>
       <div class="row-s"><span class="dot" :class="status.footage?.ok&&'ok'"></span><span x-t>Stock footage</span></div>
       <div class="row-s"><span class="dot" :class="nativeAccounts().length&&'ok'"></span><span x-text="t(nativeAccounts().length===1 ? '{n} social account' : '{n} social accounts', {n: nativeAccounts().length})"></span></div>
-      <div class="row-s"><span class="dot" :class="status.framejam?.ok&&'ok'"></span><span x-t>FrameJam</span></div>
       <div class="divider" style="margin:10px 0"></div>
       <div class="prefs">
         <select x-select :value="lang" @change="setLang($event.target.value)" :aria-label="t('Language')"><option value="en">English</option><option value="vi">Tiếng Việt</option></select>
@@ -489,10 +514,6 @@
             </div>
             <p class="hint" x-show="['node','ffmpeg'].includes(motionInfo.code)" x-text="t('Claude Motion needs setup: ') + t(motionInfo.detail || '')"></p>
           </div>
-          <label class="toggle small" style="margin-top:12px">
-            <input type="checkbox" :checked="form.framejam ?? (cfg.framejam?.auto !== false)" @change="form.framejam = $event.target.checked">
-            <span x-t>Review in FrameJam: send every render there to comment on it, then let Claude apply the comments</span></label>
-          <p class="hint" style="margin-top:4px" x-show="(form.framejam ?? (cfg.framejam?.auto !== false)) && !status.framejam?.ok"><span x-t>FrameJam isn't running; it's started when the first render is ready (needs Node 22+).</span></p>
           <div class="grid-3" style="margin-top:12px">
             <div class="field"><label><span x-t>Language</span></label>
               <select x-select x-model="form.language" @change="form.voice=''; loadVoices(form.language)"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===form.language"></option></template></select></div>
@@ -635,7 +656,57 @@
           <div class="editor">
             <div class="left">
               <div class="card">
-                <template x-if="cur.video_path"><video class="player" :src="previewSrc()" controls x-ref="player" preload="metadata"></video></template>
+                <template x-if="cur.video_path">
+                  <div class="rvwrap">
+                    <video class="player" :src="previewSrc()" :controls="route.sub!=='review'" x-ref="player" preload="metadata"
+                           @loadedmetadata="rv.dur=$event.target.duration" @timeupdate="rv.time=$event.target.currentTime"
+                           @play="rvPlaying(true)" @pause="rv.playing=false" @ended="rv.playing=false"></video>
+                    <template x-if="route.sub==='review'">
+                      <div class="rvhit" @click="rvPin($event)" :title="t('Click a spot to comment on it')">
+                        <template x-for="c in rvActive()" :key="c.id">
+                          <div x-show="c.x!=null" class="rvpin" :style="rvPinStyle(c)"><span x-text="c.text"></span></div>
+                        </template>
+                        <div class="rvnotes"><template x-for="c in rvActive().filter(c => c.x==null)" :key="c.id"><div x-text="c.text"></div></template></div>
+                        <div x-show="rv.mode==='pin' && rv.pin" class="rvpin new" :style="rv.pin ? rvPinStyle(rv.pin) : ''"><span>+</span></div>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+                <template x-if="cur.video_path && route.sub==='review'">
+                  <div>
+                    <div class="rvbar">
+                      <button type="button" class="btn icon" @click="rvToggle()" :aria-label="t(rv.playing ? 'Pause' : 'Play')"><svg class="i"><use :href="rv.playing ? '#i-pause' : '#i-play'"/></svg></button>
+                      <span class="small" style="font-variant-numeric:tabular-nums" x-text="fmtT(rv.time) + ' / ' + fmtT(rv.dur)"></span>
+                      <span class="small muted" style="margin-left:auto" x-text="rvSceneAt(rv.time) ? t('Scene {n}', {n: rvSceneAt(rv.time)}) : ''"></span>
+                    </div>
+                    <div class="rvstrip" x-ref="strip" @pointerdown="rvDown($event)" @pointermove="rvMove($event)" @pointerup="rvUp()" @pointercancel="rvUp()">
+                      <div class="tiles" :style="rv.film ? `background-image:url(${rv.film.url})` : ''"></div>
+                      <template x-for="(s, i) in (cur.timeline?.scenes||[])" :key="s.id || i">
+                        <div class="scn" x-show="s.start!=null && rv.dur" :style="`left:${s.start / rv.dur * 100}%`"><span x-text="i+1"></span></div>
+                      </template>
+                      <template x-for="c in rv.comments.filter(c => c.t!=null)" :key="c.id">
+                        <div>
+                          <div class="mkr" x-show="c.t2!=null" :style="`left:${c.t / rv.dur * 100}%;width:${((c.t2||c.t) - c.t) / rv.dur * 100}%`"></div>
+                          <div class="mk" :class="c.sent && 'sent'" :style="`left:${c.t / rv.dur * 100}%`" :title="c.text"></div>
+                        </div>
+                      </template>
+                      <div class="sel" x-show="rv.sel" :style="rv.sel ? `left:${rv.sel.a / rv.dur * 100}%;width:${(rv.sel.b - rv.sel.a) / rv.dur * 100}%` : ''"></div>
+                      <div class="ph" :style="`left:${rv.dur ? rv.time / rv.dur * 100 : 0}%`"></div>
+                    </div>
+                    <div class="rvbox" :class="(isBusy(cur) || dirty) && 'off'">
+                      <div class="actions" style="gap:6px">
+                        <span class="rvatt" x-text="rvAttach()"></span>
+                        <button type="button" class="btn ghost sm" x-show="rv.mode!=='time'" @click="rv.mode='time'; rv.sel=null; rv.pin=null"><span x-t>Current time</span></button>
+                        <button type="button" class="btn ghost sm" x-show="rv.mode!=='whole'" @click="rv.mode='whole'; rv.sel=null; rv.pin=null"><span x-t>Whole video</span></button>
+                      </div>
+                      <textarea x-ref="rvtext" x-model="rv.text" :placeholder="t('What should change here? Enter to add · drag on the strip for a range · click the video for a spot')"
+                                @keydown.enter="if (!$event.shiftKey) { $event.preventDefault(); rvAdd(); }"></textarea>
+                      <div class="suggest" style="margin-top:4px">
+                        <template x-for="s in suggestions"><button type="button" @click="rv.text = rv.text.trim() ? rv.text.trim() + '. ' + t(s) : t(s); $refs.rvtext.focus()" x-text="t(s)"></button></template>
+                      </div>
+                    </div>
+                  </div>
+                </template>
                 <template x-if="!cur.video_path"><div class="empty small" x-text="isBusy(cur) ? t('Your video will play here when the first render is done.') : t('No render yet.')"></div></template>
                 <div class="versions" x-show="versions().length > 1">
                   <div class="lbl" style="margin:4px 0"><span x-t>Versions</span></div>
@@ -766,17 +837,27 @@
               <!-- AI & review -->
               <div x-show="cur.timeline && route.sub==='review'">
                 <div class="card">
-                  <div class="card-head"><div class="grow"><h2><span x-t>Edit with Claude</span></h2><p><span x-t>Describe the change. Claude edits the scenes and style, then renders a new version.</span></p></div></div>
-                  <fieldset :disabled="isBusy(cur) || dirty || !status.claude?.ok">
-                    <textarea x-model="instruction" :placeholder="t('e.g. Make the hook punchier and put the captions near the top')"></textarea>
-                    <div class="suggest">
-                      <template x-for="s in suggestions"><button type="button" @click="instruction = instruction.trim() ? instruction.trim() + '. ' + t(s) : t(s)" x-text="t(s)"></button></template>
-                    </div>
-                    <div class="actions" style="margin-top:12px;justify-content:space-between">
-                      <button type="button" class="mpchip" aria-haspopup="menu" :aria-expanded="String(mp.open && mp.key==='edit')" :title="t('Claude model and effort for this edit')" @click="mpOpen('edit', $el)"><span x-text="modelShort(mpModel('edit'))"></span><span class="e" x-text="effortShort(mpEffort('edit'))"></span><svg class="i"><use href="#i-down"/></svg></button>
-                      <button class="btn primary" @click="aiEdit()" :disabled="instruction.trim().length<3"><svg class="i"><use href="#i-star"/></svg><span x-t>Apply with Claude</span></button>
-                    </div>
-                  </fieldset>
+                  <div class="card-head"><div class="grow"><h2 x-text="t('Comments on version {v}', {v: cur.version || 1})"></h2>
+                    <p><span x-t>Comment on a moment, a range or a spot in the video (left). Claude applies them all in one new version, changing only those places.</span></p></div></div>
+                  <template x-if="!rv.comments.length"><p class="small muted"><span x-t>No comments yet. Pause where something's wrong and say what to change.</span></p></template>
+                  <div class="rvlist">
+                    <template x-for="c in rv.comments" :key="c.id">
+                      <div class="rvc" :class="c.sent && 'sent'" @click="c.t!=null && rvSeek(c.t)">
+                        <div class="actions" style="justify-content:space-between;gap:6px">
+                          <span class="rvatt" x-text="rvWhere(c)"></span>
+                          <span class="small muted" x-show="c.sent"><span x-t>sent to Claude</span></span>
+                          <button type="button" class="btn ghost icon danger" x-show="!c.sent" @click.stop="rvDelete(c)" :aria-label="t('Remove')"><svg class="i"><use href="#i-trash"/></svg></button>
+                        </div>
+                        <div style="margin-top:6px" x-text="c.text"></div>
+                      </div>
+                    </template>
+                  </div>
+                  <div class="actions" style="margin-top:12px;justify-content:space-between">
+                    <button type="button" class="mpchip" aria-haspopup="menu" :aria-expanded="String(mp.open && mp.key==='edit')" :title="t('Claude model and effort for this edit')" @click="mpOpen('edit', $el)"><span x-text="modelShort(mpModel('edit'))"></span><span class="e" x-text="effortShort(mpEffort('edit'))"></span><svg class="i"><use href="#i-down"/></svg></button>
+                    <button class="btn primary" @click="rvApply()" :disabled="!rvPending() || rv.sending || isBusy(cur) || dirty || !status.claude?.ok">
+                      <span class="spin" x-show="rv.sending"></span><svg class="i" x-show="!rv.sending"><use href="#i-star"/></svg>
+                      <span x-text="rvPending() > 1 ? t('Apply {n} comments with Claude', {n: rvPending()}) : t('Apply with Claude')"></span></button>
+                  </div>
                   <p class="hint" x-show="dirty"><span x-t>You have unsaved manual edits — save or discard them first.</span></p>
                   <p class="hint" x-show="!status.claude?.ok"><span x-t>Connect Claude in Connections to use AI edits.</span></p>
                 </div>
@@ -790,28 +871,6 @@
                       <span class="filechip"><svg class="i" style="width:13px;height:13px"><use href="#i-clip"/></svg><span class="n" x-text="m.name"></span><span class="muted" x-text="fmtChars(m.chars)"></span><button type="button" class="x" @click="removeProjectContext(m)" :title="t('Remove')">✕</button></span>
                     </template>
                   </div>
-                </div>
-
-                <div class="card">
-                  <div class="card-head">
-                    <div class="grow"><h2><span x-t>FrameJam review</span></h2><p><span x-t>Click the exact frame that's wrong and comment. Claude applies the comments.</span></p></div>
-                    <span class="chip" :class="status.framejam?.ok?'ok':''" x-text="status.framejam?.ok?t('Running'):t('Not running')"></span>
-                  </div>
-                  <template x-if="!status.framejam?.ok">
-                    <div class="notice info"><div><span x-t>Start FrameJam with</span> <code>npx -y framejam start</code> <span x-t>(Node 22+), then</span> <a href="#" @click.prevent="refreshStatus()"><span x-t>check again</span></a>.</div></div>
-                  </template>
-                  <template x-if="status.framejam?.ok && !cur.extra?.framejam?.review_id">
-                    <div class="actions"><button class="btn primary" @click="framejamOpen()" :disabled="!cur.video_path || isBusy(cur)"><svg class="i"><use href="#i-send"/></svg><span x-t>Send to FrameJam</span></button></div>
-                  </template>
-                  <template x-if="status.framejam?.ok && cur.extra?.framejam?.review_id">
-                    <div>
-                      <div class="actions">
-                        <a class="btn" :href="cur.extra.framejam.url" target="_blank" rel="noopener"><svg class="i"><use href="#i-ext"/></svg><span x-t>Open review</span></a>
-                        <button class="btn primary" @click="framejamApply()" :disabled="isBusy(cur) || dirty || !status.claude?.ok"><span x-t>Apply comments</span></button>
-                      </div>
-                      <p class="hint"><span x-t>New versions are sent to this review automatically.</span></p>
-                    </div>
-                  </template>
                 </div>
 
                 <div class="card" x-show="projUsage.total?.runs">
@@ -1298,11 +1357,6 @@
               <span class="grow"><span class="t"><span x-t>Stock footage</span></span><span class="d" x-text="status.footage?.ok ? (cfg.footage?.provider==='pexels' ? 'Pexels' : 'Pixabay') : t('Off · scenes use animated backgrounds')"></span></span>
               <span class="dot" :class="{ok: status.footage?.ok}"></span><svg class="i chev"><use href="#i-right"/></svg>
             </button>
-            <button type="button" class="crow" @click="openConn('framejam')">
-              <span class="ctile"><svg class="i"><use href="#i-send"/></svg></span>
-              <span class="grow"><span class="t">FrameJam</span><span class="d" x-text="(status.framejam?.ok ? t('Running') : t('Not running')) + ' · ' + (cfg.framejam?.auto !== false ? t('every render is sent for review') : t('send renders yourself'))"></span></span>
-              <span class="dot" :class="{ok: status.framejam?.ok}"></span><svg class="i chev"><use href="#i-right"/></svg>
-            </button>
           </div>
         </div>
         <div class="ccol">
@@ -1611,15 +1665,6 @@
               </div>
             </template>
       </div>
-      <div x-show="conn==='framejam'">
-            <label class="toggle small"><input type="checkbox" :checked="cfg.framejam?.auto !== false" @change="cfg.framejam.auto = $event.target.checked; saveSection('framejam')"> <span x-t>Send every render to FrameJam and start it automatically</span></label>
-            <div class="actions" style="margin-top:10px" x-show="!status.framejam?.ok">
-              <button class="btn" @click="startFramejam()" :disabled="startingFj"><span class="spin" x-show="startingFj"></span><span x-t>Start FrameJam</span></button>
-              <span class="small muted"><span x-t>Needs Node 22+.</span></span>
-            </div>
-            <div class="field" style="margin-top:14px"><label><span x-t>Address</span></label>
-              <div class="actions" style="flex-wrap:nowrap"><input x-model="cfg.framejam.url"><button class="btn" @click="saveSection('framejam')"><span x-t>Save</span></button></div></div>
-      </div>
       <div x-show="conn==='github'">
             <template x-if="github.connected">
               <div class="account"><span class="avatar lg"><svg class="i"><use href="#i-github"/></svg></span>
@@ -1883,7 +1928,7 @@ const VOICE_SAMPLES = {
   Italian: 'Ciao! Ecco come suonerà il tuo prossimo video.',
   Indonesian: 'Halo! Beginilah suara video Anda berikutnya.',
 };
-const COMPOSER_KEYS = ['language', 'format', 'duration', 'style', 'voice', 'voice_rate', 'engine', 'model', 'effort', 'framejam', 'channelIds', 'auto_publish', 'brand_id'];
+const COMPOSER_KEYS = ['language', 'format', 'duration', 'style', 'voice', 'voice_rate', 'engine', 'model', 'effort', 'channelIds', 'auto_publish', 'brand_id'];
 
 function parseRoute(pathname) {
   const p = pathname.split('/').filter(Boolean);
@@ -1898,16 +1943,17 @@ function app() {
   return {
     ready: false, route: { page:'studio', id:null, sub:null }, lang: 'en', theme: 'system',
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
-    status: {}, cl: {}, cfg: { claude:{}, footage:{}, framejam:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
+    status: {}, cl: {}, cfg: { claude:{}, footage:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
     channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] },
-    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'', framejam:null, github_repo:'' },
+    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'', github_repo:'' },
     models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, plan: {}, planLoading: false, showTable: false, hoverDay: null,
     projUsage: {}, editModel: '', editEffort: '',
     mp: { open:false, key:'form', sub:false, pos:{}, up:false, left:false, narrow:false },
     ghPick: { open:false, q:'', pos:{}, loading:false, current:'' },
     conn: '',
+    rv: { time:0, dur:0, playing:false, sel:null, pin:null, mode:'time', text:'', comments:[], film:null, sending:false, dragging:null },
     workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' }, siteImport: { open:false, url:'', busy:false },
-    live: {}, dockOpen: true, startingFj: false,
+    live: {}, dockOpen: true,
     uploadingContext: false, motionInfo: {}, voiceEdit: false, voiceKey: '', savingVoice: false, elevenVoices: [], previewing: false, contextAccept: '.txt,.md,.markdown,.pdf,.docx,.html,.htm,.csv,.json,.srt,.vtt,.yaml,.yml',
     brandList: [], brand: null, brandBase: '', brandMissing: false, syncing: false,
     importer: { open:false, url:'', ref:'', busy:false, refs:null, refsLoading:false, refsError:'' }, newBrand: { open:false, name:'' },
@@ -2042,6 +2088,7 @@ function app() {
       if (r.page === 'studio' && r.id !== prev.id) { this.wsOpen = false; this.syncWsForm(); }
       if (r.page === 'brand' && (prev.page !== 'brand' || prev.id !== r.id || !this.brand)) this.loadBrand(r.id);
       if (r.page === 'project' && (prev.page !== 'project' || prev.id !== r.id || !this.cur)) await this.openProject(r.id);
+      if (r.page === 'project' && r.sub === 'review' && this.cur) this.enterReview();
       this.conn = '';
       if (r.page === 'connections') this.loadConnections();
       if (r.page === 'autopilot') this.loadAutopilot();
@@ -2066,6 +2113,15 @@ function app() {
           return this.discardThen(() => this.nav(target));
         }
         this.onRoute();
+      });
+      window.addEventListener('keydown', e => {
+        if (this.route.page !== 'project' || this.route.sub !== 'review' || !this.cur?.video_path) return;
+        if (e.target.closest('input, textarea, select, [contenteditable]') || this.dialog.open || this.conn || e.metaKey || e.ctrlKey) return;
+        const step = e.shiftKey ? 1 : 1 / 30;
+        if (e.key === ' ') { e.preventDefault(); this.rvToggle(); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); this.$refs.player?.pause(); this.rvSeek(this.rv.time - step); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); this.$refs.player?.pause(); this.rvSeek(this.rv.time + step); }
+        else if (e.key === 'c' || e.key === 'C') { e.preventDefault(); this.$refs.rvtext?.focus(); }
       });
       window.addEventListener('beforeunload', e => { if (this.dirty || this.brandDirty) { e.preventDefault(); e.returnValue = ''; } });
       await this.loadComposer();
@@ -2121,7 +2177,6 @@ function app() {
         motion: ['Claude Motion', 'Claude animates each video as code with HyperFrames (open source). Runs on this computer.'],
         voice: ['Voice-over', 'ElevenLabs gives natural voices in 70+ languages, including Vietnamese. Without a key, free Microsoft voices are used.'],
         footage: ['Stock footage', 'Real video clips behind each scene. Without a key, scenes use animated backgrounds in your brand colors.'],
-        framejam: ['FrameJam', 'Review renders frame by frame; Claude applies your comments.'],
         github: ['GitHub', 'Pick repositories when creating videos and import brand kits from them. Public repositories work without connecting.'],
         postiz: ['Postiz', 'Instagram, LinkedIn, X, Threads and more through a Postiz instance.'],
         url: ['Public URL', 'Where YouTube, TikTok and Facebook send you back after you sign in.'],
@@ -2165,7 +2220,9 @@ function app() {
       if (!fresh) { this.cur = null; this.curMissing = true; return; }
       const finished = this.isBusy(this.cur) && !this.isBusy(fresh);
       const gotTimeline = !this.cur.timeline && fresh.timeline;
+      const newVersion = fresh.version !== this.cur.version;
       this.cur = fresh;
+      if (newVersion && this.route.sub === 'review') this.enterReview();
       if (gotTimeline || (finished && !this.dirty)) this.loadTimeline();
       if (finished) {
         this.preview = null;
@@ -2212,7 +2269,7 @@ function app() {
         if (open) { this.loadTimeline(); this.cur = null; }
         await this.loadProjects();
         if (open) this.nav(p.workspace_id ? `/w/${p.workspace_id}` : '/');
-      }, { danger: true, items, note: this.t('Posts already published stay on YouTube, TikTok and Facebook, FrameJam keeps its review, and Usage keeps the Claude usage this video consumed.') });
+      }, { danger: true, items, note: this.t('Posts already published stay on YouTube, TikTok and Facebook, and Usage keeps the Claude usage this video consumed.') });
     },
 
     // ------------------------------------------------ editor
@@ -2245,10 +2302,79 @@ function app() {
       this.cur = { ...this.cur, status:'rendering', progress:0, error:null };
       this.say(empty ? this.t('Rendering — {n} empty scenes removed', {n: empty}) : 'Rendering a new version…');
     },
-    async aiEdit() {
-      if (await this.run(() => this.api(`/api/projects/${this.cur.id}/ai-edit`, { method:'POST', body:{ instruction: this.instruction, model: this.editModel || null, effort: this.editEffort || null } }))) {
-        this.cur = { ...this.cur, status:'editing', progress:0, error:null }; this.instruction = '';
-      }
+    // ------------------------------------------------ review (comments on the render)
+    async loadReview() { if (!this.cur?.video_path) { this.rv.comments = []; return; } const r = await this.api(`/api/projects/${this.cur.id}/review`).catch(() => null); if (r) this.rv.comments = r.comments; },
+    async loadFilmstrip() { this.rv.film = null; if (this.cur?.video_path) this.rv.film = await this.api(`/api/projects/${this.cur.id}/filmstrip`).catch(() => null); },
+    enterReview() { this.preview = null; Object.assign(this.rv, { sel:null, pin:null, mode:'time' }); this.loadReview(); this.loadFilmstrip(); },
+    fmtT(s) { s = Math.max(0, +s || 0); return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`; },
+    rvSceneAt(t) { const sc = this.cur?.timeline?.scenes || []; const i = sc.findIndex(s => s.start != null && t >= s.start && t < s.end + 0.01); return i >= 0 ? i + 1 : (sc.length && t >= (sc.at(-1).end || 0) ? sc.length : null); },
+    rvWhere(c) {
+      if (c.t == null) return this.t('Whole video');
+      if (c.t2 != null) { const a = this.rvSceneAt(c.t), b = this.rvSceneAt(c.t2); return `${a === b ? this.t('Scene {n}', {n: a}) : this.t('Scenes {a}–{b}', {a, b})} · ${this.fmtT(c.t)}–${this.fmtT(c.t2)}`; }
+      return `${this.t('Scene {n}', {n: this.rvSceneAt(c.t)})} · ${this.fmtT(c.t)}${c.x != null ? ' · ' + this.t('spot') : ''}`;
+    },
+    rvAttach() {
+      const m = this.rv.mode;
+      if (m === 'whole') return this.t('Whole video');
+      if (m === 'range' && this.rv.sel) return this.rvWhere({ t: this.rv.sel.a, t2: this.rv.sel.b });
+      if (m === 'pin' && this.rv.pin) return this.rvWhere(this.rv.pin);
+      return this.rvWhere({ t: this.rv.time });
+    },
+    rvPending() { return this.rv.comments.filter(c => !c.sent).length; },
+    rvActive() { const t = this.rv.time; return this.rv.comments.filter(c => c.t != null && (c.t2 != null ? t >= c.t && t <= c.t2 : Math.abs(t - c.t) < 1.2)); },
+    rvToggle() { const v = this.$refs.player; if (v) v.paused ? v.play() : v.pause(); },
+    rvPlaying(on) {
+      this.rv.playing = on;
+      const tick = () => { const v = this.$refs.player; if (!v || v.paused) return; this.rv.time = v.currentTime; requestAnimationFrame(tick); };
+      if (on) requestAnimationFrame(tick);
+    },
+    rvSeek(t) { const v = this.$refs.player; if (!v) return; v.currentTime = Math.max(0, Math.min(this.rv.dur || 0, t)); this.rv.time = v.currentTime; },
+    rvStripT(e) { const r = this.$refs.strip.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (this.rv.dur || 0); },
+    rvDown(e) { e.currentTarget.setPointerCapture?.(e.pointerId); const t = this.rvStripT(e); this.rv.dragging = { a: t, moved: false }; this.$refs.player?.pause(); this.rvSeek(t); },
+    rvMove(e) {
+      const d = this.rv.dragging; if (!d) return;
+      const t = this.rvStripT(e);
+      if (Math.abs(t - d.a) > (this.rv.dur || 1) * 0.01) d.moved = true;
+      if (d.moved) { this.rv.sel = { a: Math.min(d.a, t), b: Math.max(d.a, t) }; this.rv.mode = 'range'; this.rv.pin = null; }
+      this.rvSeek(t);
+    },
+    rvUp() {
+      const d = this.rv.dragging; this.rv.dragging = null; if (!d) return;
+      if (d.moved && this.rv.sel) this.rvSeek(this.rv.sel.a);
+      else { this.rv.sel = null; if (this.rv.mode !== 'whole') { this.rv.mode = 'time'; this.rv.pin = null; } }
+      this.$refs.rvtext?.focus();  // right away, so fast typing isn't lost
+    },
+    // The video is letterboxed inside its box (object-fit: contain): pins are relative to the picture itself.
+    rvPicture() {
+      const v = this.$refs.player; if (!v) return null;
+      const r = v.getBoundingClientRect(), vw = v.videoWidth || r.width, vh = v.videoHeight || r.height, k = Math.min(r.width / vw, r.height / vh);
+      const w = vw * k, h = vh * k;
+      return { left: r.left + (r.width - w) / 2, top: r.top + (r.height - h) / 2, width: w, height: h, box: r };
+    },
+    rvPin(e) {
+      const p = this.rvPicture(); if (!p) return;
+      const x = (e.clientX - p.left) / p.width, y = (e.clientY - p.top) / p.height;
+      if (x < 0 || x > 1 || y < 0 || y > 1) return;
+      this.$refs.player.pause();
+      this.rv.pin = { x, y, t: this.rv.time }; this.rv.mode = 'pin'; this.rv.sel = null;
+      this.$refs.rvtext?.focus();  // right away, so fast typing isn't lost
+    },
+    rvPinStyle(c) { void this.rv.time; const p = this.rvPicture(); return p ? `left:${p.left - p.box.left + c.x * p.width}px;top:${p.top - p.box.top + c.y * p.height}px` : ''; },
+    async rvAdd() {
+      const text = this.rv.text.trim(); if (!text) return;
+      const m = this.rv.mode, body = { text };
+      if (m === 'range' && this.rv.sel) Object.assign(body, { t: this.rv.sel.a, t2: this.rv.sel.b });
+      else if (m === 'pin' && this.rv.pin) Object.assign(body, { t: this.rv.pin.t, x: this.rv.pin.x, y: this.rv.pin.y });
+      else if (m !== 'whole') body.t = this.rv.time;
+      const r = await this.run(() => this.api(`/api/projects/${this.cur.id}/review`, { method:'POST', body }));
+      if (r) { this.rv.comments = r.comments; Object.assign(this.rv, { text:'', mode:'time', sel:null, pin:null }); }
+    },
+    async rvDelete(c) { const r = await this.run(() => this.api(`/api/projects/${this.cur.id}/review/${c.id}`, { method:'DELETE' })); if (r) this.rv.comments = r.comments; },
+    async rvApply() {
+      this.rv.sending = true;
+      const r = await this.run(() => this.api(`/api/projects/${this.cur.id}/review/apply`, { method:'POST', body:{ model: this.editModel || null, effort: this.editEffort || null } }));
+      this.rv.sending = false;
+      if (r) { this.say(this.t('Claude is applying {n} comment(s)', {n: r.sent})); this.cur = { ...this.cur, status:'editing', progress:0, error:null }; this.loadReview(); }
     },
     openPicker(s) { this.picker = { open:true, scene:s, q:s.search || '', results:[], loading:false, error:'' }; if (this.picker.q && this.status.footage?.ok) this.searchFootage(); },
     async searchFootage() {
@@ -2273,14 +2399,6 @@ function app() {
       this.picker.loading = true; this.picker.error = '';
       try { const clip = await this.api(`/api/projects/${this.cur.id}/upload`, { method:'POST', body: fd }); Object.assign(this.picker.scene, { clip, clip_start:0 }); this.picker.open = false; }
       catch (e) { this.picker.error = e.message; } finally { this.picker.loading = false; }
-    },
-    async framejamOpen() {
-      const r = await this.run(() => this.api(`/api/projects/${this.cur.id}/framejam`, { method:'POST' }));
-      if (r) { await this.loadProjects(); if (r.url) window.open(r.url, '_blank', 'noopener'); }
-    },
-    async framejamApply() {
-      const r = await this.run(() => this.api(`/api/projects/${this.cur.id}/framejam/apply`, { method:'POST' }));
-      if (r?.applied) this.cur = { ...this.cur, status:'editing', progress:0, error:null }; else if (r?.detail) this.say(r.detail);
     },
     async publish() {
       this.cur = { ...this.cur, status:'publishing' };
@@ -2440,7 +2558,6 @@ function app() {
     async loadLive() { if (this.route.page === 'project' && this.cur && this.isBusy(this.cur)) this.live = await this.api(`/api/projects/${this.cur.id}/activity`).catch(() => this.live); },
     dockJobs() { return this.projects.filter(p => this.isBusy(p) && !(this.route.page === 'project' && this.route.id === p.id)); },
     clock(ts) { const d = new Date(ts * 1000); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; },
-    async startFramejam() { this.startingFj = true; const r = await this.run(() => this.api('/api/framejam/start', { method:'POST' })); this.startingFj = false; await this.refreshStatus(); if (r && !r.ok) this.say(r.detail || 'FrameJam did not start', true); },
 
     // ------------------------------------------------ models & usage
     async loadModels() { this.models = await this.api('/api/models').catch(() => this.models); },
