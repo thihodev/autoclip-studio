@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 import secrets
 import shutil
 import time
@@ -923,6 +924,8 @@ async def motion_install():
 class VoiceTestIn(BaseModel):
     text: str = Field(min_length=1, max_length=400)
     language: str = "English"
+    voice: str = ""  # edge-tts name or "eleven:<id>"; empty = the default for the language / account
+    rate: float = Field(1.0, ge=0.5, le=2.0)
 
 
 @app.get("/api/voice")
@@ -943,9 +946,9 @@ async def eleven_voices():
 @app.post("/api/voice/preview")
 async def voice_preview(body: VoiceTestIn):
     out = render.project_dir("_uploads") / f"preview_{uuid.uuid4().hex[:8]}.mp3"
-    voice = render.DEFAULT_VOICES.get(body.language, render.DEFAULT_VOICES["English"])
+    voice = re.sub(r"-(Male|Female)$", "", body.voice)
     try:
-        await tts.synthesize(body.text, body.language, voice, 1.0, out)
+        await tts.synthesize(body.text, body.language, voice, body.rate, out)
     except Exception as e:
         raise HTTPException(502, str(e)[:300])
     data = out.read_bytes()

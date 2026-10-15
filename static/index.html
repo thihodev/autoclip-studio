@@ -516,10 +516,12 @@
           <div class="grid-3" style="margin-top:12px">
             <div class="field"><label><span x-t>Style / tone</span></label><input x-model="form.style" :placeholder="t('funny, storytelling, educational…')"></div>
             <div class="field"><label><span x-t>Voice</span></label>
+              <div class="actions" style="flex-wrap:nowrap"><div style="flex:1;min-width:0">
               <select x-select x-model="form.voice">
                 <option value="" x-text="t(status.voice?.provider==='elevenlabs' ? 'Default ElevenLabs voice' : 'Default for the language')"></option>
                 <template x-for="v in (voices[form.language]||[])"><option :value="v.name" x-text="voiceLabel(v)"></option></template>
               </select></div>
+              <button type="button" class="btn icon" :title="t('Listen')" :aria-label="t('Listen')" @click="previewVoice(form.voice, form.language, form.voice_rate, 'form')" :disabled="previewing && previewing!=='form'"><span class="spin" x-show="previewing==='form'"></span><svg class="i" x-show="previewing!=='form'"><use href="#i-play"/></svg></button></div></div>
             <div class="field"><label><span x-t>Voice speed</span> <span x-text="form.voice_rate.toFixed(2)+'×'"></span></label>
               <input type="range" min="0.7" max="1.4" step="0.05" x-model.number="form.voice_rate"></div>
           </div>
@@ -748,10 +750,12 @@
                   <div class="card-head"><div class="grow"><h2><span x-t>Voice & motion</span></h2></div></div>
                   <div class="grid-2">
                     <div class="field"><label><span x-t>Voice</span></label>
+                      <div class="actions" style="flex-wrap:nowrap"><div style="flex:1;min-width:0">
                       <select x-select x-model="tl.voice">
                         <template x-if="!(voices[cur.request.language]||[]).some(v=>v.name===tl.voice)"><option :value="tl.voice" x-text="tl.voice"></option></template>
                         <template x-for="v in (voices[cur.request.language]||[])"><option :value="v.name" x-text="voiceLabel(v)" :selected="v.name===tl.voice"></option></template>
                       </select></div>
+                      <button type="button" class="btn icon" :title="t('Listen')" :aria-label="t('Listen')" @click="previewVoice(tl.voice, cur.request.language, tl.voice_rate, 'edit')" :disabled="previewing && previewing!=='edit'"><span class="spin" x-show="previewing==='edit'"></span><svg class="i" x-show="previewing!=='edit'"><use href="#i-play"/></svg></button></div></div>
                     <div class="field"><label><span x-t>Speed</span> <span x-text="(+tl.voice_rate||1).toFixed(2)+'×'"></span></label>
                       <input type="range" min="0.7" max="1.4" step="0.05" x-model.number="tl.voice_rate"></div>
                   </div>
@@ -983,7 +987,7 @@
                   </div>
                   <div class="grid-2">
                     <div class="field"><label><span x-t>Language</span></label><select x-select x-model="brand.language" @change="brand.voice_name=''; loadVoices(brand.language||'English')"><option value="" x-t>Any</option><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===brand.language"></option></template></select></div>
-                    <div class="field"><label><span x-t>Voice</span></label><select x-select x-model="brand.voice_name"><option value="" x-t>Default for the language</option><template x-for="v in (voices[brand.language||'English']||[])"><option :value="v.name" x-text="voiceLabel(v)" :selected="v.name===brand.voice_name"></option></template></select></div>
+                    <div class="field"><label><span x-t>Voice</span></label><div class="actions" style="flex-wrap:nowrap"><div style="flex:1;min-width:0"><select x-select x-model="brand.voice_name"><option value="" x-t>Default for the language</option><template x-for="v in (voices[brand.language||'English']||[])"><option :value="v.name" x-text="voiceLabel(v)" :selected="v.name===brand.voice_name"></option></template></select></div><button type="button" class="btn icon" :title="t('Listen')" :aria-label="t('Listen')" @click="previewVoice(brand.voice_name, brand.language||'English', 1, 'brand')" :disabled="previewing && previewing!=='brand'"><span class="spin" x-show="previewing==='brand'"></span><svg class="i" x-show="previewing!=='brand'"><use href="#i-play"/></svg></button></div></div>
                   </div>
                 </div>
               </div>
@@ -1565,7 +1569,7 @@
                     <template x-for="v in elevenVoices" :key="v.id"><option :value="v.id" :selected="v.id===cfg.voice?.elevenlabs_voice_id" x-text="[v.name, v.gender, v.accent, v.description].filter(Boolean).join(' · ')"></option></template>
                   </select></div>
                 <div class="actions">
-                  <button class="btn" @click="previewVoice()" :disabled="previewing"><span class="spin" x-show="previewing"></span><svg class="i" x-show="!previewing"><use href="#i-play"/></svg><span x-t>Listen</span></button>
+                  <button class="btn" @click="previewVoice(cfg.voice?.elevenlabs_voice_id ? 'eleven:' + cfg.voice.elevenlabs_voice_id : '')" :disabled="previewing && previewing!=='connections'"><span class="spin" x-show="previewing"></span><svg class="i" x-show="!previewing"><use href="#i-play"/></svg><span x-t>Listen</span></button>
                   <button class="btn" @click="voiceEdit=true; voiceKey=''"><span x-t>Change key</span></button>
                   <button class="btn ghost danger" @click="removeVoiceKey()"><span x-t>Remove</span></button>
                 </div>
@@ -1869,6 +1873,16 @@ function tr(key, vars) {
 
 const PLATFORM_LABELS = { youtube:'YouTube', tiktok:'TikTok', facebook:'Facebook' };
 const EDITOR_TABS = ['scenes', 'style', 'review', 'publish'];
+const VOICE_SAMPLES = {
+  English: 'Hi! This is how your next video will sound.',
+  Vietnamese: 'Xin chào! Đây là giọng đọc cho video tiếp theo của bạn.',
+  Spanish: '¡Hola! Así sonará tu próximo video.',
+  Portuguese: 'Olá! É assim que o seu próximo vídeo vai soar.',
+  French: 'Bonjour ! Voici la voix de votre prochaine vidéo.',
+  German: 'Hallo! So klingt dein nächstes Video.',
+  Italian: 'Ciao! Ecco come suonerà il tuo prossimo video.',
+  Indonesian: 'Halo! Beginilah suara video Anda berikutnya.',
+};
 const COMPOSER_KEYS = ['language', 'format', 'duration', 'style', 'voice', 'voice_rate', 'engine', 'model', 'effort', 'framejam', 'channelIds', 'auto_publish', 'brand_id'];
 
 function parseRoute(pathname) {
@@ -2534,14 +2548,19 @@ function app() {
         if (await this.run(() => this.api('/api/settings/voice', { method:'PUT', body:{ ...this.cfg.voice, elevenlabs_api_key: '' } }), 'Removed')) { await this.loadConnections(); this.reloadVoices(); }
       });
     },
-    async previewVoice() {
-      this.previewing = true;
+    // Play a short sample of a voice (key: which button is busy). Clicking again while it plays stops it.
+    async previewVoice(voice = '', language = null, rate = 1, key = 'connections') {
+      if (this._audio) { this._audio.pause(); const was = this._audioKey; this._audio = null; this._audioKey = ''; if (was === key) return; }
+      this.previewing = key;
       try {
-        const lang = this.lang === 'vi' ? 'Vietnamese' : 'English';
-        const text = lang === 'Vietnamese' ? 'Xin chào! Đây là giọng đọc cho video của bạn.' : 'Hi! This is the voice of your next video.';
-        const r = await fetch('/api/voice/preview', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, language: lang }) });
+        const lang = language || (this.lang === 'vi' ? 'Vietnamese' : 'English');
+        const text = VOICE_SAMPLES[lang] || VOICE_SAMPLES.English;
+        const r = await fetch('/api/voice/preview', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, language: lang, voice: voice || '', rate: +rate || 1 }) });
         if (!r.ok) { let m = await r.text(); try { m = JSON.parse(m).detail } catch {} ; throw new Error(m); }
-        new Audio(URL.createObjectURL(await r.blob())).play();
+        const audio = new Audio(URL.createObjectURL(await r.blob()));
+        this._audio = audio; this._audioKey = key;
+        audio.onended = () => { if (this._audio === audio) { this._audio = null; this._audioKey = ''; } };
+        audio.play();
       } catch (e) { this.say(e.message, true); } finally { this.previewing = false; }
     },
 

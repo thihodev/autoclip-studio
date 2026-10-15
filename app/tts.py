@@ -136,6 +136,14 @@ async def _eleven(text: str, language: str, rate: float, dest: Path, voice_id: s
 
 
 async def _edge(text: str, voice: str, rate: float, dest: Path) -> list[list]:
+    # Microsoft's endpoint now and then answers with no audio; a second try almost always works.
+    try:
+        return await _edge_once(text, voice, rate, dest)
+    except edge_tts.exceptions.NoAudioReceived:
+        return await _edge_once(text, voice, rate, dest)
+
+
+async def _edge_once(text: str, voice: str, rate: float, dest: Path) -> list[list]:
     pct = int(round((rate - 1.0) * 100))
     comm = edge_tts.Communicate(text, voice, rate=f"{pct:+d}%", boundary="WordBoundary")
     words = []
