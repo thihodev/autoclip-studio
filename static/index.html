@@ -478,31 +478,28 @@
             </div>
             <p class="hint" x-show="form.brand_id"><span x-t>Claude follows the kit's tone and call to action; the video uses its colors, font, logo, intro/outro, music and b-roll.</span></p>
           </div>
-          <details style="margin-top:14px">
-            <summary><span x-t>Style, voice and publishing</span></summary>
-            <div class="grid-3" style="margin-top:12px">
-              <div class="field"><label><span x-t>Style / tone</span></label><input x-model="form.style" :placeholder="t('funny, storytelling, educational…')"></div>
-              <div class="field"><label><span x-t>Voice</span></label>
-                <select x-model="form.voice">
-                  <option value="" x-t>Default for the language</option>
-                  <template x-for="v in (voices[form.language]||[])"><option :value="v.name" x-text="voiceLabel(v)"></option></template>
-                </select></div>
-              <div class="field"><label><span x-t>Voice speed</span> <span x-text="form.voice_rate.toFixed(2)+'×'"></span></label>
-                <input type="range" min="0.7" max="1.4" step="0.05" x-model.number="form.voice_rate"></div>
+          <div class="grid-3" style="margin-top:12px">
+            <div class="field"><label><span x-t>Style / tone</span></label><input x-model="form.style" :placeholder="t('funny, storytelling, educational…')"></div>
+            <div class="field"><label><span x-t>Voice</span></label>
+              <select x-model="form.voice">
+                <option value="" x-t>Default for the language</option>
+                <template x-for="v in (voices[form.language]||[])"><option :value="v.name" x-text="voiceLabel(v)"></option></template>
+              </select></div>
+            <div class="field"><label><span x-t>Voice speed</span> <span x-text="form.voice_rate.toFixed(2)+'×'"></span></label>
+              <input type="range" min="0.7" max="1.4" step="0.05" x-model.number="form.voice_rate"></div>
+          </div>
+          <div class="field" style="margin-top:12px"><label><span x-t>Publish to</span></label>
+            <template x-if="!channels.length"><p class="small muted"><span x-t>No accounts connected.</span> <a href="/connections" @click.prevent="nav('/connections')"><span x-t>Connect YouTube, TikTok or Facebook</span></a> <span x-t>to publish from here.</span></p></template>
+            <div class="pickchips">
+              <template x-for="c in channels" :key="c.id">
+                <button type="button" class="pickchip" :class="form.channelIds.includes(c.id)&&'on'" @click="toggle(form.channelIds, c.id)">
+                  <span class="avatar"><img x-show="c.avatar" :src="c.avatar" alt=""><span x-show="!c.avatar" x-text="initial(c.name)"></span></span>
+                  <span x-text="c.name"></span><span class="small muted" x-text="platformLabel(c)"></span></button>
+              </template>
             </div>
-            <div class="field" style="margin-top:12px"><label><span x-t>Publish to</span></label>
-              <template x-if="!channels.length"><p class="small muted"><span x-t>No accounts connected.</span> <a href="/connections" @click.prevent="nav('/connections')"><span x-t>Connect YouTube, TikTok or Facebook</span></a> <span x-t>to publish from here.</span></p></template>
-              <div class="pickchips">
-                <template x-for="c in channels" :key="c.id">
-                  <button type="button" class="pickchip" :class="form.channelIds.includes(c.id)&&'on'" @click="toggle(form.channelIds, c.id)">
-                    <span class="avatar"><img x-show="c.avatar" :src="c.avatar" alt=""><span x-show="!c.avatar" x-text="initial(c.name)"></span></span>
-                    <span x-text="c.name"></span><span class="small muted" x-text="platformLabel(c)"></span></button>
-                </template>
-              </div>
-              <label class="toggle small" style="margin-top:10px" x-show="channels.length" :style="{ opacity: form.channelIds.length ? 1 : .5 }">
-                <input type="checkbox" x-model="form.auto_publish" :disabled="!form.channelIds.length"> <span x-t>Publish automatically when the first render is ready</span></label>
-            </div>
-          </details>
+            <label class="toggle small" style="margin-top:10px" x-show="channels.length" :style="{ opacity: form.channelIds.length ? 1 : .5 }">
+              <input type="checkbox" x-model="form.auto_publish" :disabled="!form.channelIds.length"> <span x-t>Publish automatically when the first render is ready</span></label>
+          </div>
           <div class="actions" style="margin-top:16px; justify-content:flex-end">
             <span class="small muted" x-show="missingSetup().length"><span x-t>Finish setup in Connections to create videos</span></span>
             <button class="btn primary" @click="create()" :disabled="creating || form.topic.trim().length < 3 || missingSetup().length > 0">
