@@ -12,10 +12,10 @@ from claude_agent_sdk import RateLimitEvent, ResultMessage
 from . import db, settings
 
 MODELS = [
-    {"id": "opus", "label": "Claude Opus 5.5", "note": "Best quality for most work", "price": [4, 20]},
-    {"id": "sonnet", "label": "Claude Sonnet 5.5", "note": "Fast and capable", "price": [2, 10]},
-    {"id": "haiku", "label": "Claude Haiku 5.5", "note": "Fastest, lightest", "price": [0.1, 0.5]},
-    {"id": "claude-fable-5-1", "label": "Claude Fable 5.1", "note": "Most capable, uses the most", "price": [10, 50]},
+    {"id": "opus", "label": "Claude Opus 5.5", "note": "Best quality for most work"},
+    {"id": "sonnet", "label": "Claude Sonnet 5.5", "note": "Fast and capable"},
+    {"id": "haiku", "label": "Claude Haiku 5.5", "note": "Fastest, lightest"},
+    {"id": "claude-fable-5-1", "label": "Claude Fable 5.1", "note": "Most capable, uses the most"},
 ]
 EFFORTS = ["", "low", "medium", "high", "xhigh", "max"]  # "" = model default
 
@@ -76,23 +76,35 @@ def record_rate_limit(ev: RateLimitEvent):
     db.set_setting("rate_limits", limits)
 
 
+# Usage is shown for the way Claude is connected now: a Claude plan (limits, tokens, time)
+# or an API key (what you pay). Runs made the other way stay out of the numbers.
+MODES = {"plan": ("app", "system"), "api": ("api_key",)}
+
+
+def mode() -> str:
+    return "api" if settings.get("claude")["source"] == "api_key" else "plan"
+
+
 def summary(days: int = 30) -> dict:
     now = time.time()
     since = now - days * 86400
     today = time.mktime(time.localtime(now)[:3] + (0, 0, 0, 0, 0, -1))
+    m = mode()
+    src = MODES[m]
     return {
         "days": days,
-        "today": db.usage_totals(today),
-        "period": db.usage_totals(since),
-        "by_day": db.usage_grouped(since, "day"),
-        "by_model": db.usage_grouped(since, "model"),
-        "by_kind": db.usage_grouped(since, "kind"),
-        "recent": db.usage_recent(40),
-        "rate_limits": db.get_setting("rate_limits", {}) or {},
+        "mode": m,
+        "today": db.usage_totals(today, sources=src),
+        "period": db.usage_totals(since, sources=src),
+        "by_day": db.usage_grouped(since, "day", src),
+        "by_model": db.usage_grouped(since, "model", src),
+        "by_kind": db.usage_grouped(since, "kind", src),
+        "recent": db.usage_recent(40, sources=src),
         "source": settings.get("claude")["source"],
         "models": MODELS,
     }
 
 
 def project(pid: str) -> dict:
-    return {"total": db.usage_totals(0, pid), "runs": db.usage_recent(50, pid)}
+    m = mode()
+    return {"mode": m, "total": db.usage_totals(0, pid, MODES[m]), "runs": db.usage_recent(50, pid, MODES[m])}

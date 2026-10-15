@@ -244,29 +244,42 @@ def _sum_select():
     return ", ".join(f"COALESCE(SUM({f}),0) AS {f}" for f in USAGE_FIELDS) + ", COUNT(*) AS runs"
 
 
-def usage_totals(since: float, project_id: str | None = None) -> dict:
+def _sources(sources: tuple[str, ...] | None, col: str = "source") -> tuple[str, list]:
+    """SQL filter on how Claude was connected for a run (None = any)."""
+    if not sources:
+        return "", []
+    return f" AND {col} IN ({', '.join('?' * len(sources))})", list(sources)
+
+
+def usage_totals(since: float, project_id: str | None = None, sources: tuple[str, ...] | None = None) -> dict:
     q = f"SELECT {_sum_select()} FROM usage WHERE at >= ?"
     args = [since]
     if project_id:
         q += " AND project_id = ?"
         args.append(project_id)
+    where, extra = _sources(sources)
     with conn() as c:
-        return dict(c.execute(q, args).fetchone())
+        return dict(c.execute(q + where, args + extra).fetchone())
 
 
-def usage_grouped(since: float, key: str) -> list[dict]:
+def usage_grouped(since: float, key: str, sources: tuple[str, ...] | None = None) -> list[dict]:
     expr = {"day": "date(at, 'unixepoch', 'localtime')", "model": "COALESCE(model, '')", "kind": "kind"}[key]
+    where, extra = _sources(sources)
     with conn() as c:
-        rows = c.execute(f"SELECT {expr} AS k, {_sum_select()} FROM usage WHERE at >= ? GROUP BY k ORDER BY k", (since,)).fetchall()
+        rows = c.execute(f"SELECT {expr} AS k, {_sum_select()} FROM usage WHERE at >= ?{where} GROUP BY k ORDER BY k",
+                         [since, *extra]).fetchall()
     return [dict(r) for r in rows]
 
 
-def usage_recent(limit: int = 30, project_id: str | None = None) -> list[dict]:
-    q = "SELECT u.*, p.script AS project_script, p.request AS project_request FROM usage u LEFT JOIN projects p ON p.id = u.project_id"
+def usage_recent(limit: int = 30, project_id: str | None = None, sources: tuple[str, ...] | None = None) -> list[dict]:
+    q = "SELECT u.*, p.script AS project_script, p.request AS project_request FROM usage u LEFT JOIN projects p ON p.id = u.project_id WHERE 1=1"
     args = []
     if project_id:
-        q += " WHERE u.project_id = ?"
+        q += " AND u.project_id = ?"
         args.append(project_id)
+    where, extra = _sources(sources, "u.source")
+    q += where
+    args += extra
     q += " ORDER BY u.at DESC LIMIT ?"
     args.append(limit)
     with conn() as c:

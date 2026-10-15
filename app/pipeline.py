@@ -62,7 +62,7 @@ async def _motion_version(pid: str, note: str, instruction: str | None = None, m
     tl["brand_id"] = p["request"].get("brand_id")
     await render.thumbnail(out)
     saved = _save_version(pid, out, tl, note, model, effort)
-    if _extra(saved)["framejam"].get("review_id") or framejam.auto():
+    if _wants_framejam(saved):
         try:
             await send_to_framejam(pid, note)
             activity.add(pid, "Sent to FrameJam for review", "done")
@@ -139,7 +139,7 @@ async def _render_version(pid: str, note: str) -> dict:
     extra["versions"].append({"version": version, "file": out.name, "note": note, "at": time.time()})
     db.update_project(pid, timeline=tl, video_path=str(out), version=version, extra=extra,
                       status="ready", progress=100, error=None, publish_result=None)
-    if extra["framejam"].get("review_id") or framejam.auto():
+    if _wants_framejam(db.get_project(pid)):
         try:
             await send_to_framejam(pid, note)
             activity.add(pid, "Sent to FrameJam for review", "done")
@@ -311,8 +311,17 @@ async def manual_edit(pid: str, timeline: dict, title: str | None = None):
 
 # ---------- FrameJam review loop ----------
 
+def _wants_framejam(p: dict) -> bool:
+    """Send this render for review? Once a video has a review, every version goes there;
+    otherwise the choice made when creating it, else the Connections default."""
+    if _extra(p)["framejam"].get("review_id"):
+        return True
+    choice = p["request"].get("framejam")
+    return framejam.auto() if choice is None else bool(choice)
+
+
 async def send_to_framejam(pid: str, note: str = "") -> dict:
-    if framejam.auto() and not (await framejam.health())["ok"]:
+    if not (await framejam.health())["ok"]:
         await framejam.start()
     p = db.get_project(pid)
     extra = _extra(p)

@@ -72,9 +72,9 @@ HyperFrames' own skill installer writes into your global agent folders (`~/.clau
 - **Projects**: group videos per product or channel (`/w/<id>`). A project carries a website, a brand kit, instructions for Claude and context files, and every video in it uses them.
 - **Design from a website**: when a topic or project names a domain (e.g. `pickcourt.com`) and no brand kit is chosen, AutoClip opens the site in headless Chrome (HyperFrames `capture`), lets Claude look at it and builds a brand kit — colors, fonts, logo, voice, call to action, the site's copy as knowledge, and real product images that Claude Motion features. Also available as **Brand kits → Import from website**.
 - **Live view**: while a video is being made, the editor shows what Claude is doing step by step with the latest frame it looked at; elsewhere in the app a corner dock keeps every running video's progress in view.
-- **FrameJam on by default**: AutoClip starts FrameJam if it isn't running and sends every render to its review (toggle in Connections).
+- **FrameJam on by default**: AutoClip starts FrameJam if it isn't running and sends every render to its review. Turn it on or off for each video when you create it (the default is in Connections).
 - **Models & effort**: pick the Claude model (Opus 5.5, Sonnet 5.5, Haiku 5.5, Fable 5.1) and effort level (low → max) as defaults for scripts/edits and for Claude Motion in Connections, and override them per video or per AI edit. Each version records the model and effort that made it.
-- **Usage** (`/usage`): on a Claude plan, how much of the 5-hour session and weekly limits (overall and per model) is used and when each resets — the same numbers as `/usage` in Claude Code, read from the Claude CLI without sending a message; then today and period totals, cost per day, breakdowns by model and task, and recent runs; each video shows its own Claude usage. On a plan, cost is the API-equivalent estimate (you aren't billed per token); with an API key it's what you pay.
+- **Usage** (`/usage`) shows the way Claude is connected now. On a Claude plan: how much of the 5-hour session and weekly limits (overall and per model) is used and when each resets — the same numbers as `/usage` in Claude Code, read from the Claude CLI without sending a message — plus tokens, runs and Claude time per day, model and task (no dollar amounts: a plan isn't billed per token). With an API key: what you pay, per day, model, task and run. Runs made the other way are left out; each video shows its own usage the same way.
 - **Context files** (optional): attach articles, notes, product docs or transcripts (TXT, MD, PDF, DOCX, HTML, CSV, JSON, SRT/VTT) when creating a video, or later in the editor. Claude uses them as source material for the script and for AI edits.
 - **Brand kits**: a design system for videos — see below.
 - **Ideas**: Claude suggests topics for a niche, each with an opening hook.
@@ -162,7 +162,7 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 | POST, DELETE | `/api/context`, `/api/context/{id}` | Upload a context file (multipart `file`) before creating a video; pass the ids as `context_ids` |
 | POST, DELETE | `/api/projects/{id}/context`, `/api/projects/{id}/context/{cid}` | Add / remove context files of a video |
 | POST | `/api/ideas` | `{niche, language, count}` |
-| GET, POST | `/api/projects` | List / create `{topic, language, duration, format, engine, model, effort, style, voice, voice_rate, brand_id, context_ids, auto_publish, integrations}` |
+| GET, POST | `/api/projects` | List / create `{topic, language, duration, format, engine, model, effort, framejam, style, voice, voice_rate, brand_id, context_ids, auto_publish, integrations}` |
 | DELETE | `/api/projects/{id}` | Delete a video completely: stops its job, removes every version, its work files, Claude's session logs and context files only it uses |
 | GET, DELETE | `/api/leftovers`, `/api/leftovers?id=` | Files still on disk from videos deleted by earlier versions; delete one or all |
 | PUT | `/api/projects/{id}/timeline` | Save a manual edit and re-render |

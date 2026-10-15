@@ -81,6 +81,7 @@ class ProjectIn(BaseModel):
     workspace_id: str | None = None
     model: str | None = None   # Claude model for this video (default: Connections setting for the engine)
     effort: str | None = None  # low | medium | high | xhigh | max (default: Connections setting)
+    framejam: bool | None = None  # send renders to FrameJam for review (default: Connections setting)
 
 
 class PublishIn(BaseModel):

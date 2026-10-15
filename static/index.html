@@ -441,6 +441,23 @@
             </div>
             <p class="hint" x-show="['node','ffmpeg'].includes(motionInfo.code)" x-text="t('Claude Motion needs setup: ') + t(motionInfo.detail || '')"></p>
           </div>
+          <div class="grid-2" style="margin-top:12px">
+            <div class="field"><label><span x-t>Model</span></label>
+              <select x-model="form.model">
+                <option value="" x-text="t('Default') + ' · ' + modelLabel(models.defaults?.[form.engine==='motion'?'motion':'script']?.model)"></option>
+                <template x-for="m in models.models" :key="m.id"><option :value="m.id" x-text="t(m.label) + ' · ' + t(m.note)"></option></template>
+              </select></div>
+            <div class="field"><label><span x-t>Effort</span></label>
+              <select x-model="form.effort">
+                <option value="" x-text="t('Default') + ' · ' + effortLabel(models.defaults?.[form.engine==='motion'?'motion':'script']?.effort||'')"></option>
+                <template x-for="e in models.efforts.filter(Boolean)" :key="e"><option :value="e" x-text="effortLabel(e)"></option></template>
+              </select></div>
+          </div>
+          <p class="hint" x-text="t('Defaults for {engine} are set in Connections → Claude. Higher effort thinks longer: better results on hard work, more usage.', {engine: t(form.engine==='motion' ? 'Claude Motion' : 'Quick')})"></p>
+          <label class="toggle small" style="margin-top:12px">
+            <input type="checkbox" :checked="form.framejam ?? (cfg.framejam?.auto !== false)" @change="form.framejam = $event.target.checked">
+            <span x-t>Review in FrameJam: send every render there to comment on it, then let Claude apply the comments</span></label>
+          <p class="hint" style="margin-top:4px" x-show="(form.framejam ?? (cfg.framejam?.auto !== false)) && !status.framejam?.ok"><span x-t>FrameJam isn't running; it's started when the first render is ready (needs Node 22+).</span></p>
           <div class="grid-3" style="margin-top:12px">
             <div class="field"><label><span x-t>Language</span></label>
               <select x-model="form.language" @change="form.voice=''; loadVoices(form.language)"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===form.language"></option></template></select></div>
@@ -472,18 +489,6 @@
                 </select></div>
               <div class="field"><label><span x-t>Voice speed</span> <span x-text="form.voice_rate.toFixed(2)+'×'"></span></label>
                 <input type="range" min="0.7" max="1.4" step="0.05" x-model.number="form.voice_rate"></div>
-            </div>
-            <div class="field" style="margin-top:12px"><label x-text="t('Claude for this video') + ' · ' + t(form.engine==='motion' ? 'Claude Motion' : 'Quick')"></label>
-              <div class="modelpick" style="max-width:520px">
-                <select x-model="form.model" :aria-label="t('Model')">
-                  <option value="" x-text="t('Default') + ' · ' + modelLabel(models.defaults?.[form.engine==='motion'?'motion':'script']?.model)"></option>
-                  <template x-for="m in models.models" :key="m.id"><option :value="m.id" x-text="t(m.label)"></option></template>
-                </select>
-                <select x-model="form.effort" :aria-label="t('Effort')">
-                  <option value="" x-text="t('Default') + ' · ' + effortLabel(models.defaults?.[form.engine==='motion'?'motion':'script']?.effort||'')"></option>
-                  <template x-for="e in models.efforts.filter(Boolean)" :key="e"><option :value="e" x-text="effortLabel(e)"></option></template>
-                </select>
-              </div>
             </div>
             <div class="field" style="margin-top:12px"><label><span x-t>Publish to</span></label>
               <template x-if="!channels.length"><p class="small muted"><span x-t>No accounts connected.</span> <a href="/connections" @click.prevent="nav('/connections')"><span x-t>Connect YouTube, TikTok or Facebook</span></a> <span x-t>to publish from here.</span></p></template>
@@ -783,17 +788,16 @@
 
                 <div class="card" x-show="projUsage.total?.runs">
                   <div class="card-head"><div class="grow"><h2><span x-t>Claude usage for this video</span></h2>
-                    <p x-text="t('{runs} runs · {tokens} tokens · {cost} · {time}', {runs: projUsage.total?.runs||0, tokens: fmtTokens(totalTokens(projUsage.total)), cost: fmtCost(projUsage.total?.cost_usd), time: fmtDur(projUsage.total?.duration_s)})"></p></div>
+                    <p x-text="apiMode() ? t('{runs} runs · {tokens} tokens · {cost} · {time}', {runs: projUsage.total?.runs||0, tokens: fmtTokens(totalTokens(projUsage.total)), cost: fmtCost(projUsage.total?.cost_usd), time: fmtDur(projUsage.total?.duration_s)}) : t('{runs} runs · {tokens} tokens · {time}', {runs: projUsage.total?.runs||0, tokens: fmtTokens(totalTokens(projUsage.total)), time: fmtDur(projUsage.total?.duration_s)})"></p></div>
                     <a class="btn ghost sm" href="/usage" @click.prevent="nav('/usage')"><span x-t>All usage</span></a></div>
                   <div class="tablewrap"><table class="data">
-                    <thead><tr><th><span x-t>When</span></th><th><span x-t>Task</span></th><th><span x-t>Model</span></th><th class="n"><span x-t>Tokens</span></th><th class="n"><span x-t>Cost</span></th><th class="n"><span x-t>Time</span></th></tr></thead>
+                    <thead><tr><th><span x-t>When</span></th><th><span x-t>Task</span></th><th><span x-t>Model</span></th><th class="n"><span x-t>Tokens</span></th><th class="n" x-show="apiMode()"><span x-t>Cost</span></th><th class="n"><span x-t>Time</span></th></tr></thead>
                     <tbody><template x-for="r in projUsage.runs" :key="r.id"><tr>
                       <td x-text="ago(r.at)"></td><td x-text="kindLabel(r.kind) + (r.ok ? '' : ' ✗')"></td>
                       <td x-text="modelLabel(r.model) + (r.effort ? ' · ' + effortLabel(r.effort) : '')"></td>
-                      <td class="n" x-text="fmtTokens(totalTokens(r))"></td><td class="n" x-text="fmtCost(r.cost_usd)"></td><td class="n" x-text="fmtDur(r.duration_s)"></td>
+                      <td class="n" x-text="fmtTokens(totalTokens(r))"></td><td class="n" x-show="apiMode()" x-text="fmtCost(r.cost_usd)"></td><td class="n" x-text="fmtDur(r.duration_s)"></td>
                     </tr></template></tbody>
                   </table></div>
-                  <p class="hint" x-show="usageInfo.source!=='api_key'"><span x-t>Cost is the API-equivalent estimate; on a Claude plan you aren't billed per token — it shows how much of your usage a run took.</span></p>
                 </div>
 
                 <div class="card" x-show="(cur.extra?.history||[]).length">
@@ -1119,33 +1123,35 @@
 
       <!-- tiles -->
       <div class="tiles" style="margin-top:16px">
-        <div class="tile"><div class="k"><span x-t>Today</span></div><div class="v" x-text="fmtCost(usageInfo.today?.cost_usd)"></div><div class="s" x-text="t('{runs} runs · {tokens} tokens', {runs: usageInfo.today?.runs||0, tokens: fmtTokens(totalTokens(usageInfo.today))})"></div></div>
-        <div class="tile"><div class="k" x-text="t('Last {n} days', {n: usageDays})"></div><div class="v" x-text="fmtCost(usageInfo.period?.cost_usd)"></div><div class="s" x-text="t('{runs} runs · {tokens} tokens', {runs: usageInfo.period?.runs||0, tokens: fmtTokens(totalTokens(usageInfo.period))})"></div></div>
+        <template x-for="[label, sum] in [[t('Today'), usageInfo.today], [t('Last {n} days', {n: usageDays}), usageInfo.period]]" :key="label">
+          <div class="tile"><div class="k" x-text="label"></div>
+            <div class="v" x-text="apiMode() ? fmtCost(sum?.cost_usd) : t('{n} tokens', {n: fmtTokens(totalTokens(sum))})"></div>
+            <div class="s" x-text="apiMode() ? t('{runs} runs · {tokens} tokens', {runs: sum?.runs||0, tokens: fmtTokens(totalTokens(sum))}) : t('{runs} runs · {time}', {runs: sum?.runs||0, time: fmtDur(sum?.duration_s)})"></div></div>
+        </template>
         <div class="tile"><div class="k"><span x-t>Output tokens</span></div><div class="v" x-text="fmtTokens(usageInfo.period?.output_tokens)"></div><div class="s" x-text="t('{n} cached reads', {n: fmtTokens(usageInfo.period?.cache_read_tokens)})"></div></div>
         <div class="tile"><div class="k"><span x-t>Claude time</span></div><div class="v" x-text="fmtDur(usageInfo.period?.duration_s)"></div><div class="s" x-text="t('{n} turns', {n: usageInfo.period?.turns||0})"></div></div>
       </div>
-      <p class="hint" x-show="usageInfo.source && usageInfo.source!=='api_key'"><span x-t>Cost is the API-equivalent estimate; on a Claude plan you aren't billed per token — it shows how much of your usage a run took.</span></p>
 
       <!-- daily chart -->
       <div class="card" style="margin-top:16px">
-        <div class="card-head"><div class="grow"><h2><span x-t>Cost per day</span></h2><p x-text="t(usageInfo.source==='api_key' ? 'Last {n} days' : 'API-equivalent, last {n} days', {n: usageDays})"></p></div>
+        <div class="card-head"><div class="grow"><h2 x-text="t(apiMode() ? 'Cost per day' : 'Tokens per day')"></h2><p x-text="t('Last {n} days', {n: usageDays})"></p></div>
           <button class="btn ghost sm" @click="showTable=!showTable" x-text="showTable ? t('Show chart') : t('Show table')"></button></div>
         <template x-if="!showTable">
           <div>
-            <div class="bars" @mouseleave="hoverDay=null" role="img" :aria-label="t('Cost per day')">
+            <div class="bars" @mouseleave="hoverDay=null" role="img" :aria-label="t(apiMode() ? 'Cost per day' : 'Tokens per day')">
               <template x-for="(d, i) in dailySeries()" :key="d.day">
-                <div class="b" :class="!d.cost_usd && 'zero'" @mouseenter="hoverDay=i"><i :style="`height:${barHeight(d.cost_usd)}%`"></i></div>
+                <div class="b" :class="!d.v && 'zero'" @mouseenter="hoverDay=i"><i :style="`height:${barHeight(d.v)}%`"></i></div>
               </template>
               <div class="tip" x-show="hoverDay!=null" :style="{ left: ((hoverDay??0)+0.5)/dailySeries().length*100 + '%' }"
-                   x-text="hoverDay!=null ? (dayLabel(dailySeries()[hoverDay].day) + ' · ' + fmtCost(dailySeries()[hoverDay].cost_usd) + ' · ' + t('{runs} runs', {runs: dailySeries()[hoverDay].runs})) : ''"></div>
+                   x-text="hoverDay!=null ? (dayLabel(dailySeries()[hoverDay].day) + ' · ' + fmtMetric(dailySeries()[hoverDay].v) + ' · ' + t('{runs} runs', {runs: dailySeries()[hoverDay].runs})) : ''"></div>
             </div>
-            <div class="axis"><span x-text="dayLabel(dailySeries()[0]?.day)"></span><span x-text="t('max {v}', {v: fmtCost(maxDaily())})"></span><span x-text="dayLabel(dailySeries().at(-1)?.day)"></span></div>
+            <div class="axis"><span x-text="dayLabel(dailySeries()[0]?.day)"></span><span x-text="t('max {v}', {v: fmtMetric(maxDaily())})"></span><span x-text="dayLabel(dailySeries().at(-1)?.day)"></span></div>
           </div>
         </template>
         <template x-if="showTable">
           <div class="tablewrap"><table class="data">
-            <thead><tr><th><span x-t>Day</span></th><th class="n"><span x-t>Runs</span></th><th class="n"><span x-t>Tokens</span></th><th class="n"><span x-t>Cost</span></th></tr></thead>
-            <tbody><template x-for="d in usageInfo.by_day||[]" :key="d.k"><tr><td x-text="dayLabel(d.k)"></td><td class="n" x-text="d.runs"></td><td class="n" x-text="fmtTokens(totalTokens(d))"></td><td class="n" x-text="fmtCost(d.cost_usd)"></td></tr></template></tbody>
+            <thead><tr><th><span x-t>Day</span></th><th class="n"><span x-t>Runs</span></th><th class="n"><span x-t>Tokens</span></th><th class="n" x-show="apiMode()"><span x-t>Cost</span></th><th class="n" x-show="!apiMode()"><span x-t>Time</span></th></tr></thead>
+            <tbody><template x-for="d in usageInfo.by_day||[]" :key="d.k"><tr><td x-text="dayLabel(d.k)"></td><td class="n" x-text="d.runs"></td><td class="n" x-text="fmtTokens(totalTokens(d))"></td><td class="n" x-show="apiMode()" x-text="fmtCost(d.cost_usd)"></td><td class="n" x-show="!apiMode()" x-text="fmtDur(d.duration_s)"></td></tr></template></tbody>
           </table></div>
         </template>
       </div>
@@ -1154,15 +1160,15 @@
         <div class="card" style="margin:0">
           <div class="card-head"><div class="grow"><h2><span x-t>By model</span></h2></div></div>
           <div class="tablewrap"><table class="data">
-            <thead><tr><th><span x-t>Model</span></th><th class="n"><span x-t>Runs</span></th><th class="n"><span x-t>Tokens</span></th><th class="n"><span x-t>Cost</span></th></tr></thead>
-            <tbody><template x-for="r in usageInfo.by_model||[]" :key="r.k"><tr><td x-text="modelLabel(r.k)"></td><td class="n" x-text="r.runs"></td><td class="n" x-text="fmtTokens(totalTokens(r))"></td><td class="n" x-text="fmtCost(r.cost_usd)"></td></tr></template></tbody>
+            <thead><tr><th><span x-t>Model</span></th><th class="n"><span x-t>Runs</span></th><th class="n"><span x-t>Tokens</span></th><th class="n" x-show="apiMode()"><span x-t>Cost</span></th><th class="n" x-show="!apiMode()"><span x-t>Time</span></th></tr></thead>
+            <tbody><template x-for="r in usageInfo.by_model||[]" :key="r.k"><tr><td x-text="modelLabel(r.k)"></td><td class="n" x-text="r.runs"></td><td class="n" x-text="fmtTokens(totalTokens(r))"></td><td class="n" x-show="apiMode()" x-text="fmtCost(r.cost_usd)"></td><td class="n" x-show="!apiMode()" x-text="fmtDur(r.duration_s)"></td></tr></template></tbody>
           </table></div>
         </div>
         <div class="card" style="margin:0">
           <div class="card-head"><div class="grow"><h2><span x-t>By task</span></h2></div></div>
           <div class="tablewrap"><table class="data">
-            <thead><tr><th><span x-t>Task</span></th><th class="n"><span x-t>Runs</span></th><th class="n"><span x-t>Time</span></th><th class="n"><span x-t>Cost</span></th></tr></thead>
-            <tbody><template x-for="r in usageInfo.by_kind||[]" :key="r.k"><tr><td x-text="kindLabel(r.k)"></td><td class="n" x-text="r.runs"></td><td class="n" x-text="fmtDur(r.duration_s)"></td><td class="n" x-text="fmtCost(r.cost_usd)"></td></tr></template></tbody>
+            <thead><tr><th><span x-t>Task</span></th><th class="n"><span x-t>Runs</span></th><th class="n"><span x-t>Time</span></th><th class="n" x-show="apiMode()"><span x-t>Cost</span></th><th class="n" x-show="!apiMode()"><span x-t>Tokens</span></th></tr></thead>
+            <tbody><template x-for="r in usageInfo.by_kind||[]" :key="r.k"><tr><td x-text="kindLabel(r.k)"></td><td class="n" x-text="r.runs"></td><td class="n" x-text="fmtDur(r.duration_s)"></td><td class="n" x-show="apiMode()" x-text="fmtCost(r.cost_usd)"></td><td class="n" x-show="!apiMode()" x-text="fmtTokens(totalTokens(r))"></td></tr></template></tbody>
           </table></div>
         </div>
       </div>
@@ -1171,13 +1177,13 @@
         <div class="card-head"><div class="grow"><h2><span x-t>Recent runs</span></h2></div></div>
         <template x-if="!(usageInfo.recent||[]).length"><p class="small muted"><span x-t>No Claude runs yet.</span></p></template>
         <div class="tablewrap" x-show="(usageInfo.recent||[]).length"><table class="data">
-          <thead><tr><th><span x-t>When</span></th><th><span x-t>Task</span></th><th><span x-t>Video</span></th><th><span x-t>Model</span></th><th class="n"><span x-t>Tokens</span></th><th class="n"><span x-t>Cost</span></th><th class="n"><span x-t>Time</span></th></tr></thead>
+          <thead><tr><th><span x-t>When</span></th><th><span x-t>Task</span></th><th><span x-t>Video</span></th><th><span x-t>Model</span></th><th class="n"><span x-t>Tokens</span></th><th class="n" x-show="apiMode()"><span x-t>Cost</span></th><th class="n"><span x-t>Time</span></th></tr></thead>
           <tbody><template x-for="r in usageInfo.recent" :key="r.id"><tr>
             <td x-text="ago(r.at)"></td>
             <td x-text="kindLabel(r.kind) + (r.ok ? '' : ' ✗')"></td>
             <td><a x-show="r.project_id && r.project_title" :href="`/projects/${r.project_id}`" @click.prevent="nav(`/projects/${r.project_id}`)" x-text="r.project_title"></a><span x-show="!r.project_id" class="muted">—</span></td>
             <td x-text="modelLabel(r.model) + (r.effort ? ' · ' + effortLabel(r.effort) : '')"></td>
-            <td class="n" x-text="fmtTokens(totalTokens(r))"></td><td class="n" x-text="fmtCost(r.cost_usd)"></td><td class="n" x-text="fmtDur(r.duration_s)"></td>
+            <td class="n" x-text="fmtTokens(totalTokens(r))"></td><td class="n" x-show="apiMode()" x-text="fmtCost(r.cost_usd)"></td><td class="n" x-text="fmtDur(r.duration_s)"></td>
           </tr></template></tbody>
         </table></div>
       </div>
@@ -1705,7 +1711,7 @@ function app() {
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
     status: {}, cl: {}, cfg: { claude:{}, footage:{}, framejam:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
     channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] },
-    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'' },
+    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'', framejam:null },
     models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, plan: {}, planLoading: false, showTable: false, hoverDay: null,
     projUsage: {}, editModel: '', editEffort: '',
     workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' }, siteImport: { open:false, url:'', busy:false },
@@ -1870,7 +1876,8 @@ function app() {
       });
       window.addEventListener('beforeunload', e => { if (this.dirty || this.brandDirty) { e.preventDefault(); e.returnValue = ''; } });
       try { this.form.brand_id = localStorage.getItem('autoclip.brand') || null; } catch {}
-      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers()]);
+      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers(),
+        this.api('/api/settings').then(s => { if (s) this.cfg = s; }).catch(() => {})]);
       // Plan limits move while videos render: keep the Usage page current.
       setInterval(() => { if (this.route.page === 'usage' && !document.hidden && !this.planLoading) this.loadPlan(); }, 60000);
       if (['node','ffmpeg'].includes(this.motionInfo.code)) this.form.engine = 'classic';
@@ -2207,11 +2214,14 @@ function app() {
       for (let i = this.usageDays - 1; i >= 0; i--) {
         const dt = new Date(); dt.setDate(dt.getDate() - i);
         const k = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-        out.push({ day: k, cost_usd: by[k]?.cost_usd || 0, runs: by[k]?.runs || 0 });
+        out.push({ day: k, v: by[k] ? (this.apiMode() ? by[k].cost_usd || 0 : this.totalTokens(by[k])) : 0, runs: by[k]?.runs || 0 });
       }
       return out;
     },
-    maxDaily() { return Math.max(0, ...this.dailySeries().map(d => d.cost_usd)); },
+    maxDaily() { return Math.max(0, ...this.dailySeries().map(d => d.v)); },
+    // A Claude plan isn't billed per token: its usage is shown as tokens and time; an API key's as cost.
+    apiMode() { return (this.usageInfo.mode || this.projUsage.mode) === 'api'; },
+    fmtMetric(v) { return this.apiMode() ? this.fmtCost(v) : this.t('{n} tokens', {n: this.fmtTokens(v)}); },
     barHeight(v) { const m = this.maxDaily(); return m ? Math.max(1.5, v / m * 100) : 1.5; },
 
     // ------------------------------------------------ Claude Motion & voice
@@ -2277,18 +2287,18 @@ function app() {
     },
     async claudeCancel() { await this.run(() => this.api('/api/claude/login/cancel', { method:'POST' })); this.cl = { ...this.cl, login: { state:'idle' } }; },
     async claudeSource(source) {
-      if (await this.run(() => this.api('/api/claude/source', { method:'POST', body:{ source } }), source ? 'Claude connected' : 'Claude disconnected')) { this.switching = false; this.plan = {}; this.loadConnections(); }
+      if (await this.run(() => this.api('/api/claude/source', { method:'POST', body:{ source } }), source ? 'Claude connected' : 'Claude disconnected')) { this.switching = false; this.plan = {}; this.loadConnections(); this.loadUsage(); }
     },
     async useApiKey() {
       if (!this.apiKey.trim().startsWith('sk-') || this.savingKey) return;
       this.savingKey = true;
       const ok = await this.run(() => this.api('/api/claude/api-key', { method:'POST', body:{ key: this.apiKey.trim() } }), 'API key checked and in use');
       this.savingKey = false;
-      if (ok) { this.apiKey = ''; this.keyEdit = false; this.switching = false; this.plan = {}; this.loadConnections(); }
+      if (ok) { this.apiKey = ''; this.keyEdit = false; this.switching = false; this.plan = {}; this.loadConnections(); this.loadUsage(); }
     },
     removeApiKey() {
       this.confirm('Remove the API key?', this.cl.current?.source === 'api_key' ? 'Claude is disconnected until you choose another way to connect.' : 'You can add a key again at any time.', 'Remove', async () => {
-        if (await this.run(() => this.api('/api/claude/api-key', { method:'DELETE' }), 'Removed')) this.loadConnections();
+        if (await this.run(() => this.api('/api/claude/api-key', { method:'DELETE' }), 'Removed')) { this.loadConnections(); this.loadUsage(); }
       });
     },
     async setModel(model) { if (await this.run(() => this.api('/api/settings/claude', { method:'PUT', body:{ ...this.cfg.claude, model } }), 'Model updated')) this.loadConnections(); },
