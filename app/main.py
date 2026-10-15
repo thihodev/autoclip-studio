@@ -25,6 +25,7 @@ logging.basicConfig(level=logging.INFO)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.init()
+    settings.migrate()
     context.cleanup(_context_in_use())
     task = asyncio.create_task(pipeline.autopilot_loop())
     if framejam.auto() and shutil.which("npx"):

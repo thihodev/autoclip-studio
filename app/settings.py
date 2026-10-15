@@ -3,7 +3,7 @@ from . import db
 
 DEFAULTS = {
     # source: "" until the user picks. effort "" = the model's default.
-    "claude": {"source": "", "api_key": "", "model": "sonnet", "effort": "", "motion_model": "opus", "motion_effort": "high",
+    "claude": {"source": "", "api_key": "", "model": "sonnet", "effort": "", "motion_model": "opus", "motion_effort": "medium",
                "designer_model": "sonnet", "designer_effort": "medium"},
     "footage": {"provider": "pixabay", "pexels_api_key": "", "pixabay_api_key": ""},
     "framejam": {"url": "http://localhost:2400", "auto": True},  # auto: start it and send every render
@@ -58,3 +58,15 @@ def _mask(value, key=""):
 def public() -> dict:
     """All settings with secrets masked, for the UI."""
     return {section: _mask(get(section)) for section in DEFAULTS}
+
+
+def migrate():
+    """One-time changes to saved settings when a default changes for a reason that applies to everyone."""
+    done = set(db.get_setting("migrations", []) or [])
+    if "motion_effort_medium" not in done:
+        # Claude Motion's orchestrator at medium effort: about as good, far fewer tokens than high.
+        saved = db.get_setting("cfg.claude")
+        if saved and saved.get("motion_effort") == "high":
+            db.set_setting("cfg.claude", {**saved, "motion_effort": "medium"})
+        done.add("motion_effort_medium")
+    db.set_setting("migrations", sorted(done))
