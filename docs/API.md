@@ -63,6 +63,8 @@ The web UI uses this JSON API; you can script it too. Everything runs on the loc
 | POST, PUT | `/api/projects/{id}/covers`, `/api/projects/{id}/covers/{i}` | Make 3 covers `{text?}` / choose one |
 | POST | `/api/projects/{id}/publish` | `{integrations, publish_options}` |
 
+`voice`: an edge-tts voice name, `eleven:<voice_id>`, `none` (no voice-over: captions timed to reading speed, music turned up) or empty for the default.
+
 `publish_options`: `youtube_visibility` (`public|unlisted|private`), `tiktok_method` (`DIRECT_POST|UPLOAD`), `tiktok_privacy`, `schedule_at` (Postiz only).
 
 ## Brand kits and projects

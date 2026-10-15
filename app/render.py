@@ -586,7 +586,9 @@ async def render_timeline(pid: str, tl: dict, out: Path, on_progress) -> dict:
     cache = project_dir(pid) / "cache"
 
     voices = []
-    activity.add(pid, f"Recording the voice-over ({tts.provider()})")
+    silent = tl.get("voice") == tts.NO_VOICE
+    activity.add(pid, "Timing the scenes to reading speed (no voice-over)" if silent
+                 else f"Recording the voice-over ({tts.provider()})")
     for i, s in enumerate(scenes):
         voices.append(await scene_voice(pid, s["text"], tl["voice"], tl["voice_rate"], tl.get("language", "English")))
         on_progress(0.15 * (i + 1) / n)
@@ -641,10 +643,11 @@ async def render_timeline(pid: str, tl: dict, out: Path, on_progress) -> dict:
     if style["music"]:
         m = style["music"]
         fade = max(0.0, t - 2.0)
+        vol = m["volume"] * (tts.MUSIC_BOOST if silent else 1)
         args += ["-stream_loop", "-1", "-i", str(m["path"])]
         # Music ducks under the voice (sidechain) and fades out at the end.
         graph += [f"[1:a]asplit=2[vo][sc]",
-                  f"[2:a]aformat=sample_rates=44100:channel_layouts=stereo,volume={m['volume']:.3f},"
+                  f"[2:a]aformat=sample_rates=44100:channel_layouts=stereo,volume={vol:.3f},"
                   f"afade=t=out:st={fade:.2f}:d=2[mu]",
                   "[mu][sc]sidechaincompress=threshold=0.03:ratio=6:attack=20:release=400[md]"]
         mix.append("[md]")

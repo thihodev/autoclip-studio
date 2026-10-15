@@ -4,6 +4,7 @@
   and Flash v2.5); /with-timestamps returns character timings we turn into
   word timings for captions.
 - edge-tts: free fallback (Microsoft neural voices) with word boundaries.
+- "none": no voice-over. A silent track timed to reading speed, so scenes, captions and music still line up.
 
 synthesize() always returns word timings as [[start, end, word], ...].
 """
@@ -158,17 +159,35 @@ async def _edge_once(text: str, voice: str, rate: float, dest: Path) -> list[lis
 
 
 ELEVEN_PREFIX = "eleven:"  # a voice picked from the ElevenLabs account: "eleven:<voice_id>"
+NO_VOICE = "none"
+MUSIC_BOOST = 2.5  # music volume × this when nobody speaks over it
+
+
+async def _silent(text: str, rate: float, dest: Path) -> list[list]:
+    """No voice-over: silence as long as reading the text takes, with word timings for the captions."""
+    from .render import _ffmpeg
+
+    words, t = [], 0.15
+    for w in text.split():
+        d = (0.18 + 0.045 * len(w)) / rate  # ≈ 2.6 words per second at 1×
+        words.append([round(t, 3), round(t + d, 3), w])
+        t += d + (0.25 if re.search(r"[.!?…]$", w) else 0.12 if re.search(r"[,;:]$", w) else 0) / rate
+    await _ffmpeg("-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", f"{t + 0.45:.3f}", "-c:a", "libmp3lame",
+                  "-b:a", "64k", dest)
+    return words
 
 
 async def synthesize(text: str, language: str, voice: str, rate: float, dest: Path) -> list[list]:
     """Write an mp3 to `dest`; return word timings.
 
-    `voice` is an edge-tts voice name or "eleven:<voice_id>". With ElevenLabs connected, an edge name falls
+    `voice` is an edge-tts voice name, "eleven:<voice_id>" or "none". With ElevenLabs connected, an edge name falls
     back to the account's default voice; without it, an ElevenLabs voice falls back to the language's edge voice.
     """
     from .render import DEFAULT_VOICES
 
     text = re.sub(r"\s+", " ", text).strip()
+    if voice == NO_VOICE:
+        return await _silent(text, rate, dest)
     eleven_id = voice[len(ELEVEN_PREFIX):] if voice and voice.startswith(ELEVEN_PREFIX) else None
     if provider() == "elevenlabs":
         return await _eleven(text, language, rate, dest, eleven_id)

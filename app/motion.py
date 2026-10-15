@@ -151,6 +151,10 @@ def _brief(req: dict, brand: dict | None, resolution: str, root: Path | None = N
               "- Narration comes from the host's `voiceover` tool (see the run instructions), not audio.mjs."]
     if req.get("sfx", True) is False:
         lines.append("- No sound effects in this video.")
+    if req.get("voice") == tts.NO_VOICE:
+        lines.append("- No voice-over: viewers watch with music and sound effects only. Still pass every SCRIPT.md "
+                     "line to the `voiceover` tool — it records silence timed to reading speed and the captions show "
+                     "the lines — so write them as short on-screen copy (at most 10 words each), not as speech.")
     if req.get("context"):
         lines.append("- Source material from the user is in `source/` — base the facts on it.")
     if brand:
@@ -269,7 +273,8 @@ def _voiceover_server(pid: str, root: Path, req: dict, brand: dict | None):
             (root / "assets" / "music").mkdir(parents=True, exist_ok=True)
             dest = root / "assets" / "music" / Path(m["path"]).name
             shutil.copyfile(m["path"], dest)
-            bgm = {"path": f"assets/music/{dest.name}", "source": "host", "volume": m["volume"],
+            vol = m["volume"] * (tts.MUSIC_BOOST if voice == tts.NO_VOICE else 1)
+            bgm = {"path": f"assets/music/{dest.name}", "source": "host", "volume": round(vol, 3),
                    "query": None, "duration_s": round(await render.media_duration(dest), 3)}
         meta = {"bgm": bgm, "bgm_pending": False, "voices": sorted(voices.values(), key=lambda v: v["frame"]),
                 "sfx": meta.get("sfx", [])}

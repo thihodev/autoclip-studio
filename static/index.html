@@ -563,7 +563,7 @@
           </div>
           <div class="grid-3" style="margin-top:12px">
             <div class="field"><label><span x-t>Language</span></label>
-              <select x-select x-model="form.language" @change="form.voice=''; loadVoices(form.language)"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===form.language"></option></template></select></div>
+              <select x-select x-model="form.language" @change="form.voice = form.voice==='none' ? 'none' : ''; loadVoices(form.language)"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===form.language"></option></template></select></div>
             <div class="field"><label><span x-t>Format</span></label>
               <select x-select x-model="form.format"><option value="shorts" x-t>Vertical 9:16 · Shorts, TikTok, Reels</option><option value="youtube" x-t>Landscape 16:9 · YouTube</option><option value="square" x-t>Square 1:1</option></select></div>
             <div class="field"><label><span x-t>Length</span></label>
@@ -608,10 +608,11 @@
               <div class="actions" style="flex-wrap:nowrap"><div style="flex:1;min-width:0">
               <select x-select x-model="form.voice">
                 <option value="" x-text="t(status.voice?.provider==='elevenlabs' ? 'Default ElevenLabs voice' : 'Default for the language')"></option>
+                <option value="none" x-t>No voice-over (music and captions only)</option>
                 <template x-for="v in (voices[form.language]||[])"><option :value="v.name" x-text="voiceLabel(v)"></option></template>
               </select></div>
-              <button type="button" class="btn icon" :title="t('Listen')" :aria-label="t('Listen')" @click="previewVoice(form.voice, form.language, form.voice_rate, 'form')" :disabled="previewing && previewing!=='form'"><span class="spin" x-show="previewing==='form'"></span><svg class="i" x-show="previewing!=='form'"><use href="#i-play"/></svg></button></div></div>
-            <div class="field"><label><span x-t>Voice speed</span> <span x-text="form.voice_rate.toFixed(2)+'×'"></span></label>
+              <button type="button" class="btn icon" :title="t('Listen')" :aria-label="t('Listen')" @click="previewVoice(form.voice, form.language, form.voice_rate, 'form')" :disabled="form.voice==='none' || (previewing && previewing!=='form')"><span class="spin" x-show="previewing==='form'"></span><svg class="i" x-show="previewing!=='form'"><use href="#i-play"/></svg></button></div></div>
+            <div class="field"><label><span x-text="t(form.voice==='none' ? 'Caption speed' : 'Voice speed')"></span> <span x-text="form.voice_rate.toFixed(2)+'×'"></span></label>
               <input type="range" min="0.7" max="1.4" step="0.05" x-model.number="form.voice_rate"></div>
           </div>
           <div class="grid-2" style="margin-top:12px;align-items:end">
@@ -869,10 +870,11 @@
                     <div class="field"><label><span x-t>Voice</span></label>
                       <div class="actions" style="flex-wrap:nowrap"><div style="flex:1;min-width:0">
                       <select x-select x-model="tl.voice">
-                        <template x-if="!(voices[cur.request.language]||[]).some(v=>v.name===tl.voice)"><option :value="tl.voice" x-text="tl.voice"></option></template>
+                        <template x-if="tl.voice!=='none' && !(voices[cur.request.language]||[]).some(v=>v.name===tl.voice)"><option :value="tl.voice" x-text="tl.voice"></option></template>
+                        <option value="none" :selected="tl.voice==='none'" x-t>No voice-over (music and captions only)</option>
                         <template x-for="v in (voices[cur.request.language]||[])"><option :value="v.name" x-text="voiceLabel(v)" :selected="v.name===tl.voice"></option></template>
                       </select></div>
-                      <button type="button" class="btn icon" :title="t('Listen')" :aria-label="t('Listen')" @click="previewVoice(tl.voice, cur.request.language, tl.voice_rate, 'edit')" :disabled="previewing && previewing!=='edit'"><span class="spin" x-show="previewing==='edit'"></span><svg class="i" x-show="previewing!=='edit'"><use href="#i-play"/></svg></button></div></div>
+                      <button type="button" class="btn icon" :title="t('Listen')" :aria-label="t('Listen')" @click="previewVoice(tl.voice, cur.request.language, tl.voice_rate, 'edit')" :disabled="tl.voice==='none' || (previewing && previewing!=='edit')"><span class="spin" x-show="previewing==='edit'"></span><svg class="i" x-show="previewing!=='edit'"><use href="#i-play"/></svg></button></div></div>
                     <div class="field"><label><span x-t>Speed</span> <span x-text="(+tl.voice_rate||1).toFixed(2)+'×'"></span></label>
                       <input type="range" min="0.7" max="1.4" step="0.05" x-model.number="tl.voice_rate"></div>
                   </div>

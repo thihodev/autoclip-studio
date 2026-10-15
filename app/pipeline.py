@@ -9,7 +9,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import activity, brands, claude, context, db, motion, playbooks, platforms, postiz, render, settings, usage
+from . import activity, brands, claude, context, db, motion, playbooks, platforms, postiz, render, settings, tts, usage
 from .config import DATA_DIR, VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
@@ -210,7 +210,9 @@ async def run_project(pid: str):
                 duration=int(req.get("duration", 45)), style=req.get("style", ""),
                 notes="\n\n".join(filter(None, [
                     req.get("notes", ""), playbooks.script_notes(req.get("playbook_id")),
-                    f'Open the voice-over with exactly this hook (first scene): "{req["hook"]}"' if req.get("hook") else ""])),
+                    f'Open the voice-over with exactly this hook (first scene): "{req["hook"]}"' if req.get("hook") else "",
+                    "No voice-over: viewers read each scene's text as on-screen captions, so write short, punchy "
+                    "lines (at most 10 words each)." if req.get("voice") == tts.NO_VOICE else ""])),
                 brand_context=brands.prompt_context(brand),
                 source=source_material(req), project_id=pid, model=req.get("model"), effort=req.get("effort"),
             )
