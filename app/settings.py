@@ -6,6 +6,7 @@ DEFAULTS = {
     "footage": {"provider": "pexels", "pexels_api_key": "", "pixabay_api_key": ""},
     "framejam": {"url": "http://localhost:2400"},
     "postiz": {"url": "", "api_key": ""},
+    "github": {"token": "", "login": ""},
     "apps": {
         "youtube": {"client_id": "", "client_secret": ""},
         "tiktok": {"client_key": "", "client_secret": ""},
@@ -14,7 +15,7 @@ DEFAULTS = {
     "public_url": "",
 }
 
-SECRET_KEYS = {"api_key", "pexels_api_key", "pixabay_api_key", "client_secret", "app_secret"}
+SECRET_KEYS = {"api_key", "pexels_api_key", "pixabay_api_key", "client_secret", "app_secret", "token"}
 MASK = "••••"
 
 

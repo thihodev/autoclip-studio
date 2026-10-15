@@ -23,7 +23,7 @@ The app opens on **Connections** until two things are set:
 1. **Claude**: click **Sign in with Claude**, approve in the browser and paste the code back, or pick *Use this computer's Claude Code login*, or paste an Anthropic API key. The app never uses an account until you choose one.
 2. **Stock footage**: paste a free [Pexels](https://www.pexels.com/api/) (or [Pixabay](https://pixabay.com/api/docs/)) API key.
 
-Social accounts, FrameJam and Postiz are optional and can be connected at any time from the same tab.
+Social accounts, GitHub, FrameJam and Postiz are optional and can be connected at any time from the same tab.
 
 ## Built on
 
@@ -35,7 +35,7 @@ Social accounts, FrameJam and Postiz are optional and can be connected at any ti
 | Render | ffmpeg via [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg) | Crop, slow camera drift, word-by-word captions (libass), concat. Each scene is cached, so edits re-encode only what changed. |
 | Review | [FrameJam](https://github.com/moritzkremb/framejam) (MIT) | Comment on exact frames; Claude applies the comments and renders the next version. |
 | Publishing | YouTube Data API, TikTok Content Posting API, Facebook Graph API | Native OAuth from the UI. Optional [Postiz](https://github.com/gitroomhq/postiz-app) for more networks. |
-| Captions font | [Be Vietnam Pro](https://github.com/bettergui/BeVietnamPro) (OFL) | Covers Latin scripts including Vietnamese. |
+| Captions font | [Be Vietnam Pro](https://github.com/bettergui/BeVietnamPro) (OFL) | Default caption font; covers Latin scripts including Vietnamese. Brand kits can bring their own. |
 | Web UI / API | FastAPI + Alpine.js | |
 
 ## Features
@@ -48,9 +48,34 @@ Social accounts, FrameJam and Postiz are optional and can be connected at any ti
   - **Edit with AI**: describe the change ("punchier hook, shorten scene 3, captions at the top") and Claude edits the timeline;
   - **FrameJam review**: send the render to FrameJam, click frames and comment, then **Apply feedback**;
   - every render is kept as a version (v1, v2, …) you can preview and compare.
+- **Brand kits**: a design system for videos — see below.
 - **Ideas**: Claude suggests topics for a niche, each with an opening hook.
 - **Autopilot**: every N hours, generate ideas → render → optionally auto-publish.
 - **Publish** to YouTube, TikTok, Facebook Pages (and Postiz channels) in one click.
+
+## Brand kits (a design system for videos)
+
+A brand kit bundles everything that makes videos look and sound like yours:
+
+| Part | Used for |
+|---|---|
+| Description, voice & tone, audience, call to action | Claude follows them when writing and editing scripts. |
+| Colors, caption style and position, font (TTF/OTF) | Burned-in captions; the highlight color marks the spoken word. |
+| Logo (PNG/JPG/WebP) | Overlaid on every scene, with corner, size and opacity settings. |
+| Intro / outro (≤ 30 s) | Played before and after every video, conformed to the video format. |
+| Music | Mixed under the voice, ducked automatically while someone speaks, faded out at the end. |
+| B-roll library | Your own clips with descriptions. Claude picks them for matching scenes before stock footage; you can also pick them in the editor. |
+
+Pick a kit when creating a video (Studio), in the editor (Style → Brand kit, with per-video toggles for logo, intro, outro and music) or for Autopilot.
+
+### Import from GitHub
+
+**Brand kits → Import from GitHub** accepts `owner/repo` or a GitHub URL (optionally a branch or tag). Public repos work as they are; for private repos, connect GitHub in Connections with a fine-grained token that has read-only *Contents* access.
+
+- If the repo contains **`autoclip.brand.json`** (at the root, `.autoclip/brand.json` or `brand/autoclip.brand.json`), it is applied exactly. See [`examples/autoclip.brand.json`](examples/autoclip.brand.json); asset paths are relative to the repo root.
+- Otherwise Claude reads the README, `package.json`, Tailwind config, CSS variables and design-token files, and picks the logo, font, music and clips from the repo's files.
+
+**Sync from GitHub** on a kit re-imports it from the same repo and ref. SVG logos and WOFF fonts can't be rendered by ffmpeg; the import warns you to upload a PNG or a TTF/OTF instead.
 
 ## Connecting Claude
 
@@ -100,6 +125,7 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 | GET, POST | `/api/claude`, `/api/claude/login/{start,code,cancel}`, `/api/claude/{source,logout}` | Claude connection |
 | GET | `/oauth/{youtube,tiktok,facebook}/start` | Connect a social account |
 | GET | `/api/channels` | Connected accounts + Postiz channels |
+| GET | `/api/voices?language=` | edge-tts voices for a language |
 | POST | `/api/ideas` | `{niche, language, count}` |
 | GET, POST | `/api/projects` | List / create `{topic, language, duration, format, style, voice, voice_rate, auto_publish, integrations}` |
 | PUT | `/api/projects/{id}/timeline` | Save a manual edit and re-render |
@@ -108,6 +134,11 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 | POST | `/api/projects/{id}/upload` | Upload your own clip (multipart `file`) |
 | POST | `/api/projects/{id}/framejam`, `/api/projects/{id}/framejam/apply` | FrameJam review loop |
 | POST | `/api/projects/{id}/publish` | `{integrations, publish_options}` |
+| GET, POST | `/api/brands` | List / create brand kits |
+| GET, PUT, DELETE | `/api/brands/{id}` | Read / update / delete a kit |
+| POST, DELETE | `/api/brands/{id}/assets`, `/api/brands/{id}/assets/{kind}` | Upload (multipart `kind`, `file`) or remove logo, font, intro, outro, music, clip |
+| POST | `/api/brands/import`, `/api/brands/{id}/sync` | Import / re-sync from GitHub `{url, ref}` |
+| GET, POST, DELETE | `/api/github`, `/api/github/repos` | GitHub connection and repo list |
 | GET, PUT | `/api/autopilot` | Autopilot settings |
 
 `publish_options`: `youtube_visibility` (`public|unlisted|private`), `tiktok_method` (`DIRECT_POST|UPLOAD`), `tiktok_privacy`, `schedule_at` (Postiz only).

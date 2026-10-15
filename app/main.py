@@ -8,14 +8,14 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlencode
 
-from fastapi import Body, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import claude, db, framejam, pipeline, platforms, postiz, render, settings
+from . import brands, claude, db, framejam, pipeline, platforms, postiz, render, settings
 from .config import ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -64,6 +64,7 @@ class ProjectIn(BaseModel):
     auto_publish: bool = False
     integrations: list[Channel] = []
     publish_options: dict = {}
+    brand_id: str | None = None
 
 
 class PublishIn(BaseModel):
@@ -90,6 +91,7 @@ class AutopilotIn(BaseModel):
     auto_publish: bool = False
     integrations: list[Channel] = []
     publish_options: dict = {}
+    brand_id: str | None = None
 
 
 class TimelineIn(BaseModel):
@@ -103,6 +105,19 @@ class InstructionIn(BaseModel):
 
 class CodeIn(BaseModel):
     code: str
+
+
+class BrandIn(BaseModel):
+    name: str = Field(min_length=1)
+
+
+class ImportIn(BaseModel):
+    url: str
+    ref: str | None = None
+
+
+class TokenIn(BaseModel):
+    token: str
 
 
 class SourceIn(BaseModel):
@@ -285,6 +300,8 @@ def _require_setup():
 @app.post("/api/projects")
 async def create_project(body: ProjectIn):
     _require_setup()
+    if body.brand_id and not brands.get(body.brand_id):
+        raise HTTPException(400, "That brand kit no longer exists")
     p = db.create_project(body.model_dump())
     pipeline.start(p["id"])
     return p
@@ -430,6 +447,128 @@ def media(pid: str, name: str):
     return FileResponse(path)
 
 
+# ------------------------------------------------------------------ brand kits
+
+def _brand(bid: str) -> dict:
+    b = brands.get(bid)
+    if not b:
+        raise HTTPException(404, "Brand kit not found")
+    return b
+
+
+@app.get("/api/brands")
+def list_brands():
+    return brands.list_all()
+
+
+@app.post("/api/brands")
+def create_brand(body: BrandIn):
+    return brands.create(body.name)
+
+
+@app.get("/api/brands/{bid}")
+def get_brand(bid: str):
+    return _brand(bid)
+
+
+@app.put("/api/brands/{bid}")
+def update_brand(bid: str, patch: dict = Body(...)):
+    _brand(bid)
+    return brands.update(bid, patch)
+
+
+@app.delete("/api/brands/{bid}")
+def delete_brand(bid: str):
+    _brand(bid)
+    brands.delete(bid)
+    return {"ok": True}
+
+
+@app.post("/api/brands/{bid}/assets")
+async def add_brand_asset(bid: str, kind: str = Form(...), file: UploadFile = File(...), description: str = Form("")):
+    _brand(bid)
+    if kind not in brands.KIND_EXT:
+        raise HTTPException(400, "Unknown asset kind")
+    tmp = render.project_dir("_uploads") / f"{uuid.uuid4().hex}{Path(file.filename or '').suffix}"
+    with open(tmp, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    try:
+        return await brands.add_asset(bid, kind, tmp, file.filename or kind, description)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+@app.delete("/api/brands/{bid}/assets/{kind}")
+def remove_brand_asset(bid: str, kind: str, file: str | None = None):
+    _brand(bid)
+    return brands.remove_asset(bid, kind, file)
+
+
+@app.post("/api/brands/import")
+async def import_brand(body: ImportIn):
+    try:
+        return await brands.import_github(body.url, body.ref or None)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logging.exception("GitHub import failed")
+        raise HTTPException(502, f"Import failed: {e.__class__.__name__}: {e}"[:300])
+
+
+@app.post("/api/brands/{bid}/sync")
+async def sync_brand(bid: str):
+    b = _brand(bid)
+    src = b["source"]
+    if src.get("type") != "github":
+        raise HTTPException(400, "This brand kit wasn't imported from GitHub")
+    try:
+        return await brands.import_github(src["repo"], src.get("ref"), bid=bid)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/brand-media/{bid}/{name}")
+def brand_media(bid: str, name: str):
+    path = brands.asset_path(bid, name)
+    if not path.exists():
+        raise HTTPException(404)
+    return FileResponse(path)
+
+
+# ------------------------------------------------------------------ GitHub connection
+
+@app.get("/api/github")
+def github_info():
+    cfg = settings.get("github")
+    return {"connected": bool(cfg["token"]), "login": cfg["login"]}
+
+
+@app.post("/api/github")
+async def github_connect(body: TokenIn):
+    try:
+        user = await brands.github_user(body.token.strip())
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    settings.put("github", {"token": body.token.strip(), "login": user["login"]})
+    return {"connected": True, "login": user["login"]}
+
+
+@app.delete("/api/github")
+def github_disconnect():
+    settings.put("github", {"token": "", "login": ""})
+    return {"connected": False, "login": ""}
+
+
+@app.get("/api/github/repos")
+async def github_repos():
+    try:
+        return await brands.github_repos()
+    except Exception as e:
+        raise HTTPException(502, f"GitHub: {e}")
+
+
 # ------------------------------------------------------------------ voices
 
 _voices_cache: list | None = None
@@ -459,9 +598,11 @@ INDEX = ROOT / "static" / "index.html"
 @app.get("/ideas", include_in_schema=False)
 @app.get("/autopilot", include_in_schema=False)
 @app.get("/connections", include_in_schema=False)
+@app.get("/brands", include_in_schema=False)
+@app.get("/brands/{bid}", include_in_schema=False)
 @app.get("/projects/{pid}", include_in_schema=False)
 @app.get("/projects/{pid}/{section}", include_in_schema=False)
-def page(pid: str | None = None, section: str | None = None):
+def page(pid: str | None = None, section: str | None = None, bid: str | None = None):
     return FileResponse(INDEX, headers={"Cache-Control": "no-cache"})
 
 

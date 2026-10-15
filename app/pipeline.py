@@ -7,7 +7,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import claude, db, framejam, platforms, postiz, render, settings
+from . import brands, claude, db, framejam, platforms, postiz, render, settings
 from .config import VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
@@ -53,11 +53,13 @@ async def run_project(pid: str):
     try:
         if not p.get("timeline"):
             db.update_project(pid, status="scripting", progress=5)
+            brand = brands.get(req.get("brand_id"))
             meta = await claude.write_script(
                 topic=req["topic"], language=req.get("language", "English"),
                 duration=int(req.get("duration", 45)), style=req.get("style", ""), notes=req.get("notes", ""),
+                brand_context=brands.prompt_context(brand),
             )
-            db.update_project(pid, script=meta, timeline=render.new_timeline(meta, req))
+            db.update_project(pid, script=meta, timeline=render.new_timeline(meta, req, brand))
         await _render_version(pid, "First cut")
         if req.get("auto_publish") and req.get("integrations"):
             await publish_project(pid)
@@ -72,6 +74,7 @@ def start(pid: str):
 # ---------- editing ----------
 
 def apply_edit(tl: dict, meta: dict, edit: dict) -> tuple[dict, dict]:
+    brand = brands.get(tl.get("brand_id"))
     old = {s["id"]: s for s in tl["scenes"]}
     scenes = []
     for e in edit.get("scenes") or []:
@@ -81,11 +84,12 @@ def apply_edit(tl: dict, meta: dict, edit: dict) -> tuple[dict, dict]:
             continue
         search = e.get("search") or (prev or {}).get("search", "")
         keep_clip = prev and not e.get("new_footage") and search == prev["search"]
+        brand_clip = brands.clip_for_scene(brand, e.get("asset"))
         scenes.append({
             "id": prev["id"] if prev else f"s{uuid.uuid4().hex[:6]}",
             "text": text, "search": search,
-            "clip": prev.get("clip") if keep_clip else None,
-            "clip_start": prev.get("clip_start", 0) if keep_clip else 0,
+            "clip": brand_clip or (prev.get("clip") if keep_clip else None),
+            "clip_start": prev.get("clip_start", 0) if keep_clip and not brand_clip else 0,
         })
     if scenes:
         tl["scenes"] = scenes
@@ -107,7 +111,8 @@ async def ai_edit(pid: str, instruction: str, source: str = "prompt"):
     try:
         db.update_project(pid, status="editing", progress=0, error=None)
         edit = await claude.edit_timeline(
-            p["timeline"], p["script"], p["request"].get("language", "English"), instruction
+            p["timeline"], p["script"], p["request"].get("language", "English"), instruction,
+            brand_context=brands.prompt_context(brands.get(p["timeline"].get("brand_id"))),
         )
         tl, meta = apply_edit(p["timeline"], p["script"], edit)
         extra = _extra(p)
@@ -126,6 +131,8 @@ async def manual_edit(pid: str, timeline: dict, title: str | None = None):
     old = {s["id"]: s for s in p["timeline"]["scenes"]}
     for s in timeline["scenes"]:
         s.setdefault("id", f"s{uuid.uuid4().hex[:6]}")
+        if (s.get("clip") or {}).get("brand_clip"):  # picked from the brand library in the UI
+            s["clip"] = brands.clip_for_scene(brands.get(s["clip"].get("brand_id")), s["clip"]["brand_clip"])
         prev = old.get(s["id"])
         if prev and s.get("search") != prev.get("search") and s.get("clip") == prev.get("clip"):
             s["clip"] = None  # new search phrase → fetch new footage
@@ -254,6 +261,7 @@ async def _autopilot_run(cfg: dict):
             "auto_publish": cfg.get("auto_publish", False),
             "integrations": cfg.get("integrations", []),
             "publish_options": cfg.get("publish_options", {}),
+            "brand_id": cfg.get("brand_id"),
             "source": "autopilot",
         })
         await run_project(p["id"])

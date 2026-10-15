@@ -35,14 +35,14 @@ Language of the voice-over and all captions: {language}
 Target length: about {duration} seconds of narration (~{words} words in total)
 Tone / style: {style}
 Extra instructions: {notes}
-
+{brand}
 Split the voice-over into {scenes} scenes. Each scene is 1-2 sentences shown over ONE stock clip,
 so pick a concrete, filmable ENGLISH search phrase for it (e.g. "woman reading phone at night").
 
 Return JSON with exactly these keys:
 {{
   "title": "catchy title, max 90 characters, in {language}",
-  "scenes": [{{"text": "voice-over for this scene, plain sentences, no emojis, in {language}", "search": "english stock footage phrase"}}],
+  "scenes": [{{"text": "voice-over for this scene, plain sentences, no emojis, in {language}", "search": "english stock footage phrase", "asset": "brand footage id or null"}}],
   "description": "2-3 sentence post caption in {language}",
   "hashtags": ["6-10 hashtags without #"],
   "youtube_tags": ["5-10 SEO keywords"]
@@ -55,7 +55,7 @@ Reply with ONE JSON object only, no markdown fences, no commentary."""
 
 EDIT_PROMPT = """Current video (language: {language}):
 {timeline}
-
+{brand}
 Caption presets available: bold (big uppercase, highlighted word), box (text on dark box), minimal, none.
 Caption position is 0-1 from the top of the frame (0.68 = lower third).
 
@@ -67,7 +67,8 @@ Return JSON:
   "summary": "one line describing what you changed",
   "title": "updated title (or the same)",
   "scenes": [{{"id": "keep existing id, or null for a new scene", "text": "...", "search": "english stock phrase",
-              "new_footage": true if this scene needs a different clip, else false}}],
+              "new_footage": true if this scene needs a different clip, else false,
+              "asset": "brand footage id to use for this scene, or null"}}],
   "captions": {{"preset": "...", "position": 0.68, "color": "#FFFFFF", "highlight_color": "#FFE14D"}},
   "voice_rate": 1.0,
   "motion": true
@@ -130,13 +131,14 @@ async def ask_json(prompt: str, system: str = SCRIPT_SYSTEM) -> dict:
     return _extract_json(result)
 
 
-async def write_script(topic: str, language: str, duration: int, style: str, notes: str) -> dict:
+async def write_script(topic: str, language: str, duration: int, style: str, notes: str, brand_context: str = "") -> dict:
     words = int(duration * 2.5)
     scenes = max(3, min(12, round(duration / 5)))
     data = await ask_json(
         SCRIPT_PROMPT.format(
             topic=topic, language=language, duration=duration, words=words, scenes=scenes,
             style=style or "engaging, informative", notes=notes or "none",
+            brand=f"\n{brand_context}\n" if brand_context else "",
         )
     )
     if not data.get("title") or not data.get("scenes"):
@@ -145,7 +147,7 @@ async def write_script(topic: str, language: str, duration: int, style: str, not
     return data
 
 
-async def edit_timeline(timeline: dict, meta: dict, language: str, instruction: str) -> dict:
+async def edit_timeline(timeline: dict, meta: dict, language: str, instruction: str, brand_context: str = "") -> dict:
     view = {
         "title": meta.get("title"),
         "captions": timeline["captions"],
@@ -158,7 +160,7 @@ async def edit_timeline(timeline: dict, meta: dict, language: str, instruction: 
     }
     return await ask_json(
         EDIT_PROMPT.format(language=language, timeline=json.dumps(view, ensure_ascii=False, indent=1),
-                           instruction=instruction),
+                           instruction=instruction, brand=f"\n{brand_context}\n" if brand_context else ""),
         system=EDIT_SYSTEM,
     )
 

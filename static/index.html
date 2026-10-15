@@ -181,6 +181,28 @@
   .savebar > div { pointer-events:auto; display:flex; align-items:center; gap:12px; background:var(--text); color:var(--bg); padding:8px 8px 8px 16px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
   .savebar .btn.ghost { color:var(--bg); } .savebar .btn.ghost:hover { background:rgba(127,127,127,.2); }
 
+  /* brand kits */
+  .brands { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:14px; }
+  .bcard { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; text-decoration:none; color:inherit; box-shadow:var(--shadow); display:flex; flex-direction:column; }
+  .bcard:hover { border-color:var(--border-strong); }
+  .bpreview { height:120px; display:flex; align-items:center; justify-content:center; position:relative; padding:14px; }
+  .bpreview img { max-width:60%; max-height:56px; object-fit:contain; }
+  .bpreview .cap { position:absolute; bottom:12px; left:0; right:0; text-align:center; font-weight:800; font-size:15px; text-transform:uppercase; color:#fff; text-shadow:0 0 3px #000, 0 0 3px #000; }
+  .swatches { display:flex; gap:4px; } .swatch { width:16px; height:16px; border-radius:50%; border:1px solid var(--border-strong); }
+  .assetslot { display:flex; align-items:center; gap:12px; padding:10px 0; border-top:1px solid var(--border); }
+  .assetslot:first-of-type { border-top:0; }
+  .assetslot .grow { flex:1; min-width:0; }
+  .assetslot .thumbbox { width:54px; height:54px; border-radius:8px; background:var(--surface-2); overflow:hidden; display:flex; align-items:center; justify-content:center; color:var(--text-3); flex:none; }
+  .assetslot .thumbbox img { width:100%; height:100%; object-fit:cover; }
+  .logobox { height:120px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:repeating-conic-gradient(#2a2f38 0 25%, #20242b 0 50%) 0 0/16px 16px; }
+  .logobox img { max-width:70%; max-height:90px; object-fit:contain; }
+  .cliplib { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; }
+  .cliplib .c { border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--surface); }
+  .cliplib .c img { width:100%; aspect-ratio:16/10; object-fit:cover; display:block; background:#000; }
+  .cliplib .c .b { padding:8px; display:flex; flex-direction:column; gap:6px; }
+  .uploadbtn { position:relative; overflow:hidden; }
+  .uploadbtn input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+
   /* overlays */
   .modal { position:fixed; inset:0; background:rgba(10,12,16,.55); display:flex; align-items:center; justify-content:center; z-index:20; padding:16px; }
   .modal .card { width:min(560px, 100%); max-height:90vh; overflow:auto; }
@@ -214,15 +236,21 @@
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
   <symbol id="i-send" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></symbol>
   <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
   <symbol id="i-retry" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></symbol>
 </svg>
 
 <div class="shell" x-data="app()" x-init="init()" x-cloak>
+  <style x-text="brandFontCss()"></style>
   <!-- ======================================================= sidebar -->
   <aside class="side">
     <div class="brand">Auto<span>Clip</span> Studio</div>
     <a class="nav" href="/" :class="(route.page==='studio'||route.page==='project')&&'on'" @click.prevent="nav('/')"><svg class="i"><use href="#i-film"/></svg>Studio</a>
     <a class="nav" href="/ideas" :class="route.page==='ideas'&&'on'" @click.prevent="nav('/ideas')"><svg class="i"><use href="#i-zap"/></svg>Ideas</a>
+    <a class="nav" href="/brands" :class="(route.page==='brands'||route.page==='brand')&&'on'" @click.prevent="nav('/brands')"><svg class="i"><use href="#i-layers"/></svg>Brand kits
+      <span class="count" x-show="brandList.length" x-text="brandList.length" style="background:var(--surface-2);color:var(--text-2)"></span></a>
     <a class="nav" href="/autopilot" :class="route.page==='autopilot'&&'on'" @click.prevent="nav('/autopilot')"><svg class="i"><use href="#i-repeat"/></svg>Autopilot
       <span class="count" x-show="autopilot.enabled" style="background:var(--ok-soft);color:var(--ok)">on</span></a>
     <a class="nav" href="/connections" :class="route.page==='connections'&&'on'" @click.prevent="nav('/connections')"><svg class="i"><use href="#i-link"/></svg>Connections
@@ -258,6 +286,18 @@
               <select x-model="form.format"><option value="shorts">Vertical 9:16 · Shorts, TikTok, Reels</option><option value="youtube">Landscape 16:9 · YouTube</option><option value="square">Square 1:1</option></select></div>
             <div class="field"><label>Length</label>
               <select x-model.number="form.duration"><template x-for="d in [15,30,45,60,90,120,180]"><option :value="d" x-text="d<60 ? d+' seconds' : (d/60)+' min'" :selected="d===form.duration"></option></template></select></div>
+          </div>
+          <div class="field" style="margin-top:12px" x-show="brandList.length">
+            <label>Brand kit</label>
+            <div class="pickchips">
+              <button type="button" class="pickchip" :class="!form.brand_id&&'on'" @click="form.brand_id=null" style="padding-left:12px">No brand</button>
+              <template x-for="b in brandList" :key="b.id">
+                <button type="button" class="pickchip" :class="form.brand_id===b.id&&'on'" @click="form.brand_id=b.id">
+                  <span class="avatar" :style="`background:${b.colors.primary};color:#fff`"><img x-show="b.logo" :src="b.logo && brandUrl(b, b.logo.file)" alt="" style="object-fit:contain;background:#fff"><span x-show="!b.logo" x-text="initial(b.name)"></span></span>
+                  <span x-text="b.name"></span></button>
+              </template>
+            </div>
+            <p class="hint" x-show="form.brand_id">Claude follows the kit's tone and call to action; the video uses its colors, font, logo, intro/outro, music and b-roll.</p>
           </div>
           <details style="margin-top:14px">
             <summary>Style, voice and publishing</summary>
@@ -407,6 +447,29 @@
 
               <!-- Style -->
               <fieldset x-show="cur.timeline && route.sub==='style'" :disabled="isBusy(cur)">
+                <div class="card">
+                  <div class="card-head"><div class="grow"><h2>Brand kit</h2><p>Logo, colors, font, intro/outro, music and b-roll from a kit.</p></div>
+                    <a class="btn ghost sm" x-show="tl.brand_id && brandById(tl.brand_id)" :href="`/brands/${tl.brand_id}`" @click.prevent="nav(`/brands/${tl.brand_id}`)">Edit kit</a></div>
+                  <template x-if="!brandList.length"><p class="small muted">No brand kits yet. <a href="/brands" @click.prevent="nav('/brands')">Create one or import it from GitHub</a>.</p></template>
+                  <div class="pickchips" x-show="brandList.length">
+                    <button type="button" class="pickchip" :class="!tl.brand_id&&'on'" @click="applyBrand(null)" style="padding-left:12px">No brand</button>
+                    <template x-for="b in brandList" :key="b.id">
+                      <button type="button" class="pickchip" :class="tl.brand_id===b.id&&'on'" @click="applyBrand(b)">
+                        <span class="avatar" :style="`background:${b.colors.primary};color:#fff`" x-text="initial(b.name)"></span><span x-text="b.name"></span></button>
+                    </template>
+                  </div>
+                  <template x-if="tl.brand_id && brandById(tl.brand_id)">
+                    <div class="actions" style="margin-top:12px">
+                      <template x-for="el in ['logo','intro','outro','music']">
+                        <label class="toggle small" :style="!brandHas(brandById(tl.brand_id), el) && 'opacity:.45'">
+                          <input type="checkbox" :disabled="!brandHas(brandById(tl.brand_id), el)" :checked="brandHas(brandById(tl.brand_id), el) && tl.brand_elements?.[el] !== false"
+                                 @change="tl.brand_elements = { ...(tl.brand_elements||{}), [el]: $event.target.checked }">
+                          <span x-text="{logo:'Logo', intro:'Intro', outro:'Outro', music:'Music'}[el]"></span></label>
+                      </template>
+                    </div>
+                  </template>
+                  <p class="hint" x-show="tl.brand_id && !brandById(tl.brand_id)">The brand kit used by this video was deleted.</p>
+                </div>
                 <div class="card">
                   <div class="card-head"><div class="grow"><h2>Captions</h2></div></div>
                   <div class="presets">
@@ -559,6 +622,179 @@
       </div>
     </section>
 
+    <!-- ===================================================== BRAND KITS -->
+    <section class="page" x-show="route.page==='brands'">
+      <div class="page-head">
+        <div><h1>Brand kits</h1><p class="sub">A design system for your videos: logo, colors, font, intro/outro, music, b-roll and tone of voice.</p></div>
+        <div class="actions">
+          <button class="btn" @click="openImport()"><svg class="i"><use href="#i-github"/></svg>Import from GitHub</button>
+          <button class="btn primary" @click="newBrand.open=true; newBrand.name=''"><svg class="i"><use href="#i-plus"/></svg>New brand kit</button>
+        </div>
+      </div>
+      <template x-if="!brandList.length">
+        <div class="card empty">
+          <h2>No brand kits yet</h2>
+          <p>Upload your logo, fonts and clips — or import a repository. Add an <code>autoclip.brand.json</code> to the repo to control exactly what gets imported; otherwise Claude reads the README and styles to build the kit.</p>
+          <div class="actions" style="justify-content:center;margin-top:14px">
+            <button class="btn" @click="openImport()"><svg class="i"><use href="#i-github"/></svg>Import from GitHub</button>
+            <button class="btn primary" @click="newBrand.open=true; newBrand.name=''">New brand kit</button>
+          </div>
+        </div>
+      </template>
+      <div class="brands">
+        <template x-for="b in brandList" :key="b.id">
+          <a class="bcard" :href="`/brands/${b.id}`" @click.prevent="nav(`/brands/${b.id}`)">
+            <div class="bpreview" :style="`background:linear-gradient(135deg, ${b.colors.primary}, #111)`">
+              <img x-show="b.logo" :src="b.logo && brandUrl(b, b.logo.file)" alt="">
+              <span class="cap" :style="`font-family:${brandFontFamily(b)}`">Your <span :style="`color:${b.colors.accent}`">story</span> here</span>
+            </div>
+            <div class="pbody">
+              <div class="actions" style="justify-content:space-between"><strong x-text="b.name"></strong>
+                <div class="swatches"><template x-for="c in [b.colors.primary, b.colors.accent, b.colors.text]"><span class="swatch" :style="`background:${c}`"></span></template></div></div>
+              <div class="small muted" x-text="brandSummary(b)"></div>
+              <div class="small muted" x-show="b.source?.type==='github'"><svg class="i" style="width:12px;height:12px;vertical-align:-1px"><use href="#i-github"/></svg> <span x-text="b.source.repo"></span></div>
+            </div>
+          </a>
+        </template>
+      </div>
+    </section>
+
+    <section class="page" x-show="route.page==='brand'">
+      <template x-if="!brand"><div class="card empty"><template x-if="brandMissing"><div><h2>Brand kit not found</h2><div class="actions" style="justify-content:center;margin-top:12px"><a class="btn" href="/brands" @click.prevent="nav('/brands')">All brand kits</a></div></div></template><template x-if="!brandMissing"><span class="spin"></span></template></div></template>
+      <template x-if="brand">
+        <div>
+          <div class="page-head">
+            <div style="min-width:0;flex:1">
+              <a class="btn ghost sm" href="/brands" @click.prevent="nav('/brands')" style="margin-left:-10px"><svg class="i"><use href="#i-back"/></svg>Brand kits</a>
+              <input x-model="brand.name" style="font-size:22px;font-weight:700;border-color:transparent;padding:4px 6px;margin:6px 0 0 -6px;background:none" aria-label="Brand name">
+              <div class="small muted" style="margin-top:4px">
+                <template x-if="brand.source?.type==='github'"><span><svg class="i" style="width:12px;height:12px;vertical-align:-1px"><use href="#i-github"/></svg>
+                  <a :href="`https://github.com/${brand.source.repo}`" target="_blank" rel="noopener" x-text="brand.source.repo + '@' + brand.source.ref"></a>
+                  · imported <span x-text="ago(brand.source.imported_at)"></span> · <span x-text="{manifest:'from autoclip.brand.json', claude:'analyzed by Claude', heuristic:'guessed from file names'}[brand.source.mode]"></span></span></template>
+                <template x-if="brand.source?.type!=='github'"><span>Built by hand</span></template>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn" x-show="brand.source?.type==='github'" @click="syncBrand()" :disabled="syncing"><span class="spin" x-show="syncing"></span><svg class="i" x-show="!syncing"><use href="#i-retry"/></svg>Sync from GitHub</button>
+              <button class="btn" @click="useBrand()"><svg class="i"><use href="#i-film"/></svg>Create a video</button>
+              <button class="btn ghost danger" title="Delete brand kit" @click="askDeleteBrand()"><svg class="i"><use href="#i-trash"/></svg></button>
+            </div>
+          </div>
+          <template x-for="w in (brand.warnings||[])"><div class="notice" style="margin-bottom:10px"><svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg><div x-text="w"></div></div></template>
+
+          <div class="grid-2">
+            <div>
+              <div class="card">
+                <div class="card-head"><div class="grow"><h2>Identity</h2><p>Claude follows this when writing and editing scripts.</p></div></div>
+                <div class="stack">
+                  <div class="field"><label>What it is</label><textarea x-model="brand.description" placeholder="Acme makes invoicing painless for freelancers."></textarea></div>
+                  <div class="field"><label>Voice & tone</label><textarea x-model="brand.voice" placeholder="Warm, confident, no jargon. Speak to the viewer as 'you'."></textarea></div>
+                  <div class="grid-2">
+                    <div class="field"><label>Audience</label><input x-model="brand.audience" placeholder="Freelancers and small agencies"></div>
+                    <div class="field"><label>Call to action</label><input x-model="brand.cta" placeholder="Start free at acme.com"></div>
+                  </div>
+                  <div class="grid-2">
+                    <div class="field"><label>Language</label><select x-model="brand.language" @change="brand.voice_name=''; loadVoices(brand.language||'English')"><option value="">Any</option><template x-for="l in languages"><option :value="l" x-text="l" :selected="l===brand.language"></option></template></select></div>
+                    <div class="field"><label>Voice</label><select x-model="brand.voice_name"><option value="">Default for the language</option><template x-for="v in (voices[brand.language||'English']||[])"><option :value="v.name" x-text="voiceLabel(v)" :selected="v.name===brand.voice_name"></option></template></select></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-head"><div class="grow"><h2>Look</h2></div></div>
+                <div class="grid-3">
+                  <div class="field"><label>Primary</label><input type="color" x-model="brand.colors.primary"></div>
+                  <div class="field"><label>Highlight</label><input type="color" x-model="brand.colors.accent"></div>
+                  <div class="field"><label>Caption text</label><input type="color" x-model="brand.colors.text"></div>
+                </div>
+                <div class="lbl" style="margin-top:14px">Captions</div>
+                <div class="presets">
+                  <template x-for="pr in presets" :key="pr.key">
+                    <button type="button" class="preset" :class="brand.captions.preset===pr.key&&'on'" @click="brand.captions.preset=pr.key">
+                      <div class="demo" :style="`background:linear-gradient(135deg, ${brand.colors.primary}, #111)`"><span :class="pr.cls" :style="`font-family:${brandFontFamily(brand)};color:${brand.colors.text}`" x-html="pr.demo.replace('<em>', `<em style='color:${brand.colors.accent}'>`)"></span></div><div class="name" x-text="pr.label"></div>
+                    </button>
+                  </template>
+                </div>
+                <div class="field" style="margin-top:12px"><label>Caption position · <span x-text="positionLabel(brand.captions.position)"></span></label><input type="range" min="0.1" max="0.9" step="0.01" x-model.number="brand.captions.position"></div>
+                <div class="divider"></div>
+                <div class="assetslot">
+                  <div class="thumbbox" :style="brand.font && `font-family:${brandFontFamily(brand)};font-size:22px;color:var(--text)`">Aa</div>
+                  <div class="grow"><div style="font-weight:600">Font</div><div class="small muted" x-text="brand.font ? brand.font.family : 'Be Vietnam Pro (default)'"></div></div>
+                  <label class="btn sm uploadbtn"><svg class="i"><use href="#i-upload"/></svg><span x-text="brand.font?'Replace':'Upload TTF/OTF'"></span><input type="file" accept=".ttf,.otf" @change="uploadAsset('font', $event)"></label>
+                  <button class="btn ghost sm danger" x-show="brand.font" @click="removeAsset('font')">Remove</button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="card">
+                <div class="card-head"><div class="grow"><h2>Logo</h2><p>Shown on every scene (not on the intro/outro).</p></div>
+                  <label class="btn sm uploadbtn"><svg class="i"><use href="#i-upload"/></svg><span x-text="brand.logo?'Replace':'Upload PNG'"></span><input type="file" accept=".png,.jpg,.jpeg,.webp" @change="uploadAsset('logo', $event)"></label></div>
+                <template x-if="brand.logo">
+                  <div class="stack">
+                    <div class="logobox"><img :src="brandUrl(brand, brand.logo.file)" alt="" :style="`opacity:${brand.logo.opacity}`"></div>
+                    <div class="grid-3">
+                      <div class="field"><label>Corner</label><select x-model="brand.logo.position"><option value="top-left">Top left</option><option value="top-right">Top right</option><option value="bottom-left">Bottom left</option><option value="bottom-right">Bottom right</option></select></div>
+                      <div class="field"><label>Size <span x-text="Math.round(brand.logo.size*100)+'%'"></span></label><input type="range" min="0.06" max="0.4" step="0.01" x-model.number="brand.logo.size"></div>
+                      <div class="field"><label>Opacity <span x-text="Math.round(brand.logo.opacity*100)+'%'"></span></label><input type="range" min="0.2" max="1" step="0.05" x-model.number="brand.logo.opacity"></div>
+                    </div>
+                    <button class="btn ghost sm danger" @click="removeAsset('logo')">Remove logo</button>
+                  </div>
+                </template>
+                <template x-if="!brand.logo"><p class="small muted">PNG, JPG or WebP — a transparent PNG looks best. SVG isn't supported; export a PNG.</p></template>
+              </div>
+
+              <div class="card">
+                <div class="card-head"><div class="grow"><h2>Intro & outro</h2><p>Played before and after every video, up to 30 s each.</p></div></div>
+                <template x-for="k in ['intro','outro']" :key="k">
+                  <div class="assetslot">
+                    <div class="thumbbox"><img x-show="brand[k]" :src="brand[k] && brandUrl(brand, brand[k].thumb)" alt=""><svg class="i" x-show="!brand[k]"><use href="#i-film"/></svg></div>
+                    <div class="grow"><div style="font-weight:600" x-text="k==='intro'?'Intro':'Outro'"></div><div class="small muted" x-text="brand[k] ? brand[k].duration + ' s' : 'None'"></div></div>
+                    <label class="btn sm uploadbtn"><svg class="i"><use href="#i-upload"/></svg><span x-text="brand[k]?'Replace':'Upload'"></span><input type="file" accept="video/*" @change="uploadAsset(k, $event)"></label>
+                    <button class="btn ghost sm danger" x-show="brand[k]" @click="removeAsset(k)">Remove</button>
+                  </div>
+                </template>
+              </div>
+
+              <div class="card">
+                <div class="card-head"><div class="grow"><h2>Music</h2><p>Plays under the voice and ducks automatically when someone speaks.</p></div>
+                  <label class="btn sm uploadbtn"><svg class="i"><use href="#i-upload"/></svg>Add track<input type="file" accept="audio/*" @change="uploadAsset('music', $event)"></label></div>
+                <template x-if="!brand.music.length"><p class="small muted">No music — videos have voice only.</p></template>
+                <template x-for="(m, i) in brand.music" :key="m.file">
+                  <div class="assetslot">
+                    <audio :src="brandUrl(brand, m.file)" controls preload="none" style="height:32px;width:180px;flex:none"></audio>
+                    <div class="grow"><div style="font-weight:600" x-text="m.name"></div>
+                      <div class="actions small muted" style="flex-wrap:nowrap">Volume <input type="range" min="0.02" max="0.5" step="0.01" x-model.number="m.volume" style="max-width:140px"><span x-text="Math.round(m.volume*100)+'%'"></span></div></div>
+                    <button class="btn ghost sm danger" @click="removeAsset('music', m.file)">Remove</button>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <div class="card-head"><div class="grow"><h2>B-roll library</h2><p>Your own clips. Claude uses them for scenes that match the description, before stock footage.</p></div>
+              <label class="btn sm uploadbtn"><svg class="i"><use href="#i-upload"/></svg>Add clips<input type="file" accept="video/*" multiple @change="uploadAsset('clip', $event)"></label></div>
+            <template x-if="!brand.clips.length"><p class="small muted">No clips yet — product demos, screen recordings and team shots work well.</p></template>
+            <div class="cliplib">
+              <template x-for="c in brand.clips" :key="c.id">
+                <div class="c"><img :src="brandUrl(brand, c.thumb)" alt="">
+                  <div class="b"><textarea x-model="c.description" style="min-height:52px;font-size:12px" placeholder="What does it show?"></textarea>
+                    <div class="actions" style="justify-content:space-between"><span class="small muted" x-text="c.duration + ' s'"></span><button class="btn ghost sm danger" @click="removeAsset('clip', c.file)">Remove</button></div></div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div class="savebar" x-show="brandDirty" x-transition>
+            <div><span>Unsaved changes</span>
+              <button class="btn ghost sm" @click="loadBrand(brand.id)">Discard</button>
+              <button class="btn primary sm" @click="saveBrand()">Save brand kit</button></div>
+          </div>
+        </div>
+      </template>
+    </section>
+
     <!-- ===================================================== AUTOPILOT -->
     <section class="page" x-show="route.page==='autopilot'">
       <div class="page-head"><div><h1>Autopilot</h1><p class="sub">On a schedule, Claude comes up with ideas for your niche, renders them and can publish them.</p></div>
@@ -583,6 +819,8 @@
             <div class="field"><label>Format</label><select x-model="autoForm.format"><option value="shorts">Vertical 9:16</option><option value="youtube">Landscape 16:9</option><option value="square">Square 1:1</option></select></div>
             <div class="field"><label>Style</label><input x-model="autoForm.style" placeholder="optional"></div>
           </div>
+          <div class="field" x-show="brandList.length"><label>Brand kit</label>
+            <select x-model="autoForm.brand_id"><option value="">No brand</option><template x-for="b in brandList" :key="b.id"><option :value="b.id" x-text="b.name" :selected="autoForm.brand_id===b.id"></option></template></select></div>
           <div class="field"><label>Publish to</label>
             <template x-if="!channels.length"><p class="small muted">No accounts connected — videos will be created but not published.</p></template>
             <div class="pickchips">
@@ -724,6 +962,26 @@
               <div class="actions" style="margin-top:8px;flex-wrap:nowrap"><input x-model="cfg.framejam.url"><button class="btn" @click="saveSection('framejam')">Save</button></div>
             </details>
           </div>
+
+          <!-- GitHub -->
+          <div class="card">
+            <div class="card-head">
+              <div class="grow"><h2>GitHub <span class="small muted">optional</span></h2><p>Import brand kits from your repositories. Public repos work without connecting.</p></div>
+              <span class="chip" :class="github.connected?'ok':''" x-text="github.connected?'Connected':'Not connected'"></span>
+            </div>
+            <template x-if="github.connected">
+              <div class="account"><span class="avatar lg"><svg class="i"><use href="#i-github"/></svg></span>
+                <div class="grow"><div class="t" x-text="github.login"></div><div class="d">Can read your repositories</div></div>
+                <button class="btn ghost danger" @click="githubDisconnect()">Disconnect</button></div>
+            </template>
+            <template x-if="!github.connected">
+              <div class="stack">
+                <p class="small muted">Create a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained token</a> with read-only <em>Contents</em> access to the repos you want to import.</p>
+                <div class="actions" style="flex-wrap:nowrap"><input type="password" x-model="githubToken" placeholder="github_pat_…" autocomplete="off" @keydown.enter="githubConnect()">
+                  <button class="btn primary" @click="githubConnect()" :disabled="!githubToken.trim() || githubSaving"><span class="spin" x-show="githubSaving"></span>Connect</button></div>
+              </div>
+            </template>
+          </div>
         </div>
 
         <div>
@@ -794,12 +1052,53 @@
         <label class="btn"><input type="file" accept="video/*" style="display:none" @change="uploadClip($event)">Upload</label>
       </div>
       <p class="hint" x-show="!status.footage?.ok">Add a stock footage key in Connections to search — you can still upload your own clips.</p>
+      <template x-if="cur && brandById(tl.brand_id)?.clips?.length">
+        <div style="margin-top:12px">
+          <div class="lbl" x-text="`Brand library · ${brandById(tl.brand_id).name}`"></div>
+          <div class="results" style="margin-top:6px">
+            <template x-for="c in brandById(tl.brand_id).clips" :key="c.id">
+              <button @click="chooseBrandClip(brandById(tl.brand_id), c)" :title="c.description"><img :src="brandUrl(brandById(tl.brand_id), c.thumb)" alt=""><span class="dur" x-text="c.duration+'s'"></span></button>
+            </template>
+          </div>
+          <div class="lbl" style="margin-top:14px">Stock footage</div>
+        </div>
+      </template>
       <div class="small muted" x-show="picker.loading" style="margin-top:10px"><span class="spin"></span> Loading…</div>
       <div class="notice err" x-show="picker.error" style="margin-top:10px"><div x-text="picker.error"></div></div>
       <div class="results">
         <template x-for="r in picker.results" :key="r.id">
           <button @click="chooseClip(r)" :title="r.provider"><img :src="r.thumb" alt="" loading="lazy"><span class="dur" x-text="r.duration+'s'"></span></button>
         </template>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" x-show="importer.open" x-transition.opacity @click.self="!importer.busy && (importer.open=false)">
+    <div class="card">
+      <div class="card-head"><div class="grow"><h2>Import a brand kit from GitHub</h2>
+        <p>Uses <code>autoclip.brand.json</code> if the repo has one; otherwise Claude reads the README and styles and picks the assets.</p></div></div>
+      <fieldset :disabled="importer.busy" class="stack">
+        <div class="field"><label>Repository</label>
+          <input x-model="importer.url" list="gh-repos" placeholder="owner/repo or https://github.com/owner/repo" @keydown.enter="runImport()">
+          <datalist id="gh-repos"><template x-for="r in githubRepos" :key="r.full_name"><option :value="r.full_name" x-text="(r.private?'private · ':'') + (r.description||'')"></option></template></datalist>
+          <p class="hint" x-show="!github.connected">Private repo? <a href="/connections" @click.prevent="importer.open=false; nav('/connections')">Connect GitHub</a> first.</p></div>
+        <div class="field"><label>Branch or tag <span class="muted">(optional)</span></label><input x-model="importer.ref" placeholder="default branch"></div>
+      </fieldset>
+      <div class="notice info" x-show="importer.busy" style="margin-top:12px"><span class="spin" style="margin-top:3px"></span><div>Downloading the repository and building the kit… this can take a minute.</div></div>
+      <div class="actions" style="margin-top:16px;justify-content:flex-end">
+        <button class="btn" @click="importer.open=false" :disabled="importer.busy">Cancel</button>
+        <button class="btn primary" @click="runImport()" :disabled="importer.busy || !importer.url.trim()">Import</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" x-show="newBrand.open" x-transition.opacity @click.self="newBrand.open=false">
+    <div class="card">
+      <h2>New brand kit</h2>
+      <div class="field" style="margin-top:12px"><label>Name</label><input x-model="newBrand.name" placeholder="Acme" @keydown.enter="createBrand()"></div>
+      <div class="actions" style="margin-top:16px;justify-content:flex-end">
+        <button class="btn" @click="newBrand.open=false">Cancel</button>
+        <button class="btn primary" @click="createBrand()" :disabled="!newBrand.name.trim()">Create</button>
       </div>
     </div>
   </div>
@@ -825,7 +1124,8 @@ const EDITOR_TABS = ['scenes', 'style', 'review', 'publish'];
 function parseRoute(pathname) {
   const p = pathname.split('/').filter(Boolean);
   if (p[0] === 'projects' && p[1]) return { page:'project', id:p[1], sub: EDITOR_TABS.includes(p[2]) ? p[2] : 'scenes' };
-  if (['ideas','autopilot','connections'].includes(p[0])) return { page:p[0], id:null, sub:null };
+  if (p[0] === 'brands' && p[1]) return { page:'brand', id:p[1], sub:null };
+  if (['ideas','autopilot','connections','brands'].includes(p[0])) return { page:p[0], id:null, sub:null };
   return { page:'studio', id:null, sub:null };
 }
 
@@ -835,7 +1135,10 @@ function app() {
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
     status: {}, cl: {}, cfg: { claude:{}, footage:{}, framejam:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
     channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] },
-    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false },
+    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null },
+    brandList: [], brand: null, brandBase: '', brandMissing: false, syncing: false,
+    importer: { open:false, url:'', ref:'', busy:false }, newBrand: { open:false, name:'' },
+    github: { connected:false, login:'' }, githubToken: '', githubSaving: false, githubRepos: [],
     creating: false, thinking: false, ideaForm: { niche:'', language:'English' },
     switching: false, claudeCode: '', apiKey: '', footageEdit: false, footageKey: '', footageProvider: 'pexels', savingFootage: false,
     cur: null, curMissing: false, tl: { captions:{}, scenes:[] }, baseTl: '', edTitle: '', baseTitle: '', preview: null, instruction: '',
@@ -854,6 +1157,7 @@ function app() {
 
     // ------------------------------------------------ helpers
     get dirty() { return !!this.cur?.timeline && (JSON.stringify(this.tl) !== this.baseTl || this.edTitle !== this.baseTitle); },
+    get brandDirty() { return !!this.brand && this.route.page === 'brand' && JSON.stringify(this.brand) !== this.brandBase; },
     async api(path, opts={}) {
       const isForm = opts.body instanceof FormData;
       const r = await fetch(path, { ...opts, headers: isForm ? {} : {'Content-Type':'application/json'}, body: opts.body === undefined ? undefined : (isForm ? opts.body : JSON.stringify(opts.body)) });
@@ -880,8 +1184,15 @@ function app() {
     versions() { return (this.cur?.extra?.versions || []).slice().reverse(); },
     latestFile() { return this.base(this.cur?.video_path); },
     previewSrc() { return '/videos/' + (this.preview || this.latestFile()); },
-    sceneThumb(s) { const c = s.clip; if (!c) return ''; return c.thumb_local ? `/media/${this.cur.id}/${this.base(c.thumb_local)}` : (c.thumb || ''); },
-    projThumb(p) { const c = p.timeline?.scenes?.[0]?.clip; if (!c) return ''; return c.thumb_local ? `/media/${p.id}/${this.base(c.thumb_local)}` : (c.thumb || ''); },
+    sceneThumb(s) { const c = s.clip; if (!c) return ''; if (c.thumb_url) return c.thumb_url; return c.thumb_local ? `/media/${this.cur.id}/${this.base(c.thumb_local)}` : (c.thumb || ''); },
+    projThumb(p) { const c = p.timeline?.scenes?.[0]?.clip; if (!c) return ''; if (c.thumb_url) return c.thumb_url; return c.thumb_local ? `/media/${p.id}/${this.base(c.thumb_local)}` : (c.thumb || ''); },
+    // brand helpers
+    brandById(id) { return id ? this.brandList.find(b => b.id === id) : null; },
+    brandUrl(b, file) { return file ? `/brand-media/${b.id}/${file}` : ''; },
+    brandHas(b, el) { return !!b && (el === 'music' ? b.music.length > 0 : !!b[el]); },
+    brandSummary(b) { const parts = []; if (b.logo) parts.push('logo'); if (b.font) parts.push(b.font.family); if (b.intro) parts.push('intro'); if (b.outro) parts.push('outro'); if (b.music.length) parts.push(`${b.music.length} track${b.music.length>1?'s':''}`); if (b.clips.length) parts.push(`${b.clips.length} clip${b.clips.length>1?'s':''}`); return parts.join(' · ') || 'No assets yet'; },
+    brandFontFamily(b) { return b?.font ? `'bf-${b.id}', sans-serif` : 'inherit'; },
+    brandFontCss() { return [...this.brandList, ...(this.brand ? [this.brand] : [])].filter(b => b.font).map(b => `@font-face{font-family:'bf-${b.id}';src:url('${this.brandUrl(b, b.font.file)}')}`).join(''); },
     selectedProviders() { return this.channels.filter(c => this.pubIds.includes(c.id)).map(c => c.provider); },
     pick(ids) { return this.channels.filter(c => ids.includes(c.id)).map(({id,provider,name,via}) => ({id,provider,name,via})); },
     fmt(t) { t = +t || 0; return `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`; },
@@ -892,9 +1203,14 @@ function app() {
     copy(t) { navigator.clipboard?.writeText(t).then(() => this.say('Copied')); },
 
     // ------------------------------------------------ routing (real URLs, survive reload)
-    leavingDirty(next) { return this.dirty && this.route.page === 'project' && (next.page !== 'project' || next.id !== this.route.id); },
+    leavingDirty(next) {
+      if (this.dirty && this.route.page === 'project' && (next.page !== 'project' || next.id !== this.route.id)) return true;
+      return this.brandDirty && (next.page !== 'brand' || next.id !== this.route.id);
+    },
     discardThen(fn) {
-      this.confirm('Discard unsaved changes?', "Your edits to this video haven't been rendered yet.", 'Discard', () => { this.loadTimeline(); fn(); });
+      const isBrand = this.brandDirty;
+      this.confirm('Discard unsaved changes?', isBrand ? "Your changes to this brand kit haven't been saved." : "Your edits to this video haven't been rendered yet.", 'Discard',
+        () => { if (isBrand) this.brandBase = JSON.stringify(this.brand); else this.loadTimeline(); fn(); });
     },
     nav(path) {
       if (this.leavingDirty(parseRoute(path))) return this.discardThen(() => this.nav(path));
@@ -905,7 +1221,9 @@ function app() {
     async onRoute() {
       const prev = this.route;
       const r = this.route = parseRoute(location.pathname);
-      document.title = ({ studio:'Studio', project:'Editor', ideas:'Ideas', autopilot:'Autopilot', connections:'Connections' }[r.page]) + ' · AutoClip Studio';
+      document.title = ({ studio:'Studio', project:'Editor', ideas:'Ideas', autopilot:'Autopilot', connections:'Connections', brands:'Brand kits', brand:'Brand kit' }[r.page]) + ' · AutoClip Studio';
+      if (r.page === 'brands') this.loadBrands();
+      if (r.page === 'brand' && (prev.page !== 'brand' || prev.id !== r.id || !this.brand)) this.loadBrand(r.id);
       if (r.page === 'project' && (prev.page !== 'project' || prev.id !== r.id || !this.cur)) await this.openProject(r.id);
       if (r.page === 'connections') this.loadConnections();
       if (r.page === 'autopilot') this.loadAutopilot();
@@ -922,13 +1240,15 @@ function app() {
         const next = parseRoute(location.pathname);
         if (this.leavingDirty(next)) {
           const target = location.pathname;
-          history.pushState({}, '', `/projects/${this.route.id}/${this.route.sub}`);
+          history.pushState({}, '', this.route.page === 'brand' ? `/brands/${this.route.id}` : `/projects/${this.route.id}/${this.route.sub}`);
           return this.discardThen(() => this.nav(target));
         }
         this.onRoute();
       });
-      window.addEventListener('beforeunload', e => { if (this.dirty) { e.preventDefault(); e.returnValue = ''; } });
-      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language)]);
+      window.addEventListener('beforeunload', e => { if (this.dirty || this.brandDirty) { e.preventDefault(); e.returnValue = ''; } });
+      try { this.form.brand_id = localStorage.getItem('autoclip.brand') || null; } catch {}
+      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands()]);
+      if (this.form.brand_id && !this.brandById(this.form.brand_id)) this.form.brand_id = null;
       this.ready = true;
       await this.onRoute();
       setInterval(() => this.loadProjects(), 2500);
@@ -958,6 +1278,7 @@ function app() {
     async create() {
       this.creating = true;
       const { channelIds, ...f } = this.form;
+      try { this.form.brand_id ? localStorage.setItem('autoclip.brand', this.form.brand_id) : localStorage.removeItem('autoclip.brand'); } catch {}
       const p = await this.run(() => this.api('/api/projects', { method:'POST', body:{ ...f, auto_publish: f.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }));
       this.creating = false;
       if (p) { this.form.topic = ''; await this.loadProjects(); this.nav(`/projects/${p.id}`); }
@@ -1011,6 +1332,14 @@ function app() {
       catch (e) { this.picker.error = e.message; } finally { this.picker.loading = false; }
     },
     chooseClip(r) { Object.assign(this.picker.scene, { clip:r, search:this.picker.q, clip_start:0 }); this.picker.open = false; },
+    chooseBrandClip(b, c) { Object.assign(this.picker.scene, { clip:{ brand_clip:c.id, brand_id:b.id, provider:'brand', thumb_url:this.brandUrl(b, c.thumb), duration:c.duration }, clip_start:0 }); this.picker.open = false; },
+    applyBrand(b) {
+      this.tl.brand_id = b?.id || null;
+      this.tl.brand_elements = this.tl.brand_elements || { logo:true, intro:true, outro:true, music:true };
+      if (!b) return;
+      this.tl.captions = { ...this.tl.captions, ...b.captions, color:b.colors.text, highlight_color:b.colors.accent };
+      if (b.voice_name && (!b.language || b.language === this.cur.request.language)) this.tl.voice = b.voice_name;
+    },
     async uploadClip(ev) {
       const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
       const fd = new FormData(); fd.append('file', f);
@@ -1049,9 +1378,88 @@ function app() {
     },
     async saveAuto(enabled) {
       const { channelIds, last_run, next_run, last_error, ...a } = this.autoForm;
+      a.brand_id = a.brand_id || null;
       const msg = enabled ? (this.autopilot.enabled ? 'Saved' : 'Autopilot is on') : (this.autopilot.enabled ? 'Autopilot is off' : 'Saved');
       if (await this.run(() => this.api('/api/autopilot', { method:'PUT', body:{ ...a, enabled, auto_publish: !!a.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }), msg)) this.loadAutopilot();
     },
+
+    // ------------------------------------------------ brand kits
+    async loadBrands() { this.brandList = await this.api('/api/brands').catch(() => this.brandList); },
+    async loadBrand(id) {
+      this.brand = null; this.brandMissing = false;
+      const b = await this.api(`/api/brands/${id}`).catch(() => null);
+      if (!b) { this.brandMissing = true; return; }
+      this.brand = b; this.brandBase = JSON.stringify(b);
+      this.loadVoices(b.language || 'English');
+    },
+    applyAssets(b) {
+      // Keep unsaved text edits; take files (and their settings) from the server.
+      const base = JSON.parse(this.brandBase);
+      for (const k of ['logo','font','intro','outro','music','clips','warnings','source','updated_at']) { this.brand[k] = JSON.parse(JSON.stringify(b[k] ?? null)); base[k] = JSON.parse(JSON.stringify(b[k] ?? null)); }
+      this.brandBase = JSON.stringify(base);
+      this.loadBrands();
+    },
+    async saveBrand() {
+      const b = await this.run(() => this.api(`/api/brands/${this.brand.id}`, { method:'PUT', body:this.brand }), 'Brand kit saved');
+      if (b?.id) { this.brand = b; this.brandBase = JSON.stringify(b); this.loadBrands(); }
+    },
+    async uploadAsset(kind, ev) {
+      const files = [...ev.target.files]; ev.target.value = '';
+      for (const f of files) {
+        const fd = new FormData(); fd.append('kind', kind); fd.append('file', f);
+        this.say(`Uploading ${f.name}…`);
+        const b = await this.run(() => this.api(`/api/brands/${this.brand.id}/assets`, { method:'POST', body:fd }));
+        if (b?.id) this.applyAssets(b);
+      }
+      if (files.length) this.say(files.length > 1 ? `${files.length} files added` : 'Added');
+    },
+    removeAsset(kind, file) {
+      const label = { logo:'the logo', font:'the font', intro:'the intro', outro:'the outro', music:'this track', clip:'this clip' }[kind];
+      this.confirm(`Remove ${label}?`, 'The file is deleted from this brand kit. Videos keep working without it.', 'Remove', async () => {
+        const b = await this.run(() => this.api(`/api/brands/${this.brand.id}/assets/${kind}${file ? '?file=' + encodeURIComponent(file) : ''}`, { method:'DELETE' }));
+        if (b?.id) this.applyAssets(b);
+      });
+    },
+    syncBrand() {
+      this.confirm('Sync from GitHub?', "The kit's identity, colors and assets are replaced with what's in the repository now.", 'Sync', async () => {
+        this.syncing = true;
+        const b = await this.run(() => this.api(`/api/brands/${this.brand.id}/sync`, { method:'POST' }), 'Synced from GitHub');
+        this.syncing = false;
+        if (b?.id) { this.brand = b; this.brandBase = JSON.stringify(b); this.loadBrands(); }
+      });
+    },
+    askDeleteBrand() {
+      this.confirm(`Delete ${this.brand.name}?`, 'The brand kit and its files are removed. Existing videos keep their renders but lose the brand on their next render.', 'Delete', async () => {
+        if (!await this.run(() => this.api(`/api/brands/${this.brand.id}`, { method:'DELETE' }), 'Brand kit deleted')) return;
+        this.brandBase = JSON.stringify(this.brand); await this.loadBrands(); this.nav('/brands');
+      });
+    },
+    useBrand() { this.form.brand_id = this.brand.id; this.nav('/'); this.$nextTick(() => document.getElementById('topic')?.focus()); },
+    async createBrand() {
+      if (!this.newBrand.name.trim()) return;
+      const b = await this.run(() => this.api('/api/brands', { method:'POST', body:{ name:this.newBrand.name.trim() } }));
+      if (b?.id) { this.newBrand.open = false; await this.loadBrands(); this.nav(`/brands/${b.id}`); }
+    },
+    async openImport() {
+      this.importer = { open:true, url:'', ref:'', busy:false };
+      await this.loadGithub();
+      if (this.github.connected && !this.githubRepos.length) this.githubRepos = await this.api('/api/github/repos').catch(() => []);
+    },
+    async runImport() {
+      if (!this.importer.url.trim() || this.importer.busy) return;
+      this.importer.busy = true;
+      const b = await this.run(() => this.api('/api/brands/import', { method:'POST', body:{ url:this.importer.url.trim(), ref:this.importer.ref.trim() || null } }));
+      this.importer.busy = false;
+      if (b?.id) { this.importer.open = false; this.say(`Imported ${b.name}`); await this.loadBrands(); this.nav(`/brands/${b.id}`); }
+    },
+    async loadGithub() { this.github = await this.api('/api/github').catch(() => this.github); },
+    async githubConnect() {
+      this.githubSaving = true;
+      const r = await this.run(() => this.api('/api/github', { method:'POST', body:{ token:this.githubToken.trim() } }));
+      this.githubSaving = false;
+      if (r?.connected) { this.github = r; this.githubToken = ''; this.githubRepos = []; this.say(`GitHub connected as ${r.login}`); }
+    },
+    async githubDisconnect() { this.github = await this.api('/api/github', { method:'DELETE' }); this.githubRepos = []; this.say('GitHub disconnected'); },
 
     // ------------------------------------------------ connections
     signingIn() { return ['waiting_code','verifying'].includes(this.cl.login?.state); },
@@ -1059,7 +1467,7 @@ function app() {
       const [s, c] = await Promise.all([this.api('/api/settings').catch(() => null), this.api('/api/claude').catch(() => null)]);
       if (s) { this.cfg = s; if (!this.footageEdit) this.footageProvider = s.footage.provider; }
       if (c) this.cl = c;
-      await Promise.all([this.loadChannels(), this.refreshStatus()]);
+      await Promise.all([this.loadChannels(), this.refreshStatus(), this.loadGithub()]);
     },
     async saveSection(section) { if (await this.run(() => this.api(`/api/settings/${section}`, { method:'PUT', body: this.cfg[section] }), 'Saved')) this.loadConnections(); },
     async claudeLogin() {

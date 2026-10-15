@@ -1,0 +1,20 @@
+{
+  "name": "Acme",
+  "description": "Acme makes invoicing painless for freelancers and small agencies.",
+  "voice": "Warm, confident and plain-spoken. Speak to the viewer as 'you'. No jargon.",
+  "audience": "Freelancers and small agencies",
+  "cta": "Start free at acme.com",
+  "language": "English",
+  "voice_name": "en-US-AvaMultilingualNeural",
+  "colors": { "primary": "#FF3366", "accent": "#00E5FF", "text": "#FFFFFF" },
+  "captions": { "preset": "bold", "position": 0.68 },
+  "logo": { "path": "brand/logo.png", "position": "top-right", "size": 0.16, "opacity": 0.9 },
+  "font": "brand/fonts/Acme-Bold.ttf",
+  "intro": "brand/video/intro.mp4",
+  "outro": "brand/video/outro.mp4",
+  "music": [{ "path": "brand/music/theme.mp3", "volume": 0.12 }],
+  "clips": [
+    { "path": "brand/broll/dashboard.mp4", "description": "screen recording of the Acme dashboard creating an invoice" },
+    { "path": "brand/broll/team.mp4", "description": "the team working together in a bright office" }
+  ]
+}

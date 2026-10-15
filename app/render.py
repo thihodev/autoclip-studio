@@ -20,7 +20,7 @@ import edge_tts
 import httpx
 import imageio_ffmpeg
 
-from . import settings
+from . import brands, settings
 from .config import DATA_DIR, FONT_PATH
 
 log = logging.getLogger("render")
@@ -276,7 +276,7 @@ def _ass_time(t: float) -> str:
     return f"{int(t // 3600)}:{int(t % 3600 // 60):02d}:{t % 60:05.2f}"
 
 
-def build_ass(words: list, text: str, duration: float, size, captions: dict) -> str | None:
+def build_ass(words: list, text: str, duration: float, size, captions: dict, font_family: str = FONT_NAME) -> str | None:
     preset = CAPTION_PRESETS.get(captions.get("preset", "bold"))
     if not preset or not words:
         return None
@@ -295,7 +295,7 @@ def build_ass(words: list, text: str, duration: float, size, captions: dict) -> 
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
         "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, "
         "MarginR, MarginV, Encoding",
-        f"Style: Default,{FONT_NAME},{fs},{color},{color},{out_color},{back},-1,0,0,0,100,100,0,0,"
+        f"Style: Default,{font_family.replace(',', ' ')},{fs},{color},{color},{out_color},{back},-1,0,0,0,100,100,0,0,"
         f"{border_style},{outline},0,2,{int(w * 0.07)},{int(w * 0.07)},{margin_v},1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
@@ -321,26 +321,83 @@ def build_ass(words: list, text: str, duration: float, size, captions: dict) -> 
 
 # ---------- timeline → video ----------
 
-def new_timeline(meta: dict, req: dict) -> dict:
+BRAND_ELEMENTS = {"logo": True, "intro": True, "outro": True, "music": True}
+
+
+def apply_brand_style(tl: dict, brand: dict | None):
+    """Caption look and voice from a brand kit (used when a kit is picked)."""
+    tl["brand_id"] = brand["id"] if brand else None
+    tl.setdefault("brand_elements", dict(BRAND_ELEMENTS))
+    if brand:
+        tl["captions"] = {**tl.get("captions", DEFAULT_CAPTIONS), **brand["captions"],
+                          "color": brand["colors"]["text"], "highlight_color": brand["colors"]["accent"]}
+
+
+def new_timeline(meta: dict, req: dict, brand: dict | None = None) -> dict:
     scenes = meta.get("scenes") or [{"text": meta["script"], "search": (meta.get("search_terms") or ["nature"])[0]}]
-    return {
+    language = req.get("language") or "English"
+    voice = req.get("voice")
+    if not voice and brand and brand.get("voice_name") and brand.get("language") in ("", None, language):
+        voice = brand["voice_name"]
+    tl = {
         "format": req.get("format", "shorts"),
-        "voice": re.sub(r"-(Male|Female)$", "", req.get("voice") or DEFAULT_VOICES.get(req.get("language"), DEFAULT_VOICES["English"])),
+        "voice": re.sub(r"-(Male|Female)$", "", voice or DEFAULT_VOICES.get(language, DEFAULT_VOICES["English"])),
         "voice_rate": float(req.get("voice_rate", 1.0)),
         "motion": True,
         "captions": dict(DEFAULT_CAPTIONS),
         "scenes": [
-            {"id": f"s{i + 1}", "text": s["text"].strip(), "search": s.get("search", ""), "clip": None}
+            {"id": f"s{i + 1}", "text": s["text"].strip(), "search": s.get("search", ""),
+             "clip": brands.clip_for_scene(brand, s.get("asset"))}
             for i, s in enumerate(scenes) if s.get("text", "").strip()
         ],
     }
+    apply_brand_style(tl, brand)
+    return tl
 
 
-async def _encode_scene(pid: str, scene: dict, clip_path: Path, voice_dur: float, words: list, tl: dict) -> Path:
+def _style(pid: str, tl: dict, brand: dict | None) -> dict:
+    """Font, logo, bumpers and music for this render."""
+    el = {**BRAND_ELEMENTS, **(tl.get("brand_elements") or {})}
+    cache = project_dir(pid) / "cache"
+    font_file, family = FONT_PATH, FONT_NAME
+    if brand and brand["font"]:
+        f = brands.asset_path(brand["id"], brand["font"]["file"])
+        if f.exists():
+            font_file, family = f, brand["font"]["family"]
+    # libass gets a relative fonts dir (cwd=cache) so paths never need escaping.
+    fonts_dir = cache / f"fonts_{_hash(str(font_file))[:8]}"
+    if not fonts_dir.exists():
+        fonts_dir.mkdir()
+        shutil.copyfile(font_file, fonts_dir / font_file.name)
+    style = {"fonts_dir": fonts_dir.name, "family": family, "logo": None, "intro": None, "outro": None, "music": None}
+    if brand:
+        def path(item):
+            p = brands.asset_path(brand["id"], item["file"]) if item else None
+            return p if p and p.exists() else None
+        if el["logo"] and (p := path(brand["logo"])):
+            style["logo"] = {**brand["logo"], "path": str(p), "mtime": p.stat().st_mtime}
+        for k in ("intro", "outro"):
+            if el[k] and (p := path(brand[k])):
+                style[k] = p
+        tracks = [m for m in brand["music"] if path(m)]
+        if el["music"] and tracks:
+            m = tracks[int(_hash(pid), 16) % len(tracks)]
+            style["music"] = {"path": path(m), "volume": float(m.get("volume", 0.12))}
+    return style
+
+
+def _logo_xy(position: str, margin: int) -> tuple[str, str]:
+    x = f"main_w-overlay_w-{margin}" if "right" in position else str(margin)
+    y = f"main_h-overlay_h-{margin}" if "bottom" in position else str(margin)
+    return x, y
+
+
+async def _encode_scene(pid: str, scene: dict, clip_path: Path, voice_dur: float, words: list, tl: dict, style: dict) -> Path:
     size = SIZES.get(tl["format"], SIZES["shorts"])
     cache = project_dir(pid) / "cache"
+    logo = style["logo"]
     key = _hash("scene", str(clip_path), voice_dur, words, scene["text"], tl["captions"], tl["motion"], size,
-                scene.get("clip_start", 0))
+                scene.get("clip_start", 0), style["family"], style["fonts_dir"], logo)
     out = cache / f"scene_{key}.mp4"
     if out.exists():
         return out
@@ -348,31 +405,83 @@ async def _encode_scene(pid: str, scene: dict, clip_path: Path, voice_dur: float
     vf = [f"scale={w}:{h}:force_original_aspect_ratio=increase"]
     if tl.get("motion"):
         # Slow drift across a slightly larger frame (cheap, smooth Ken Burns).
-        vf += [f"scale=iw*1.12:-2", f"crop={w}:{h}:x='(iw-{w})*(0.2+0.6*t/{voice_dur:.3f})':y='(ih-{h})/2'"]
+        vf += ["scale=iw*1.12:-2", f"crop={w}:{h}:x='(iw-{w})*(0.2+0.6*t/{voice_dur:.3f})':y='(ih-{h})/2'"]
     else:
         vf += [f"crop={w}:{h}"]
     vf += ["fps=30", "setsar=1", "format=yuv420p"]
-    ass = build_ass(words, scene["text"], voice_dur, size, tl["captions"])
+    ass = build_ass(words, scene["text"], voice_dur, size, tl["captions"], style["family"])
     if ass:
         (cache / f"cap_{key}.ass").write_text(ass, encoding="utf-8")
-        vf.append(f"ass=cap_{key}.ass:fontsdir={FONT_PATH.parent}")
+        vf.append(f"ass=cap_{key}.ass:fontsdir={style['fonts_dir']}")
+    inputs = ["-stream_loop", "-1", "-ss", scene.get("clip_start", 0), "-i", clip_path]
+    graph = f"[0:v]{','.join(vf)}[base]"
+    out_label = "[base]"
+    if logo:
+        inputs += ["-i", logo["path"]]
+        lw = max(16, int(w * float(logo.get("size", 0.16))) // 2 * 2)
+        x, y = _logo_xy(logo.get("position", "top-right"), int(min(w, h) * 0.045))
+        graph += (f";[1:v]scale={lw}:-1,format=rgba,colorchannelmixer=aa={float(logo.get('opacity', 0.9)):.2f}[lg]"
+                  f";[base][lg]overlay={x}:{y}:format=auto,format=yuv420p[vout]")
+        out_label = "[vout]"
     tmp = out.with_name(out.stem + ".tmp.mp4")
     await _ffmpeg(
-        "-stream_loop", "-1", "-ss", scene.get("clip_start", 0), "-i", clip_path, "-t", f"{voice_dur:.3f}", "-an",
-        "-vf", ",".join(vf), "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-r", "30", tmp,
+        *inputs, "-filter_complex", graph, "-map", out_label, "-t", f"{voice_dur:.3f}", "-an",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-r", "30", tmp,
         cwd=cache,
     )
     tmp.rename(out)
     return out
 
 
+async def _has_audio(path: Path) -> bool:
+    proc = await asyncio.create_subprocess_exec(
+        FFMPEG, "-hide_banner", "-i", str(path), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+    )
+    _, err = await proc.communicate()
+    return "Audio:" in err.decode(errors="replace")
+
+
+async def _to_wav(src: Path, cache: Path, duration: float | None = None) -> Path:
+    """Normalize audio to 44.1 kHz stereo PCM so every part concatenates cleanly."""
+    dest = cache / f"wav_{_hash(str(src), src.stat().st_mtime, duration)}.wav"
+    if not dest.exists():
+        if await _has_audio(src):
+            args = ["-i", src, "-vn", "-ac", "2", "-ar", "44100"]
+        else:
+            args = ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
+        if duration:
+            args += ["-af", f"apad,atrim=0:{duration:.3f}"]
+        await _ffmpeg(*args, "-c:a", "pcm_s16le", dest.with_suffix(".tmp.wav"))
+        dest.with_suffix(".tmp.wav").rename(dest)
+    return dest
+
+
+async def _encode_bumper(pid: str, src: Path, size) -> tuple[Path, Path, float]:
+    """Intro/outro → (video part, wav, duration), conformed to the project format."""
+    cache = project_dir(pid) / "cache"
+    w, h = size
+    dur = await media_duration(src)
+    video = cache / f"bumper_{_hash(str(src), src.stat().st_mtime, size)}.mp4"
+    if not video.exists():
+        await _ffmpeg(
+            "-i", src, "-an", "-t", f"{dur:.3f}",
+            "-vf", f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},fps=30,setsar=1,format=yuv420p",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-r", "30", video.with_suffix(".tmp.mp4"),
+        )
+        video.with_suffix(".tmp.mp4").rename(video)
+    return video, await _to_wav(src, cache, dur), dur
+
+
 async def render_timeline(pid: str, tl: dict, out: Path, on_progress) -> dict:
-    """Render the timeline to `out`. Mutates tl: fills clips, alternatives, timings."""
+    """Render the timeline to `out`. Mutates tl: fills clips and timings."""
     size = SIZES.get(tl["format"], SIZES["shorts"])
     scenes = tl["scenes"]
     if not scenes:
         raise ValueError("Timeline has no scenes")
     n = len(scenes)
+    brand = brands.get(tl.get("brand_id"))
+    style = _style(pid, tl, brand)
+    cache = project_dir(pid) / "cache"
 
     voices = []
     for i, s in enumerate(scenes):
@@ -380,6 +489,8 @@ async def render_timeline(pid: str, tl: dict, out: Path, on_progress) -> dict:
         on_progress(0.15 * (i + 1) / n)
 
     for i, s in enumerate(scenes):
+        if s.get("clip") and s["clip"].get("path") and not Path(s["clip"]["path"]).exists():
+            s["clip"] = None  # brand clip or upload was removed
         if not s.get("clip"):
             results = await search_footage(s["search"] or s["text"][:60], size)
             used = {x["clip"]["id"] for x in scenes if x.get("clip") and x["clip"].get("id")}
@@ -388,25 +499,41 @@ async def render_timeline(pid: str, tl: dict, out: Path, on_progress) -> dict:
                 raise RuntimeError(f"No footage found for scene {i + 1} ('{s['search']}')")
             s["clip"] = fresh[0]
         clip_path = await ensure_clip_file(pid, s["clip"])
-        if not s["clip"].get("thumb_local"):
+        if not s["clip"].get("thumb_local") and not s["clip"].get("thumb_url"):
             s["clip"]["thumb_local"] = str(await thumbnail(clip_path))
-        on_progress(0.15 + 0.25 * (i + 1) / n)
+        on_progress(0.15 + 0.2 * (i + 1) / n)
 
-    parts, t = [], 0.0
+    video_parts, audio_parts, t = [], [], 0.0
+    if style["intro"]:
+        v, a, d = await _encode_bumper(pid, style["intro"], size)
+        video_parts.append(v); audio_parts.append(a); t += d  # noqa: E702
     for i, (s, (mp3, words, dur)) in enumerate(zip(scenes, voices)):
-        parts.append(await _encode_scene(pid, s, Path(s["clip"]["path"]), dur, words, tl))
+        video_parts.append(await _encode_scene(pid, s, Path(s["clip"]["path"]), dur, words, tl, style))
+        audio_parts.append(await _to_wav(mp3, cache, dur))
         s["start"], s["end"] = round(t, 2), round(t + dur, 2)
         t += dur
-        on_progress(0.40 + 0.55 * (i + 1) / n)
+        on_progress(0.35 + 0.55 * (i + 1) / n)
+    if style["outro"]:
+        v, a, d = await _encode_bumper(pid, style["outro"], size)
+        video_parts.append(v); audio_parts.append(a); t += d  # noqa: E702
 
-    work = project_dir(pid) / "cache"
-    (work / "video.txt").write_text("".join(f"file '{p.name}'\n" for p in parts))
-    (work / "audio.txt").write_text("".join(f"file '{v[0].name}'\n" for v in voices))
-    await _ffmpeg(
-        "-f", "concat", "-safe", "0", "-i", "video.txt", "-f", "concat", "-safe", "0", "-i", "audio.txt",
-        "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
-        "-movflags", "+faststart", "-shortest", out.resolve(), cwd=work,
-    )
+    (cache / "video.txt").write_text("".join(f"file '{p.name}'\n" for p in video_parts))
+    (cache / "audio.txt").write_text("".join(f"file '{p.name}'\n" for p in audio_parts))
+    args = ["-f", "concat", "-safe", "0", "-i", "video.txt", "-f", "concat", "-safe", "0", "-i", "audio.txt"]
+    if style["music"]:
+        m = style["music"]
+        fade = max(0.0, t - 2.0)
+        args += ["-stream_loop", "-1", "-i", m["path"], "-filter_complex",
+                 # Music ducks under the voice (sidechain) and fades out at the end.
+                 f"[1:a]asplit=2[vo][sc];[2:a]aformat=sample_rates=44100:channel_layouts=stereo,"
+                 f"volume={m['volume']:.3f},afade=t=out:st={fade:.2f}:d=2[mu];"
+                 f"[mu][sc]sidechaincompress=threshold=0.03:ratio=6:attack=20:release=400[md];"
+                 f"[vo][md]amix=inputs=2:duration=first:normalize=0[a]",
+                 "-map", "0:v", "-map", "[a]"]
+    else:
+        args += ["-map", "0:v", "-map", "1:a"]
+    await _ffmpeg(*args, "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-t", f"{t:.3f}",
+                  "-movflags", "+faststart", out.resolve(), cwd=cache)
     on_progress(1.0)
     return tl
 

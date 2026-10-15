@@ -26,6 +26,13 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS brands (
+    id TEXT PRIMARY KEY,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL,
+    name TEXT NOT NULL,
+    data TEXT NOT NULL             -- JSON: see brands.EMPTY
+);
 CREATE TABLE IF NOT EXISTS accounts (
     id TEXT PRIMARY KEY,
     created_at REAL NOT NULL,
@@ -164,3 +171,29 @@ def list_accounts():
 def delete_account(aid: str):
     with conn() as c:
         c.execute("DELETE FROM accounts WHERE id=?", (aid,))
+
+
+def save_brand(bid: str, name: str, data: dict):
+    now = time.time()
+    with conn() as c:
+        c.execute(
+            "INSERT INTO brands (id, created_at, updated_at, name, data) VALUES (?,?,?,?,?) "
+            "ON CONFLICT(id) DO UPDATE SET name=excluded.name, data=excluded.data, updated_at=excluded.updated_at",
+            (bid, now, now, name, json.dumps(data, ensure_ascii=False)),
+        )
+
+
+def get_brand(bid: str):
+    with conn() as c:
+        return _row(c.execute("SELECT * FROM brands WHERE id=?", (bid,)).fetchone())
+
+
+def list_brands():
+    with conn() as c:
+        rows = c.execute("SELECT * FROM brands ORDER BY updated_at DESC").fetchall()
+    return [_row(r) for r in rows]
+
+
+def delete_brand(bid: str):
+    with conn() as c:
+        c.execute("DELETE FROM brands WHERE id=?", (bid,))

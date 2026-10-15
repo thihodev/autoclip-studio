@@ -6,3 +6,4 @@ python-multipart>=0.0.9
 claude-agent-sdk>=0.2
 edge-tts>=7.0
 imageio-ffmpeg>=0.5
+pillow>=10
