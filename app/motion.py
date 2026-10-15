@@ -298,15 +298,23 @@ Hard rules:
   letter-spacing below -0.02em, and never clip text containers vertically — diacritics like Ổ, Ỗ, Ầ must be fully visible.
 - Before the final render run `npx hyperframes lint` and `npx hyperframes check` and fix real problems.
 - Final render: `npx hyperframes render --quality delivery -o renders/video.mp4`. You are done when that file exists.
-- Keep your context small — every turn re-reads it: pipe long command output through `| tail -n 40` (or grep for
-  errors), read files with offset/limit when you need part of them, and don't re-read a skill or file you've already
-  read. Edit files in place instead of printing them.
+- Fewer turns: every turn re-reads your whole context, so do as much as possible per turn. Chain related shell steps
+  in ONE Bash call (`a && b && c`), read several files in one call (`cat a b c`, or parallel Read calls), and send
+  independent tool calls together in one message. Don't spend a turn just to look around or confirm a step worked
+  when the next command would show it anyway.
+- Keep your context small: pipe long command output through `| tail -n 40` (or grep for errors), read files with
+  offset/limit when you need part of them, and don't re-read a skill or file you've already read. Edit files in
+  place instead of printing them.
 - Keep the final message short: what the video shows, frame by frame, in one line each."""
 
 DESIGNER = """You design and animate ONE HyperFrames frame for AutoClip Studio, from the `_role.md` and frame packet you
 are given. Follow them exactly (look, timing, Vietnamese typography rules, safe margins). Write only your frame's
 composition file, inside the project folder. Run `npx hyperframes lint` on it when done and fix real problems. Keep
 command output short (`| tail -n 40`) and don't re-read files. Reply with one line: the file you wrote and what it shows."""
+
+# Only the tools the workflow uses: every tool's definition is re-sent on every turn.
+ORCHESTRATOR_TOOLS = ["Bash", "Read", "Write", "Edit", "MultiEdit", "Glob", "Grep", "TodoWrite", "Agent", "Task", "Skill"]
+DESIGNER_TOOLS = ["Bash", "Read", "Write", "Edit", "MultiEdit", "Glob", "Grep"]
 
 # Waiting tools would make the orchestrator wake up again and again, re-reading its whole context each time.
 IDLE_TOOLS = ["ScheduleWakeup", "CronCreate", "CronDelete", "CronList", "Monitor", "RemoteTrigger", "SendMessage",
@@ -391,11 +399,13 @@ async def _agent(pid: str, root: Path, req: dict, brand: dict | None, task: str,
         setting_sources=["project"],  # project CLAUDE.md + the HyperFrames skills linked into .claude/skills
         skills="all",
         system_prompt={"type": "preset", "preset": "claude_code", "append": RULES},
+        tools=ORCHESTRATOR_TOOLS,
         allowed_tools=["Read", "Glob", "Grep", "TodoWrite", "Task", "Agent", "mcp__autoclip__voiceover"],
         disallowed_tools=IDLE_TOOLS,
         agents={"frame-designer": AgentDefinition(
             description="Designs and animates one video frame from its packet (Step 5). Use one per frame.",
             prompt=DESIGNER, model=d_model, effort=d_effort if d_effort else None, background=False,
+            tools=DESIGNER_TOOLS,
             disallowedTools=IDLE_TOOLS + ["Agent", "Task"], maxTurns=60)},
         can_use_tool=_make_permission(root),
         mcp_servers={"autoclip": _voiceover_server(pid, root, req, brand)},
