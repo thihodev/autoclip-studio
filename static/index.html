@@ -181,6 +181,13 @@
   .savebar > div { pointer-events:auto; display:flex; align-items:center; gap:12px; background:var(--text); color:var(--bg); padding:8px 8px 8px 16px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
   .savebar .btn.ghost { color:var(--bg); } .savebar .btn.ghost:hover { background:rgba(127,127,127,.2); }
 
+  /* context files */
+  .files { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .filechip { display:inline-flex; align-items:center; gap:6px; max-width:100%; padding:4px 4px 4px 10px; border:1px solid var(--border-strong); border-radius:8px; font-size:12px; background:var(--surface-2); }
+  .filechip .n { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:240px; font-weight:600; }
+  .filechip .x { border:0; background:none; color:var(--text-3); cursor:pointer; padding:2px 4px; border-radius:4px; font:inherit; }
+  .filechip .x:hover { color:var(--err); background:var(--err-soft); }
+
   /* brand kits */
   .brands { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:14px; }
   .bcard { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; text-decoration:none; color:inherit; box-shadow:var(--shadow); display:flex; flex-direction:column; }
@@ -239,6 +246,7 @@
   <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
   <symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></symbol>
   <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></symbol>
   <symbol id="i-retry" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></symbol>
 </svg>
 
@@ -278,7 +286,15 @@
       <div class="card composer">
         <fieldset :disabled="creating">
           <div class="field"><label for="topic">What is the video about?</label>
-            <textarea id="topic" x-model="form.topic" placeholder="e.g. 5 surprising facts about the human brain"></textarea></div>
+            <textarea id="topic" x-model="form.topic" placeholder="e.g. 5 surprising facts about the human brain — or “Turn the attached article into a 45-second explainer”"></textarea></div>
+          <div class="files" style="margin-top:8px">
+            <template x-for="f in form.context" :key="f.id">
+              <span class="filechip" :title="`${f.name} · ${fmtChars(f.chars)}`"><svg class="i" style="width:13px;height:13px"><use href="#i-clip"/></svg><span class="n" x-text="f.name"></span><span class="muted" x-text="fmtChars(f.chars)"></span><button type="button" class="x" @click="removeFormContext(f)" title="Remove">✕</button></span>
+            </template>
+            <label class="btn ghost sm uploadbtn"><span class="spin" x-show="uploadingContext"></span><svg class="i" x-show="!uploadingContext"><use href="#i-clip"/></svg>Add context files
+              <input type="file" multiple :accept="contextAccept" @change="addFormContext($event)"></label>
+            <span class="small muted" x-show="!form.context.length">Optional: articles, notes, product docs or transcripts for Claude to base the script on.</span>
+          </div>
           <div class="grid-3" style="margin-top:12px">
             <div class="field"><label>Language</label>
               <select x-model="form.language" @change="form.voice=''; loadVoices(form.language)"><template x-for="l in languages"><option :value="l" x-text="l" :selected="l===form.language"></option></template></select></div>
@@ -519,6 +535,17 @@
                 </div>
 
                 <div class="card">
+                  <div class="card-head"><div class="grow"><h2>Context files</h2><p>Claude uses these as source material for AI edits.</p></div>
+                    <label class="btn sm uploadbtn"><span class="spin" x-show="uploadingContext"></span><svg class="i" x-show="!uploadingContext"><use href="#i-clip"/></svg>Add files<input type="file" multiple :accept="contextAccept" @change="addProjectContext($event)"></label></div>
+                  <template x-if="!(cur.request.context||[]).length"><p class="small muted">None. Add articles, notes, product docs or transcripts.</p></template>
+                  <div class="files">
+                    <template x-for="m in (cur.request.context||[])" :key="m.id">
+                      <span class="filechip"><svg class="i" style="width:13px;height:13px"><use href="#i-clip"/></svg><span class="n" x-text="m.name"></span><span class="muted" x-text="fmtChars(m.chars)"></span><button type="button" class="x" @click="removeProjectContext(m)" title="Remove">✕</button></span>
+                    </template>
+                  </div>
+                </div>
+
+                <div class="card">
                   <div class="card-head">
                     <div class="grow"><h2>FrameJam review</h2><p>Click the exact frame that's wrong and comment. Claude applies the comments.</p></div>
                     <span class="chip" :class="status.framejam?.ok?'ok':''" x-text="status.framejam?.ok?'Running':'Not running'"></span>
@@ -697,6 +724,17 @@
                     <div class="field"><label>Language</label><select x-model="brand.language" @change="brand.voice_name=''; loadVoices(brand.language||'English')"><option value="">Any</option><template x-for="l in languages"><option :value="l" x-text="l" :selected="l===brand.language"></option></template></select></div>
                     <div class="field"><label>Voice</label><select x-model="brand.voice_name"><option value="">Default for the language</option><template x-for="v in (voices[brand.language||'English']||[])"><option :value="v.name" x-text="voiceLabel(v)" :selected="v.name===brand.voice_name"></option></template></select></div>
                   </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-head"><div class="grow"><h2>Knowledge</h2><p>Product facts, FAQs, docs — Claude stays consistent with them in every video for this brand.</p></div>
+                  <label class="btn sm uploadbtn"><svg class="i"><use href="#i-clip"/></svg>Add files<input type="file" multiple :accept="contextAccept" @change="uploadAsset('context', $event)"></label></div>
+                <template x-if="!(brand.knowledge||[]).length"><p class="small muted">None yet. TXT, MD, PDF, DOCX, HTML, CSV or JSON.</p></template>
+                <div class="files">
+                  <template x-for="k in (brand.knowledge||[])" :key="k.id">
+                    <span class="filechip"><svg class="i" style="width:13px;height:13px"><use href="#i-clip"/></svg><span class="n" x-text="k.name"></span><span class="muted" x-text="fmtChars(k.chars)"></span><button type="button" class="x" @click="removeAsset('context', k.id)" title="Remove">✕</button></span>
+                  </template>
                 </div>
               </div>
 
@@ -1135,7 +1173,8 @@ function app() {
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
     status: {}, cl: {}, cfg: { claude:{}, footage:{}, framejam:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
     channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] },
-    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null },
+    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[] },
+    uploadingContext: false, contextAccept: '.txt,.md,.markdown,.pdf,.docx,.html,.htm,.csv,.json,.srt,.vtt,.yaml,.yml',
     brandList: [], brand: null, brandBase: '', brandMissing: false, syncing: false,
     importer: { open:false, url:'', ref:'', busy:false }, newBrand: { open:false, name:'' },
     github: { connected:false, login:'' }, githubToken: '', githubSaving: false, githubRepos: [],
@@ -1200,6 +1239,21 @@ function app() {
     positionLabel(v) { v = +v; return v < 0.35 ? 'top' : v > 0.65 ? 'bottom' : 'middle'; },
     ago(ts) { const s = Date.now()/1000 - ts; if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s/60) + ' min ago'; if (s < 86400) return Math.floor(s/3600) + ' h ago'; return new Date(ts*1000).toLocaleDateString(); },
     when(ts) { return new Date(ts*1000).toLocaleString([], { dateStyle:'medium', timeStyle:'short' }); },
+    fmtChars(n) { const w = Math.round((n || 0) / 6); return w >= 1000 ? `~${(w/1000).toFixed(1)}k words` : `~${w} words`; },
+    async uploadEach(ev, fn) {
+      const files = [...ev.target.files]; ev.target.value = '';
+      this.uploadingContext = true;
+      for (const f of files) { const fd = new FormData(); fd.append('file', f); await fn(fd, f); }
+      this.uploadingContext = false;
+    },
+    addFormContext(ev) { return this.uploadEach(ev, async fd => { const m = await this.run(() => this.api('/api/context', { method:'POST', body:fd })); if (m?.id) this.form.context.push(m); }); },
+    async removeFormContext(f) { this.form.context = this.form.context.filter(x => x.id !== f.id); this.api(`/api/context/${f.id}`, { method:'DELETE' }).catch(() => {}); },
+    addProjectContext(ev) { return this.uploadEach(ev, async fd => { const p = await this.run(() => this.api(`/api/projects/${this.cur.id}/context`, { method:'POST', body:fd })); if (p?.id) this.cur = p; }); },
+    removeProjectContext(m) {
+      this.confirm(`Remove ${m.name}?`, 'Claude will no longer use it for AI edits of this video.', 'Remove', async () => {
+        const p = await this.run(() => this.api(`/api/projects/${this.cur.id}/context/${m.id}`, { method:'DELETE' })); if (p?.id) this.cur = p;
+      });
+    },
     copy(t) { navigator.clipboard?.writeText(t).then(() => this.say('Copied')); },
 
     // ------------------------------------------------ routing (real URLs, survive reload)
@@ -1279,9 +1333,10 @@ function app() {
       this.creating = true;
       const { channelIds, ...f } = this.form;
       try { this.form.brand_id ? localStorage.setItem('autoclip.brand', this.form.brand_id) : localStorage.removeItem('autoclip.brand'); } catch {}
-      const p = await this.run(() => this.api('/api/projects', { method:'POST', body:{ ...f, auto_publish: f.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }));
+      const { context, ...rest } = f;
+      const p = await this.run(() => this.api('/api/projects', { method:'POST', body:{ ...rest, context_ids: context.map(c => c.id), auto_publish: f.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }));
       this.creating = false;
-      if (p) { this.form.topic = ''; await this.loadProjects(); this.nav(`/projects/${p.id}`); }
+      if (p) { this.form.topic = ''; this.form.context = []; await this.loadProjects(); this.nav(`/projects/${p.id}`); }
     },
     async retry(p) { if (await this.run(() => this.api(`/api/projects/${p.id}/retry`, { method:'POST' }))) this.loadProjects(); },
     askDelete(p) {
@@ -1395,7 +1450,7 @@ function app() {
     applyAssets(b) {
       // Keep unsaved text edits; take files (and their settings) from the server.
       const base = JSON.parse(this.brandBase);
-      for (const k of ['logo','font','intro','outro','music','clips','warnings','source','updated_at']) { this.brand[k] = JSON.parse(JSON.stringify(b[k] ?? null)); base[k] = JSON.parse(JSON.stringify(b[k] ?? null)); }
+      for (const k of ['logo','font','intro','outro','music','clips','knowledge','warnings','source','updated_at']) { this.brand[k] = JSON.parse(JSON.stringify(b[k] ?? null)); base[k] = JSON.parse(JSON.stringify(b[k] ?? null)); }
       this.brandBase = JSON.stringify(base);
       this.loadBrands();
     },
@@ -1414,7 +1469,7 @@ function app() {
       if (files.length) this.say(files.length > 1 ? `${files.length} files added` : 'Added');
     },
     removeAsset(kind, file) {
-      const label = { logo:'the logo', font:'the font', intro:'the intro', outro:'the outro', music:'this track', clip:'this clip' }[kind];
+      const label = { logo:'the logo', font:'the font', intro:'the intro', outro:'the outro', music:'this track', clip:'this clip', context:'this file' }[kind];
       this.confirm(`Remove ${label}?`, 'The file is deleted from this brand kit. Videos keep working without it.', 'Remove', async () => {
         const b = await this.run(() => this.api(`/api/brands/${this.brand.id}/assets/${kind}${file ? '?file=' + encodeURIComponent(file) : ''}`, { method:'DELETE' }));
         if (b?.id) this.applyAssets(b);

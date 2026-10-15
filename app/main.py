@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import brands, claude, db, framejam, pipeline, platforms, postiz, render, settings
+from . import brands, claude, context, db, framejam, pipeline, platforms, postiz, render, settings
 from .config import ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -24,12 +24,18 @@ logging.basicConfig(level=logging.INFO)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.init()
+    context.cleanup(_context_in_use())
     task = asyncio.create_task(pipeline.autopilot_loop())
     yield
     task.cancel()
 
 
 app = FastAPI(title="AutoClip Studio", lifespan=lifespan)
+
+
+def _context_in_use() -> set[str]:
+    ids = {m["id"] for p in db.list_projects(limit=100000) for m in (p["request"].get("context") or [])}
+    return ids | {k["id"] for b in brands.list_all() for k in b.get("knowledge", [])}
 
 
 def _bg(coro):
@@ -65,6 +71,7 @@ class ProjectIn(BaseModel):
     integrations: list[Channel] = []
     publish_options: dict = {}
     brand_id: str | None = None
+    context_ids: list[str] = []
 
 
 class PublishIn(BaseModel):
@@ -302,7 +309,9 @@ async def create_project(body: ProjectIn):
     _require_setup()
     if body.brand_id and not brands.get(body.brand_id):
         raise HTTPException(400, "That brand kit no longer exists")
-    p = db.create_project(body.model_dump())
+    req = body.model_dump(exclude={"context_ids"})
+    req["context"] = [m for cid in body.context_ids if (m := context.get(cid))]
+    p = db.create_project(req)
     pipeline.start(p["id"])
     return p
 
@@ -314,6 +323,8 @@ def get_project(pid: str):
 
 @app.delete("/api/projects/{pid}")
 def delete_project(pid: str):
+    for m in (db.get_project(pid) or {"request": {}})["request"].get("context") or []:
+        context.remove(m["id"])
     for f in VIDEOS_DIR.glob(f"{pid}_v*.mp4"):
         f.unlink(missing_ok=True)
     render.clear_cache(pid)
@@ -328,6 +339,51 @@ async def retry(pid: str):
     db.update_project(pid, status="queued", progress=0, error=None)
     pipeline.start(pid)
     return {"ok": True}
+
+
+# ------------------------------------------------------------------ context files
+
+async def _save_upload(file: UploadFile) -> dict:
+    tmp = render.project_dir("_uploads") / f"{uuid.uuid4().hex}{Path(file.filename or '').suffix}"
+    with open(tmp, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    try:
+        return await asyncio.to_thread(context.save, tmp, file.filename or tmp.name)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+@app.post("/api/context")
+async def upload_context(file: UploadFile = File(...)):
+    return await _save_upload(file)
+
+
+@app.delete("/api/context/{cid}")
+def delete_context(cid: str):
+    if cid in _context_in_use():
+        raise HTTPException(400, "This file is used by a video or brand kit")
+    context.remove(cid)
+    return {"ok": True}
+
+
+@app.post("/api/projects/{pid}/context")
+async def add_project_context(pid: str, file: UploadFile = File(...)):
+    p = _project(pid)
+    meta = await _save_upload(file)
+    req = {**p["request"], "context": [*(p["request"].get("context") or []), meta]}
+    db.update_project(pid, request=req)
+    return db.get_project(pid)
+
+
+@app.delete("/api/projects/{pid}/context/{cid}")
+def remove_project_context(pid: str, cid: str):
+    p = _project(pid)
+    req = {**p["request"], "context": [m for m in p["request"].get("context") or [] if m["id"] != cid]}
+    db.update_project(pid, request=req)
+    context.remove(cid)
+    return db.get_project(pid)
 
 
 # ------------------------------------------------------------------ editor

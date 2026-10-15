@@ -7,7 +7,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import brands, claude, db, framejam, platforms, postiz, render, settings
+from . import brands, claude, context, db, framejam, platforms, postiz, render, settings
 from .config import VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
@@ -58,6 +58,7 @@ async def run_project(pid: str):
                 topic=req["topic"], language=req.get("language", "English"),
                 duration=int(req.get("duration", 45)), style=req.get("style", ""), notes=req.get("notes", ""),
                 brand_context=brands.prompt_context(brand),
+                source=source_material(req),
             )
             db.update_project(pid, script=meta, timeline=render.new_timeline(meta, req, brand))
         await _render_version(pid, "First cut")
@@ -65,6 +66,13 @@ async def run_project(pid: str):
             await publish_project(pid)
     except Exception as e:
         _fail(pid, e)
+
+
+def source_material(req: dict) -> str:
+    return context.prompt_block(
+        [m["id"] for m in req.get("context") or []],
+        "Source material attached by the user (base the video on it and keep its facts accurate)",
+    )
 
 
 def start(pid: str):
@@ -113,6 +121,7 @@ async def ai_edit(pid: str, instruction: str, source: str = "prompt"):
         edit = await claude.edit_timeline(
             p["timeline"], p["script"], p["request"].get("language", "English"), instruction,
             brand_context=brands.prompt_context(brands.get(p["timeline"].get("brand_id"))),
+            source=source_material(p["request"]),
         )
         tl, meta = apply_edit(p["timeline"], p["script"], edit)
         extra = _extra(p)

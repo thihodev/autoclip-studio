@@ -134,6 +134,14 @@ def _pick_file(files: list[dict], size) -> dict:
     return max(files, key=lambda f: f["width"] * f["height"])
 
 
+def _footage_error(r: httpx.Response, provider: str):
+    if r.status_code in (400, 401, 403):
+        raise RuntimeError(f"{provider.title()} rejected the API key — update it in Connections → Stock footage")
+    if r.status_code == 429:
+        raise RuntimeError(f"{provider.title()} rate limit reached — try again in a few minutes")
+    r.raise_for_status()
+
+
 async def search_footage(term: str, size, per_page: int = 8) -> list[dict]:
     """→ [{id, url, thumb, duration, width, height, provider}]"""
     cfg = settings.get("footage")
@@ -149,7 +157,7 @@ async def search_footage(term: str, size, per_page: int = 8) -> list[dict]:
                 params={"query": term, "per_page": per_page, "orientation": _orientation(size), "size": "medium"},
                 headers={"Authorization": key},
             )
-            r.raise_for_status()
+            _footage_error(r, provider)
             for v in r.json().get("videos", []):
                 files = [
                     {"url": f["link"], "width": f["width"], "height": f["height"]}
@@ -162,7 +170,7 @@ async def search_footage(term: str, size, per_page: int = 8) -> list[dict]:
                                 "provider": "pexels"})
         else:
             r = await c.get("https://pixabay.com/api/videos/", params={"key": key, "q": term, "per_page": max(3, per_page)})
-            r.raise_for_status()
+            _footage_error(r, provider)
             for v in r.json().get("hits", []):
                 vids = v.get("videos") or {}
                 files = [{"url": f["url"], "width": f["width"], "height": f["height"]}

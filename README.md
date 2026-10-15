@@ -14,9 +14,10 @@ An open-source tool that creates short-form videos (YouTube Shorts, TikTok, Face
 
 ```bash
 git clone https://github.com/thihodev/autoclip-studio.git && cd autoclip-studio
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python -m app            # opens http://localhost:8000
+./start.sh          # Windows: start.cmd
 ```
+
+That's the only command. The first run creates `.venv` and installs dependencies (with [uv](https://github.com/astral-sh/uv) if it's installed, otherwise pip), then opens http://localhost:8000. After `git pull`, run `./start.sh` again — it reinstalls only when `requirements.txt` changed. Use `./start.sh --no-browser` on a server. Requires Python 3.11+.
 
 The app opens on **Connections** until two things are set:
 
@@ -48,6 +49,7 @@ Social accounts, GitHub, FrameJam and Postiz are optional and can be connected a
   - **Edit with AI**: describe the change ("punchier hook, shorten scene 3, captions at the top") and Claude edits the timeline;
   - **FrameJam review**: send the render to FrameJam, click frames and comment, then **Apply feedback**;
   - every render is kept as a version (v1, v2, …) you can preview and compare.
+- **Context files** (optional): attach articles, notes, product docs or transcripts (TXT, MD, PDF, DOCX, HTML, CSV, JSON, SRT/VTT) when creating a video, or later in the editor. Claude uses them as source material for the script and for AI edits.
 - **Brand kits**: a design system for videos — see below.
 - **Ideas**: Claude suggests topics for a niche, each with an opening hook.
 - **Autopilot**: every N hours, generate ideas → render → optionally auto-publish.
@@ -60,6 +62,7 @@ A brand kit bundles everything that makes videos look and sound like yours:
 | Part | Used for |
 |---|---|
 | Description, voice & tone, audience, call to action | Claude follows them when writing and editing scripts. |
+| Knowledge files | Product facts, FAQs and docs Claude stays consistent with in every video for the brand. |
 | Colors, caption style and position, font (TTF/OTF) | Burned-in captions; the highlight color marks the spoken word. |
 | Logo (PNG/JPG/WebP) | Overlaid on every scene, with corner, size and opacity settings. |
 | Intro / outro (≤ 30 s) | Played before and after every video, conformed to the video format. |
@@ -72,8 +75,8 @@ Pick a kit when creating a video (Studio), in the editor (Style → Brand kit, w
 
 **Brand kits → Import from GitHub** accepts `owner/repo` or a GitHub URL (optionally a branch or tag). Public repos work as they are; for private repos, connect GitHub in Connections with a fine-grained token that has read-only *Contents* access.
 
-- If the repo contains **`autoclip.brand.json`** (at the root, `.autoclip/brand.json` or `brand/autoclip.brand.json`), it is applied exactly. See [`examples/autoclip.brand.json`](examples/autoclip.brand.json); asset paths are relative to the repo root.
-- Otherwise Claude reads the README, `package.json`, Tailwind config, CSS variables and design-token files, and picks the logo, font, music and clips from the repo's files.
+- If the repo contains **`autoclip.brand.json`** (it can also list `context` documents as brand knowledge) (at the root, `.autoclip/brand.json` or `brand/autoclip.brand.json`), it is applied exactly. See [`examples/autoclip.brand.json`](examples/autoclip.brand.json); asset paths are relative to the repo root.
+- Otherwise Claude reads the README, `package.json`, Tailwind config, CSS variables and design-token files, and picks the logo, font, music and clips from the repo's files. The README is added as brand knowledge.
 
 **Sync from GitHub** on a kit re-imports it from the same repo and ref. SVG logos and WOFF fonts can't be rendered by ffmpeg; the import warns you to upload a PNG or a TTF/OTF instead.
 
@@ -112,7 +115,7 @@ In the editor click **Open in FrameJam**, comment on frames in the review page, 
 
 ## Configuration
 
-Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Optional environment variables (see `.env.example`): `HOST`, `PORT`, `DATA_DIR`. Run with `python -m app --no-browser` on a server.
+Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Optional environment variables (see `.env.example`): `HOST`, `PORT`, `DATA_DIR`. Run with `./start.sh --no-browser` on a server.
 
 > The app has no login of its own. Keep it on `127.0.0.1` (the default), or put it behind your own authentication before exposing it.
 
@@ -126,8 +129,10 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 | GET | `/oauth/{youtube,tiktok,facebook}/start` | Connect a social account |
 | GET | `/api/channels` | Connected accounts + Postiz channels |
 | GET | `/api/voices?language=` | edge-tts voices for a language |
+| POST, DELETE | `/api/context`, `/api/context/{id}` | Upload a context file (multipart `file`) before creating a video; pass the ids as `context_ids` |
+| POST, DELETE | `/api/projects/{id}/context`, `/api/projects/{id}/context/{cid}` | Add / remove context files of a video |
 | POST | `/api/ideas` | `{niche, language, count}` |
-| GET, POST | `/api/projects` | List / create `{topic, language, duration, format, style, voice, voice_rate, auto_publish, integrations}` |
+| GET, POST | `/api/projects` | List / create `{topic, language, duration, format, style, voice, voice_rate, brand_id, context_ids, auto_publish, integrations}` |
 | PUT | `/api/projects/{id}/timeline` | Save a manual edit and re-render |
 | POST | `/api/projects/{id}/ai-edit` | `{instruction}` |
 | GET | `/api/projects/{id}/footage?q=` | Search stock footage |
@@ -136,7 +141,7 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 | POST | `/api/projects/{id}/publish` | `{integrations, publish_options}` |
 | GET, POST | `/api/brands` | List / create brand kits |
 | GET, PUT, DELETE | `/api/brands/{id}` | Read / update / delete a kit |
-| POST, DELETE | `/api/brands/{id}/assets`, `/api/brands/{id}/assets/{kind}` | Upload (multipart `kind`, `file`) or remove logo, font, intro, outro, music, clip |
+| POST, DELETE | `/api/brands/{id}/assets`, `/api/brands/{id}/assets/{kind}` | Upload (multipart `kind`, `file`) or remove logo, font, intro, outro, music, clip, context |
 | POST | `/api/brands/import`, `/api/brands/{id}/sync` | Import / re-sync from GitHub `{url, ref}` |
 | GET, POST, DELETE | `/api/github`, `/api/github/repos` | GitHub connection and repo list |
 | GET, PUT | `/api/autopilot` | Autopilot settings |

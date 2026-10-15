@@ -19,7 +19,7 @@ from pathlib import Path
 
 import httpx
 
-from . import db, settings
+from . import context, db, settings
 from .config import DATA_DIR
 
 log = logging.getLogger("brands")
@@ -33,7 +33,7 @@ FONT_EXT = {".ttf", ".otf"}
 VIDEO_EXT = {".mp4", ".mov", ".webm", ".m4v"}
 AUDIO_EXT = {".mp3", ".wav", ".m4a", ".ogg", ".aac"}
 KIND_EXT = {"logo": IMAGE_EXT, "font": FONT_EXT, "intro": VIDEO_EXT, "outro": VIDEO_EXT,
-            "music": AUDIO_EXT, "clip": VIDEO_EXT}
+            "music": AUDIO_EXT, "clip": VIDEO_EXT, "context": context.ALLOWED}
 
 MAX_ZIP = 400 * 1024 * 1024
 MAX_FILES = 20000
@@ -49,6 +49,7 @@ EMPTY = {
     "outro": None,
     "music": [],       # [{file, name, volume}]
     "clips": [],       # [{id, file, description, duration, thumb}]
+    "knowledge": [],   # context files: [{id, name, chars}]
     "source": {"type": "manual"},
     "warnings": [],
 }
@@ -118,6 +119,9 @@ def update(bid: str, patch: dict) -> dict:
 
 
 def delete(bid: str):
+    b = get(bid)
+    for k in (b or {}).get("knowledge", []):
+        context.remove(k["id"])
     db.delete_brand(bid)
     shutil.rmtree(BRANDS_DIR / Path(bid).name, ignore_errors=True)
 
@@ -142,6 +146,12 @@ async def add_asset(bid: str, kind: str, src: Path, original_name: str, descript
     b = get(bid)
     if not b:
         raise KeyError(bid)
+    if kind == "context":
+        meta = context.save(src, original_name)
+        data = {k: b[k] for k in EMPTY}
+        data["knowledge"].append(meta)
+        db.save_brand(bid, b["name"], data)
+        return get(bid)
     ext = Path(original_name).suffix.lower()
     if ext not in KIND_EXT[kind]:
         hint = {"logo": "PNG, JPG or WebP (SVG isn't supported — export a PNG)", "font": "TTF or OTF",
@@ -194,7 +204,10 @@ def remove_asset(bid: str, kind: str, file: str | None = None) -> dict:
     if not b:
         raise KeyError(bid)
     data = {k: b[k] for k in EMPTY}
-    if kind in ("logo", "font", "intro", "outro"):
+    if kind == "context":
+        context.remove(file or "")
+        data["knowledge"] = [k for k in data["knowledge"] if k["id"] != file]
+    elif kind in ("logo", "font", "intro", "outro"):
         _remove_file(bid, data[kind])
         data[kind] = None
     elif kind in ("music", "clip"):
@@ -237,6 +250,10 @@ def prompt_context(brand: dict | None) -> str:
     if brand["clips"]:
         text += ("\n\nBrand footage you can use instead of stock footage. When a scene fits one, set its "
                  "\"asset\" to the id:\n" + "\n".join(f"- {c['id']}: {c['description']}" for c in brand["clips"]))
+    knowledge = context.prompt_block([k["id"] for k in brand["knowledge"]],
+                                     "Brand knowledge (facts about the product — stay consistent with them)", 15_000)
+    if knowledge:
+        text += "\n\n" + knowledge
     return text
 
 
@@ -463,6 +480,8 @@ async def _apply_manifest(bid: str, root: Path, m: dict) -> list[str]:
             update(bid, {"music": [*[{} for _ in b["music"][:-1]], {"volume": track["volume"]}]})
     for clip in m.get("clips") or []:
         await add("clip", clip, description=clip.get("description", "") if isinstance(clip, dict) else "")
+    for doc in m.get("context") or []:
+        await add("context", doc)
     return warnings
 
 
@@ -489,6 +508,9 @@ async def import_github(url: str, ref: str | None = None, bid: str | None = None
                 warnings.append("The repo only has SVG logos — upload a PNG version of the logo.")
             if scan["candidates"]["web_fonts"] and not scan["candidates"]["fonts"]:
                 warnings.append("Only web fonts (WOFF) were found — upload a TTF or OTF to use the brand font.")
+            readme = next((n for n in ("README.md", "readme.md", "README.MD") if (root / n).exists()), None)
+            if readme:
+                manifest["context"] = [readme]  # the README becomes brand knowledge
 
         identity = {k: manifest.get(k) for k in ("description", "voice", "audience", "cta", "language", "voice_name")
                     if manifest.get(k)}
@@ -506,6 +528,8 @@ async def import_github(url: str, ref: str | None = None, bid: str | None = None
                 remove_asset(bid, "music", m["file"])
             for c in b["clips"]:
                 remove_asset(bid, "clip", c["file"])
+            for k in b["knowledge"]:
+                remove_asset(bid, "context", k["id"])
             update(bid, {"name": name, **identity})
         else:
             bid = create(name, identity)["id"]

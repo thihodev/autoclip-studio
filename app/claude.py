@@ -35,7 +35,7 @@ Language of the voice-over and all captions: {language}
 Target length: about {duration} seconds of narration (~{words} words in total)
 Tone / style: {style}
 Extra instructions: {notes}
-{brand}
+{brand}{context}
 Split the voice-over into {scenes} scenes. Each scene is 1-2 sentences shown over ONE stock clip,
 so pick a concrete, filmable ENGLISH search phrase for it (e.g. "woman reading phone at night").
 
@@ -55,7 +55,7 @@ Reply with ONE JSON object only, no markdown fences, no commentary."""
 
 EDIT_PROMPT = """Current video (language: {language}):
 {timeline}
-{brand}
+{brand}{context}
 Caption presets available: bold (big uppercase, highlighted word), box (text on dark box), minimal, none.
 Caption position is 0-1 from the top of the frame (0.68 = lower third).
 
@@ -131,7 +131,8 @@ async def ask_json(prompt: str, system: str = SCRIPT_SYSTEM) -> dict:
     return _extract_json(result)
 
 
-async def write_script(topic: str, language: str, duration: int, style: str, notes: str, brand_context: str = "") -> dict:
+async def write_script(topic: str, language: str, duration: int, style: str, notes: str, brand_context: str = "",
+                       source: str = "") -> dict:
     words = int(duration * 2.5)
     scenes = max(3, min(12, round(duration / 5)))
     data = await ask_json(
@@ -139,6 +140,7 @@ async def write_script(topic: str, language: str, duration: int, style: str, not
             topic=topic, language=language, duration=duration, words=words, scenes=scenes,
             style=style or "engaging, informative", notes=notes or "none",
             brand=f"\n{brand_context}\n" if brand_context else "",
+            context=f"\n{source}\n" if source else "",
         )
     )
     if not data.get("title") or not data.get("scenes"):
@@ -147,7 +149,8 @@ async def write_script(topic: str, language: str, duration: int, style: str, not
     return data
 
 
-async def edit_timeline(timeline: dict, meta: dict, language: str, instruction: str, brand_context: str = "") -> dict:
+async def edit_timeline(timeline: dict, meta: dict, language: str, instruction: str, brand_context: str = "",
+                        source: str = "") -> dict:
     view = {
         "title": meta.get("title"),
         "captions": timeline["captions"],
@@ -160,7 +163,8 @@ async def edit_timeline(timeline: dict, meta: dict, language: str, instruction: 
     }
     return await ask_json(
         EDIT_PROMPT.format(language=language, timeline=json.dumps(view, ensure_ascii=False, indent=1),
-                           instruction=instruction, brand=f"\n{brand_context}\n" if brand_context else ""),
+                           instruction=instruction, brand=f"\n{brand_context}\n" if brand_context else "",
+                           context=f"\n{source}\n" if source else ""),
         system=EDIT_SYSTEM,
     )
 

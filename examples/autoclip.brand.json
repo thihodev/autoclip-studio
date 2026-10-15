@@ -13,6 +13,7 @@
   "intro": "brand/video/intro.mp4",
   "outro": "brand/video/outro.mp4",
   "music": [{ "path": "brand/music/theme.mp3", "volume": 0.12 }],
+  "context": ["docs/product-faq.md", "docs/pricing.pdf"],
   "clips": [
     { "path": "brand/broll/dashboard.mp4", "description": "screen recording of the Acme dashboard creating an invoice" },
     { "path": "brand/broll/team.mp4", "description": "the team working together in a bright office" }
