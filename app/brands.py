@@ -323,6 +323,21 @@ async def github_material(repo: str) -> dict:
     return {"text": "\n".join(lines).strip(), "homepage": info.get("homepage") or "", "name": info.get("name") or repo}
 
 
+async def github_refs(repo: str) -> dict:
+    """The repository's default branch, branches and tags, to pick what to import."""
+    async with httpx.AsyncClient(timeout=20) as c:
+        r = await c.get(f"https://api.github.com/repos/{repo}", headers=_gh_headers())
+        if r.status_code == 404:
+            raise ValueError(f"Repository {repo} not found — for a private repo, connect GitHub in Connections first")
+        r.raise_for_status()
+        branches = await c.get(f"https://api.github.com/repos/{repo}/branches", params={"per_page": 100}, headers=_gh_headers())
+        tags = await c.get(f"https://api.github.com/repos/{repo}/tags", params={"per_page": 50}, headers=_gh_headers())
+    default = r.json().get("default_branch") or "main"
+    names = [b["name"] for b in branches.json()] if branches.status_code == 200 else []
+    return {"default": default, "branches": [n for n in names if n != default],
+            "tags": [t["name"] for t in tags.json()] if tags.status_code == 200 else []}
+
+
 def find_by_repo(repo: str) -> dict | None:
     """A brand kit already imported from this repository."""
     for b in list_all():
@@ -352,7 +367,7 @@ async def _download_repo(repo: str, ref: str | None, dest: Path) -> dict:
         size = 0
         async with c.stream("GET", f"https://api.github.com/repos/{repo}/zipball/{ref}", headers=_gh_headers()) as resp:
             if resp.status_code == 404:
-                raise ValueError(f"Branch or tag '{ref}' not found in {repo}")
+                raise ValueError(f"Branch or tag '{ref}' not found in {repo} — leave it empty to use the default branch")
             resp.raise_for_status()
             with open(zpath, "wb") as f:
                 async for chunk in resp.aiter_bytes():

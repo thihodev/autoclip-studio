@@ -843,6 +843,16 @@ def github_disconnect():
     return {"connected": False, "login": ""}
 
 
+@app.get("/api/github/refs")
+async def github_refs(repo: str):
+    try:
+        return await brands.github_refs(brands.parse_repo(repo))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(502, f"GitHub: {e}")
+
+
 @app.get("/api/github/repos")
 async def github_repos():
     try:

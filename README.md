@@ -157,6 +157,7 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 | GET, PUT | `/api/settings`, `/api/settings/{section}` | Connections settings (secrets are masked on read) |
 | GET, POST | `/api/claude`, `/api/claude/login/{start,code,cancel}`, `/api/claude/{source,logout}` | Claude connection |
 | POST, DELETE | `/api/claude/api-key` | Check and save an Anthropic API key `{key, use}` / remove it |
+| GET | `/api/github/refs?repo=owner/repo` | Default branch, branches and tags of a repository |
 | GET | `/api/claude/plan-usage?refresh=` | Plan limits: 5-hour session and weekly windows with reset times (cached 60 s) |
 | GET | `/oauth/{youtube,tiktok,facebook}/start` | Connect a social account |
 | GET | `/api/channels` | Connected accounts + Postiz channels |

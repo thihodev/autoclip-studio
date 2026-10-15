@@ -1609,10 +1609,16 @@
         <p><span x-t>Uses</span> <code>autoclip.brand.json</code> <span x-t>if the repo has one; otherwise Claude reads the README and styles and picks the assets.</span></p></div></div>
       <fieldset :disabled="importer.busy" class="stack">
         <div class="field"><label><span x-t>Repository</span></label>
-          <input x-model="importer.url" list="gh-repos" placeholder="owner/repo or https://github.com/owner/repo" @keydown.enter="runImport()">
-          <datalist id="gh-repos"><template x-for="r in githubRepos" :key="r.full_name"><option :value="r.full_name" x-text="(r.private?t('private · '):'') + (r.description||'')"></option></template></datalist>
+          <button type="button" class="cselect ghbtn" aria-haspopup="listbox" :aria-expanded="String(ghPick.open)" @click="ghOpen($el, r => pickImportRepo(r), importer.url)">
+            <svg class="i" style="color:var(--text-2)"><use href="#i-github"/></svg><span class="v" :class="!importer.url && 'muted'" x-text="importer.url || t('Choose a repository')"></span><svg class="i"><use href="#i-down"/></svg></button>
           <p class="hint" x-show="!github.connected"><span x-t>Private repo?</span> <a href="/connections" @click.prevent="importer.open=false; nav('/connections')"><span x-t>Connect GitHub</span></a> <span x-t>first.</span></p></div>
-        <div class="field"><label><span x-t>Branch or tag</span> <span class="muted"><span x-t>(optional)</span></span></label><input x-model="importer.ref" :placeholder="t('default branch')"></div>
+        <div class="field" x-show="importer.url"><label><span x-t>Branch or tag</span></label>
+          <select x-select x-model="importer.ref" :disabled="importer.refsLoading">
+            <option value="" x-text="importer.refsLoading ? t('Loading branches…') : (importer.refs?.default ? t('{name} (default branch)', {name: importer.refs.default}) : t('Default branch'))"></option>
+            <template x-for="b in importer.refs?.branches || []" :key="'b:' + b"><option :value="b" x-text="b"></option></template>
+            <template x-for="tg in importer.refs?.tags || []" :key="'t:' + tg"><option :value="tg" x-text="t('tag · {name}', {name: tg})"></option></template>
+          </select>
+          <p class="hint" x-show="importer.refsError" x-text="importer.refsError"></p></div>
       </fieldset>
       <div class="notice info" x-show="importer.busy" style="margin-top:12px"><span class="spin" style="margin-top:3px"></span><div><span x-t>Downloading the repository and building the kit… this can take a minute.</span></div></div>
       <div class="actions" style="margin-top:16px;justify-content:flex-end">
@@ -1644,10 +1650,10 @@
           <button type="button" class="mpi" @click="ghChoose(ghTyped())"><svg class="i"><use href="#i-github"/></svg><span class="grow" x-text="t('Use {repo}', {repo: ghTyped()})"></span></button>
         </template>
         <template x-for="r in ghMatches()" :key="r.full_name">
-          <button type="button" class="mpi" role="option" :aria-selected="String(form.github_repo===r.full_name)" @click="ghChoose(r.full_name)" style="align-items:flex-start">
+          <button type="button" class="mpi" role="option" :aria-selected="String(ghPick.current===r.full_name)" @click="ghChoose(r.full_name)" style="align-items:flex-start">
             <span class="grow" style="min-width:0"><span style="display:flex;gap:6px;align-items:center"><span x-text="r.full_name" style="font-weight:600"></span><span class="badge" x-show="r.private"><span x-t>Private</span></span></span>
               <span class="small muted" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" x-show="r.description" x-text="r.description"></span></span>
-            <svg class="i ck" :style="form.github_repo===r.full_name ? '' : 'visibility:hidden'"><use href="#i-check"/></svg>
+            <svg class="i ck" :style="ghPick.current===r.full_name ? '' : 'visibility:hidden'"><use href="#i-check"/></svg>
           </button>
         </template>
         <p class="mphead" x-show="ghPick.loading"><span class="spin"></span></p>
@@ -1852,12 +1858,12 @@ function app() {
     models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, plan: {}, planLoading: false, showTable: false, hoverDay: null,
     projUsage: {}, editModel: '', editEffort: '',
     mp: { open:false, key:'form', sub:false, pos:{}, up:false, left:false, narrow:false },
-    ghPick: { open:false, q:'', pos:{}, loading:false },
+    ghPick: { open:false, q:'', pos:{}, loading:false, current:'' },
     workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' }, siteImport: { open:false, url:'', busy:false },
     live: {}, dockOpen: true, startingFj: false,
     uploadingContext: false, motionInfo: {}, voiceEdit: false, voiceKey: '', savingVoice: false, elevenVoices: [], previewing: false, contextAccept: '.txt,.md,.markdown,.pdf,.docx,.html,.htm,.csv,.json,.srt,.vtt,.yaml,.yml',
     brandList: [], brand: null, brandBase: '', brandMissing: false, syncing: false,
-    importer: { open:false, url:'', ref:'', busy:false }, newBrand: { open:false, name:'' },
+    importer: { open:false, url:'', ref:'', busy:false, refs:null, refsLoading:false, refsError:'' }, newBrand: { open:false, name:'' },
     github: { connected:false, login:'' }, githubToken: '', githubSaving: false, githubRepos: [],
     creating: false, thinking: false, ideaForm: { niche:'', language:'English' },
     switching: false, claudeCode: '', apiKey: '', keyEdit: false, savingKey: false, footageEdit: false, footageKey: '', footageProvider: 'pixabay', savingFootage: false,
@@ -2029,10 +2035,12 @@ function app() {
       setInterval(() => { this.loadProjects(); this.loadLive(); }, 2500);
       setInterval(() => this.refreshStatus(), 30000);
     },
-    async ghOpen(el) {
+    // The repository picker serves the composer and the brand-kit importer: onPick receives "owner/repo".
+    async ghOpen(el, onPick = r => { this.form.github_repo = r; }, current = this.form.github_repo) {
       if (this.ghPick.open) { this.ghPick.open = false; return; }
+      this._ghOnPick = onPick;
       const r = el.getBoundingClientRect(), H = window.innerHeight, up = r.top > H - r.bottom;
-      this.ghPick = { open:true, q:'', loading:false, pos: { left: `${Math.max(8, Math.min(r.left, window.innerWidth - 388))}px`, right:'auto',
+      this.ghPick = { open:true, q:'', loading:false, current, pos: { left: `${Math.max(8, Math.min(r.left, window.innerWidth - 388))}px`, right:'auto',
         top: up ? 'auto' : `${r.bottom + 6}px`, bottom: up ? `${H - r.top + 6}px` : 'auto' } };
       this.$nextTick(() => document.getElementById('gh-q')?.focus());
       await this.loadGithub();
@@ -2051,7 +2059,7 @@ function app() {
       const m = this.ghPick.q.trim().match(/^(?:https?:\/\/)?(?:github\.com\/)?([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/i);
       return m && !this.githubRepos.some(r => r.full_name.toLowerCase() === m[1].toLowerCase()) ? m[1] : null;
     },
-    ghChoose(name) { this.form.github_repo = name; this.ghPick.open = false; },
+    ghChoose(name) { this.ghPick.open = false; this._ghOnPick?.(name); },
     brandForRepo(repo) { return this.brandList.find(b => b.source?.type === 'github' && (b.source.repo || '').toLowerCase() === (repo || '').toLowerCase()); },
     composerChoices() { return Object.fromEntries(COMPOSER_KEYS.map(k => [k, this.form[k]])); },
     async loadComposer() {
@@ -2279,14 +2287,20 @@ function app() {
       if (b?.id) { this.newBrand.open = false; await this.loadBrands(); this.nav(`/brands/${b.id}`); }
     },
     async openImport() {
-      this.importer = { open:true, url:'', ref:'', busy:false };
+      this.importer = { open:true, url:'', ref:'', busy:false, refs:null, refsLoading:false, refsError:'' };
       await this.loadGithub();
       if (this.github.connected && !this.githubRepos.length) this.githubRepos = await this.api('/api/github/repos').catch(() => []);
+    },
+    async pickImportRepo(repo) {
+      Object.assign(this.importer, { url: repo, ref: '', refs: null, refsError: '', refsLoading: true });
+      try { this.importer.refs = await this.api(`/api/github/refs?repo=${encodeURIComponent(repo)}`); }
+      catch (e) { this.importer.refsError = e.message; }
+      this.importer.refsLoading = false;
     },
     async runImport() {
       if (!this.importer.url.trim() || this.importer.busy) return;
       this.importer.busy = true;
-      const b = await this.run(() => this.api('/api/brands/import', { method:'POST', body:{ url:this.importer.url.trim(), ref:this.importer.ref.trim() || null } }));
+      const b = await this.run(() => this.api('/api/brands/import', { method:'POST', body:{ url:this.importer.url.trim(), ref:this.importer.ref || null } }));
       this.importer.busy = false;
       if (b?.id) { this.importer.open = false; this.say(this.t('Imported {name}', {name: b.name})); await this.loadBrands(); this.nav(`/brands/${b.id}`); }
     },
