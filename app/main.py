@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import activity, brands, claude, context, db, leftovers, playbooks, styles, motion, pipeline, platforms, postiz, render, settings, tts, usage
+from . import activity, brands, claude, context, covers, db, leftovers, playbooks, styles, motion, pipeline, platforms, postiz, render, settings, tts, usage
 from .config import DATA_DIR, ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -81,6 +81,7 @@ class ProjectIn(BaseModel):
     workspace_id: str | None = None
     model: str | None = None   # Claude model for this video (default: Connections setting for the engine)
     effort: str | None = None  # low | medium | high | xhigh | max (default: Connections setting)
+    hook: str | None = None  # the first spoken line, picked from Claude's suggestions
     playbook_id: str | None = None  # video type: structure, beats, pacing ("framejam:<id>" or "autoclip:<id>")
     style_id: str | None = None  # visual style for Claude Motion ("framejam:<id>" or "hyperframes:<id>")
     github_repo: str | None = None  # owner/repo: Claude bases the video on it (README, description, latest release)
@@ -368,6 +369,102 @@ def _require_setup():
 # The composer remembers its last choices (not the topic or files) for the next video.
 COMPOSER_KEYS = {"language", "format", "duration", "style", "style_id", "playbook_id", "voice", "voice_rate", "engine", "model", "effort",
                  "channelIds", "auto_publish", "brand_id"}
+
+
+# ------------------------------------------------------------------ hooks, post copy, covers
+
+class HooksIn(BaseModel):
+    topic: str = Field(min_length=3)
+    language: str = "English"
+    playbook_id: str | None = None
+    brand_id: str | None = None
+
+
+@app.post("/api/hooks")
+async def hooks(body: HooksIn):
+    _require_setup()
+    extra = []
+    if (pb := playbooks.get(body.playbook_id)):
+        extra.append(f"Video type: {pb['name']} — {pb['tagline']}")
+    if (brand := brands.get(body.brand_id)):
+        extra.append(brands.prompt_context(brand)[:1500])
+    try:
+        return await claude.suggest_hooks(body.topic, body.language, "\n".join(extra))
+    except Exception as e:
+        raise HTTPException(500, str(e)[:300])
+
+
+def _narration(p: dict) -> str:
+    return " ".join(s.get("text", "") for s in (p.get("timeline") or {}).get("scenes") or []).strip()
+
+
+@app.post("/api/projects/{pid}/post-copy")
+async def write_post_copy(pid: str):
+    """Title, caption, hashtags, tags and cover text, written by Claude from what the video says."""
+    p = _project(pid)
+    _require_setup()
+    req = p["request"]
+    brand = brands.get((p.get("timeline") or {}).get("brand_id") or req.get("brand_id"))
+    try:
+        post = await claude.write_post((p.get("script") or {}).get("title") or req["topic"][:90],
+                                       _narration(p) or req["topic"], req.get("language", "English"),
+                                       brands.prompt_context(brand)[:1500] if brand else "", project_id=pid)
+    except Exception as e:
+        raise HTTPException(500, str(e)[:300])
+    keep = {k: post[k] for k in ("title", "description", "hashtags", "youtube_tags", "thumbnail_text") if post.get(k)}
+    db.update_project(pid, script={**(p.get("script") or {}), **keep})
+    return db.get_project(pid)["script"]
+
+
+class PostCopyIn(BaseModel):
+    title: str = Field("", max_length=100)
+    description: str = Field("", max_length=5000)
+    hashtags: list[str] = []
+    youtube_tags: list[str] = []
+
+
+@app.put("/api/projects/{pid}/post-copy")
+def save_post_copy(pid: str, body: PostCopyIn):
+    p = _project(pid)
+    clean = lambda xs: [x.strip().lstrip("#") for x in xs if x.strip()][:30]  # noqa: E731
+    script = {**(p.get("script") or {}), "title": body.title.strip(), "description": body.description.strip(),
+              "hashtags": clean(body.hashtags), "youtube_tags": clean(body.youtube_tags)}
+    db.update_project(pid, script=script)
+    return script
+
+
+class CoversIn(BaseModel):
+    text: str = Field("", max_length=80)
+
+
+@app.post("/api/projects/{pid}/covers")
+async def make_covers(pid: str, body: CoversIn):
+    p = _project(pid)
+    if not p.get("video_path") or not Path(p["video_path"]).exists():
+        raise HTTPException(400, "Render the video first")
+    script = p.get("script") or {}
+    text = body.text.strip() or script.get("thumbnail_text") or script.get("title") or p["request"]["topic"][:40]
+    brand = brands.get((p.get("timeline") or {}).get("brand_id") or p["request"].get("brand_id"))
+    try:
+        items = await covers.make(Path(p["video_path"]), text, brand)
+    except Exception as e:
+        raise HTTPException(500, f"Could not make covers: {str(e)[:300]}")
+    extra = pipeline._extra(p)
+    extra["covers"] = {"version": p.get("version"), "text": text, "items": items, "chosen": 0, "at": int(time.time())}
+    db.update_project(pid, extra=extra)
+    return extra["covers"]
+
+
+@app.put("/api/projects/{pid}/covers/{index}")
+def choose_cover(pid: str, index: int):
+    p = _project(pid)
+    extra = pipeline._extra(p)
+    cv = extra.get("covers") or {}
+    if not 0 <= index < len(cv.get("items") or []):
+        raise HTTPException(404)
+    cv["chosen"] = index
+    db.update_project(pid, extra=extra)
+    return cv
 
 
 @app.get("/api/playbooks")

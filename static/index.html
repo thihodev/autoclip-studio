@@ -281,6 +281,13 @@
   .rvstrip .mk { position:absolute; bottom:4px; width:11px; height:11px; margin-left:-5px; border-radius:50%; background:#ffd23f; border:2px solid #1a1a1a; pointer-events:none; }
   .rvstrip .mk.sent { background:#9aa1ad; }
   .rvstrip .mkr { position:absolute; bottom:8px; height:3px; background:#ffd23f; pointer-events:none; }
+  .rvdock { margin-top:16px; }
+  .editor.reviewing .player { max-height:46vh; }
+  .editor.reviewing .left { position:static; }
+  .rvdock .rvstrip { height:72px; }
+  .rvmore { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px; margin-top:16px; align-items:start; }
+  .rvmore > .card { margin:0; }
+  .rvlist { max-height:440px; overflow:auto; }
   .rvbox { margin-top:10px; border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:8px; }
   .rvbox.off { opacity:.5; pointer-events:none; }
   .rvbox textarea { border:0; box-shadow:none; min-height:52px; padding:6px 2px; resize:vertical; }
@@ -288,6 +295,16 @@
   .rvlist { display:grid; gap:8px; }
   .rvc { padding:10px 12px; border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; }
   .rvc:hover { background:var(--surface-2); } .rvc.sent { opacity:.6; }
+  /* Hooks */
+  .hooks { display:grid; gap:6px; margin-top:10px; }
+  .hooks .lbl { font-size:13px; font-weight:600; }
+  .hookc { display:flex; flex-direction:column; gap:2px; padding:8px 12px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface); color:var(--text); font:inherit; text-align:left; cursor:pointer; }
+  .hookc:hover { background:var(--surface-2); } .hookc.on { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+  .hookc .ang { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--accent); }
+  /* Post copy & covers */
+  .covers { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:12px; }
+  .cover { padding:0; border:2px solid transparent; border-radius:var(--radius-sm); overflow:hidden; background:var(--surface-2); cursor:pointer; }
+  .cover.on { border-color:var(--accent); } .cover img { display:block; width:100%; }
   /* Visual styles */
   .stylepick { display:flex; align-items:center; gap:12px; width:100%; padding:8px 12px 8px 8px; border:1px solid var(--border-strong); border-radius:var(--radius-sm); background:var(--surface); color:var(--text); font:inherit; text-align:left; cursor:pointer; }
   .stylepick:hover { background:var(--surface-2); }
@@ -511,8 +528,18 @@
             <span class="filechip" x-show="form.github_repo"><svg class="i" style="width:13px;height:13px"><use href="#i-github"/></svg><span class="n" x-text="form.github_repo"></span><button type="button" class="x" @click="form.github_repo=''" :title="t('Remove')">✕</button></span>
             <label class="btn ghost sm uploadbtn"><span class="spin" x-show="uploadingContext"></span><svg class="i" x-show="!uploadingContext"><use href="#i-clip"/></svg><span x-t>Add context files</span>
               <input type="file" multiple :accept="contextAccept" @change="addFormContext($event)"></label>
+            <button type="button" class="btn ghost sm" @click="suggestHooks()" :disabled="hooks.loading || form.topic.trim().length < 3 || !status.claude?.ok" :title="t('Claude suggests 3 opening lines')"><span class="spin" x-show="hooks.loading"></span><svg class="i" x-show="!hooks.loading"><use href="#i-star"/></svg><span x-t>Suggest hooks</span></button>
             <button type="button" class="btn ghost sm ghbtn" aria-haspopup="listbox" :aria-expanded="String(ghPick.open)" @click="ghOpen($el)"><svg class="i"><use href="#i-github"/></svg><span x-text="form.github_repo ? t('Change repository') : t('GitHub repository')"></span></button>
             <span class="small muted" x-show="!form.context.length && !form.github_repo"><span x-t>Optional: articles, notes, product docs or transcripts — or a GitHub repository — for Claude to base the script on.</span></span>
+          </div>
+          <div class="hooks" x-show="hooks.list.length">
+            <div class="lbl"><span x-t>Opening hook</span> <span class="muted small"><span x-t>— the first line viewers hear</span></span></div>
+            <template x-for="(h, i) in hooks.list" :key="i">
+              <button type="button" class="hookc" :class="form.hook===h.text && 'on'" @click="form.hook = form.hook===h.text ? '' : h.text">
+                <span class="ang" x-text="String.fromCharCode(65 + i) + ' · ' + h.angle"></span><span x-text="h.text"></span></button>
+            </template>
+            <label class="toggle small" x-show="form.hook && hooks.list.length > 1"><input type="checkbox" x-model="hooks.ab">
+              <span x-t>Also make a B version with another hook (A/B test)</span></label>
           </div>
           <div class="notice info" style="margin-top:10px" x-show="form.github_repo">
             <svg class="i" style="margin-top:2px"><use href="#i-github"/></svg>
@@ -694,7 +721,7 @@
               <a href="/connections" x-show="/Connections/.test(cur.error||'')" @click.prevent="nav('/connections')"> <span x-t>Open Connections →</span></a></div>
           </div>
 
-          <div class="editor">
+          <div class="editor" :class="route.sub==='review' && 'reviewing'">
             <div class="left">
               <div class="card">
                 <template x-if="cur.video_path">
@@ -711,41 +738,6 @@
                         <div x-show="rv.mode==='pin' && rv.pin" class="rvpin new" :style="rv.pin ? rvPinStyle(rv.pin) : ''"><span>+</span></div>
                       </div>
                     </template>
-                  </div>
-                </template>
-                <template x-if="cur.video_path && route.sub==='review'">
-                  <div>
-                    <div class="rvbar">
-                      <button type="button" class="btn icon" @click="rvToggle()" :aria-label="t(rv.playing ? 'Pause' : 'Play')"><svg class="i"><use :href="rv.playing ? '#i-pause' : '#i-play'"/></svg></button>
-                      <span class="small" style="font-variant-numeric:tabular-nums" x-text="fmtT(rv.time) + ' / ' + fmtT(rv.dur)"></span>
-                      <span class="small muted" style="margin-left:auto" x-text="rvSceneAt(rv.time) ? t('Scene {n}', {n: rvSceneAt(rv.time)}) : ''"></span>
-                    </div>
-                    <div class="rvstrip" x-ref="strip" @pointerdown="rvDown($event)" @pointermove="rvMove($event)" @pointerup="rvUp()" @pointercancel="rvUp()">
-                      <div class="tiles" :style="rv.film ? `background-image:url(${rv.film.url})` : ''"></div>
-                      <template x-for="(s, i) in (cur.timeline?.scenes||[])" :key="s.id || i">
-                        <div class="scn" x-show="s.start!=null && rv.dur" :style="`left:${s.start / rv.dur * 100}%`"><span x-text="i+1"></span></div>
-                      </template>
-                      <template x-for="c in rv.comments.filter(c => c.t!=null)" :key="c.id">
-                        <div>
-                          <div class="mkr" x-show="c.t2!=null" :style="`left:${c.t / rv.dur * 100}%;width:${((c.t2||c.t) - c.t) / rv.dur * 100}%`"></div>
-                          <div class="mk" :class="c.sent && 'sent'" :style="`left:${c.t / rv.dur * 100}%`" :title="c.text"></div>
-                        </div>
-                      </template>
-                      <div class="sel" x-show="rv.sel" :style="rv.sel ? `left:${rv.sel.a / rv.dur * 100}%;width:${(rv.sel.b - rv.sel.a) / rv.dur * 100}%` : ''"></div>
-                      <div class="ph" :style="`left:${rv.dur ? rv.time / rv.dur * 100 : 0}%`"></div>
-                    </div>
-                    <div class="rvbox" :class="(isBusy(cur) || dirty) && 'off'">
-                      <div class="actions" style="gap:6px">
-                        <span class="rvatt" x-text="rvAttach()"></span>
-                        <button type="button" class="btn ghost sm" x-show="rv.mode!=='time'" @click="rv.mode='time'; rv.sel=null; rv.pin=null"><span x-t>Current time</span></button>
-                        <button type="button" class="btn ghost sm" x-show="rv.mode!=='whole'" @click="rv.mode='whole'; rv.sel=null; rv.pin=null"><span x-t>Whole video</span></button>
-                      </div>
-                      <textarea x-ref="rvtext" x-model="rv.text" :placeholder="t('What should change here? Enter to add · drag on the strip for a range · click the video for a spot')"
-                                @keydown.enter="if (!$event.shiftKey) { $event.preventDefault(); rvAdd(); }"></textarea>
-                      <div class="suggest" style="margin-top:4px">
-                        <template x-for="s in suggestions"><button type="button" @click="rv.text = rv.text.trim() ? rv.text.trim() + '. ' + t(s) : t(s); $refs.rvtext.focus()" x-text="t(s)"></button></template>
-                      </div>
-                    </div>
                   </div>
                 </template>
                 <template x-if="!cur.video_path"><div class="empty small" x-text="isBusy(cur) ? t('Your video will play here when the first render is done.') : t('No render yet.')"></div></template>
@@ -879,7 +871,7 @@
               <div x-show="cur.timeline && route.sub==='review'">
                 <div class="card">
                   <div class="card-head"><div class="grow"><h2 x-text="t('Comments on version {v}', {v: cur.version || 1})"></h2>
-                    <p><span x-t>Comment on a moment, a range or a spot in the video (left). Claude applies them all in one new version, changing only those places.</span></p></div></div>
+                    <p><span x-t>Comment on a moment, a range or a spot in the video (below). Claude applies them all in one new version, changing only those places.</span></p></div></div>
                   <template x-if="!rv.comments.length"><p class="small muted"><span x-t>No comments yet. Pause where something's wrong and say what to change.</span></p></template>
                   <div class="rvlist">
                     <template x-for="c in rv.comments" :key="c.id">
@@ -903,6 +895,109 @@
                   <p class="hint" x-show="!status.claude?.ok"><span x-t>Connect Claude in Connections to use AI edits.</span></p>
                 </div>
 
+              </div>
+
+              <!-- Publish -->
+              <div x-show="cur.timeline && route.sub==='publish'">
+                <div class="card">
+                  <div class="card-head"><div class="grow"><h2><span x-t>Publish the latest version</span></h2><p x-text="cur.video_path ? t('Version {v}', {v: cur.version}) : t('Render the video first')"></p></div></div>
+                  <template x-if="!channels.length">
+                    <div class="notice info"><div><span x-t>No accounts connected yet.</span> <a href="/connections" @click.prevent="nav('/connections')"><span x-t>Connect YouTube, TikTok or Facebook</span></a></div></div>
+                  </template>
+                  <div class="pickchips">
+                    <template x-for="c in channels" :key="c.id">
+                      <button type="button" class="pickchip" :class="pubIds.includes(c.id)&&'on'" @click="toggle(pubIds, c.id)">
+                        <span class="avatar"><img x-show="c.avatar" :src="c.avatar" alt=""><span x-show="!c.avatar" x-text="initial(c.name)"></span></span>
+                        <span x-text="c.name"></span><span class="small muted" x-text="platformLabel(c)"></span></button>
+                    </template>
+                  </div>
+                  <div class="grid-2" style="margin-top:14px" x-show="selectedProviders().includes('youtube') || selectedProviders().includes('tiktok')">
+                    <div class="field" x-show="selectedProviders().includes('youtube')"><label><span x-t>YouTube visibility</span></label>
+                      <select x-select x-model="pubOpts.youtube_visibility"><option value="public" x-t>Public</option><option value="unlisted" x-t>Unlisted</option><option value="private" x-t>Private</option></select></div>
+                    <div class="field" x-show="selectedProviders().includes('tiktok')"><label><span x-t>TikTok</span></label>
+                      <select x-select x-model="pubOpts.tiktok_method"><option value="DIRECT_POST" x-t>Post directly</option><option value="UPLOAD" x-t>Send to TikTok inbox as a draft</option></select></div>
+                  </div>
+                  <div class="actions" style="margin-top:14px;justify-content:flex-end" x-show="channels.length">
+                    <button class="btn primary" @click="publish()" :disabled="!pubIds.length || !cur.video_path || isBusy(cur) || dirty"><svg class="i"><use href="#i-send"/></svg><span x-t>Publish</span></button>
+                  </div>
+                  <p class="hint" x-show="dirty"><span x-t>Save your edits first so the published video includes them.</span></p>
+                </div>
+                <div class="card">
+                  <div class="card-head"><div class="grow"><h2><span x-t>Post copy</span></h2><p><span x-t>Title, caption and tags used on every platform.</span></p></div>
+                    <button class="btn sm" @click="writePost()" :disabled="postBusy || !status.claude?.ok || !cur.timeline"><span class="spin" x-show="postBusy"></span><svg class="i" x-show="!postBusy"><use href="#i-star"/></svg><span x-t>Write with Claude</span></button></div>
+                  <div class="stack">
+                    <div class="field"><label><span x-t>Title</span> <span class="muted small" x-text="post.title.length + '/100'"></span></label><input x-model="post.title" maxlength="100"></div>
+                    <div class="field"><label><span x-t>Description</span></label><textarea x-model="post.description" rows="3"></textarea></div>
+                    <div class="grid-2">
+                      <div class="field"><label><span x-t>Hashtags</span></label><input x-model="post.hashtags" placeholder="#shorts #tips"></div>
+                      <div class="field"><label><span x-t>YouTube tags</span></label><input x-model="post.youtube_tags" :placeholder="t('comma separated')"></div>
+                    </div>
+                    <div class="actions" style="justify-content:flex-end"><button class="btn" @click="savePost()"><span x-t>Save</span></button></div>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="card-head"><div class="grow"><h2><span x-t>Cover image</span></h2><p><span x-t>Used as the YouTube thumbnail (landscape videos) and the TikTok cover frame.</span></p></div></div>
+                  <div class="actions" style="flex-wrap:nowrap">
+                    <input x-model="coverText" :placeholder="t('Text on the cover (2–5 words)')" maxlength="80" style="flex:1">
+                    <button class="btn" @click="makeCovers()" :disabled="coverBusy || !cur.video_path"><span class="spin" x-show="coverBusy"></span><span x-text="curCovers() ? t('Remake') : t('Make covers')"></span></button>
+                  </div>
+                  <div class="covers" x-show="curCovers()">
+                    <template x-for="(c, i) in (curCovers()?.items || [])" :key="c.file">
+                      <button type="button" class="cover" :class="curCovers().chosen===i && 'on'" @click="chooseCover(i)"><img :src="`/videos/${c.file}?at=${curCovers().at || 0}`" alt=""></button>
+                    </template>
+                  </div>
+                </div>
+                <div class="card" x-show="(cur.publish_result||[]).length">
+                  <div class="card-head"><div class="grow"><h2 x-text="t('Results · version {v}', {v: cur.version})"></h2></div></div>
+                  <template x-for="r in (cur.publish_result||[])">
+                    <div class="acct-row">
+                      <span class="chip" :class="r.ok?'ok':'err'" x-text="r.ok?t('Published'):t('Failed')"></span>
+                      <div class="grow"><div x-text="(r.channel?.name || t('Postiz')) + (platformLabel(r.channel) ? t(' · ') + platformLabel(r.channel) : '')"></div>
+                        <div class="small" :style="!r.ok && 'color:var(--err)'" :class="r.ok&&'muted'" x-text="r.ok ? (r.result?.url || r.result?.publish_id || r.result?.video_id || '') : r.error"></div></div>
+                      <a class="btn sm" x-show="r.result?.url" :href="r.result?.url" target="_blank" rel="noopener"><svg class="i"><use href="#i-ext"/></svg></a>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <template x-if="cur.video_path && route.sub==='review'">
+                  <div class="card rvdock">
+                    <div class="rvbar">
+                      <button type="button" class="btn icon" @click="rvToggle()" :aria-label="t(rv.playing ? 'Pause' : 'Play')"><svg class="i"><use :href="rv.playing ? '#i-pause' : '#i-play'"/></svg></button>
+                      <span class="small" style="font-variant-numeric:tabular-nums" x-text="fmtT(rv.time) + ' / ' + fmtT(rv.dur)"></span>
+                      <span class="small muted" style="margin-left:auto" x-text="rvSceneAt(rv.time) ? t('Scene {n}', {n: rvSceneAt(rv.time)}) : ''"></span>
+                    </div>
+                    <div class="rvstrip" x-ref="strip" @pointerdown="rvDown($event)" @pointermove="rvMove($event)" @pointerup="rvUp()" @pointercancel="rvUp()">
+                      <div class="tiles" :style="rv.film ? `background-image:url(${rv.film.url})` : ''"></div>
+                      <template x-for="(s, i) in (cur.timeline?.scenes||[])" :key="s.id || i">
+                        <div class="scn" x-show="s.start!=null && rv.dur" :style="`left:${s.start / rv.dur * 100}%`"><span x-text="i+1"></span></div>
+                      </template>
+                      <template x-for="c in rv.comments.filter(c => c.t!=null)" :key="c.id">
+                        <div>
+                          <div class="mkr" x-show="c.t2!=null" :style="`left:${c.t / rv.dur * 100}%;width:${((c.t2||c.t) - c.t) / rv.dur * 100}%`"></div>
+                          <div class="mk" :class="c.sent && 'sent'" :style="`left:${c.t / rv.dur * 100}%`" :title="c.text"></div>
+                        </div>
+                      </template>
+                      <div class="sel" x-show="rv.sel" :style="rv.sel ? `left:${rv.sel.a / rv.dur * 100}%;width:${(rv.sel.b - rv.sel.a) / rv.dur * 100}%` : ''"></div>
+                      <div class="ph" :style="`left:${rv.dur ? rv.time / rv.dur * 100 : 0}%`"></div>
+                    </div>
+                    <div class="rvbox" :class="(isBusy(cur) || dirty) && 'off'">
+                      <div class="actions" style="gap:6px">
+                        <span class="rvatt" x-text="rvAttach()"></span>
+                        <button type="button" class="btn ghost sm" x-show="rv.mode!=='time'" @click="rv.mode='time'; rv.sel=null; rv.pin=null"><span x-t>Current time</span></button>
+                        <button type="button" class="btn ghost sm" x-show="rv.mode!=='whole'" @click="rv.mode='whole'; rv.sel=null; rv.pin=null"><span x-t>Whole video</span></button>
+                      </div>
+                      <textarea x-ref="rvtext" x-model="rv.text" :placeholder="t('What should change here? Enter to add · drag on the strip for a range · click the video for a spot')"
+                                @keydown.enter="if (!$event.shiftKey) { $event.preventDefault(); rvAdd(); }"></textarea>
+                      <div class="suggest" style="margin-top:4px">
+                        <template x-for="s in suggestions"><button type="button" @click="rv.text = rv.text.trim() ? rv.text.trim() + '. ' + t(s) : t(s); $refs.rvtext.focus()" x-text="t(s)"></button></template>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+          <div class="rvmore" x-show="cur.timeline && route.sub==='review'">
                 <div class="card">
                   <div class="card-head"><div class="grow"><h2><span x-t>Context files</span></h2><p><span x-t>Claude uses these as source material for AI edits.</span></p></div>
                     <label class="btn sm uploadbtn"><span class="spin" x-show="uploadingContext"></span><svg class="i" x-show="!uploadingContext"><use href="#i-clip"/></svg><span x-t>Add files</span><input type="file" multiple :accept="contextAccept" @change="addProjectContext($event)"></label></div>
@@ -932,46 +1027,6 @@
                   <div class="card-head"><div class="grow"><h2><span x-t>History</span></h2></div></div>
                   <template x-for="h in (cur.extra?.history||[]).slice().reverse()"><div class="hist"><span class="src" x-text="h.source"></span><span x-text="h.summary"></span></div></template>
                 </div>
-              </div>
-
-              <!-- Publish -->
-              <div x-show="cur.timeline && route.sub==='publish'">
-                <div class="card">
-                  <div class="card-head"><div class="grow"><h2><span x-t>Publish the latest version</span></h2><p x-text="cur.video_path ? t('Version {v}', {v: cur.version}) : t('Render the video first')"></p></div></div>
-                  <template x-if="!channels.length">
-                    <div class="notice info"><div><span x-t>No accounts connected yet.</span> <a href="/connections" @click.prevent="nav('/connections')"><span x-t>Connect YouTube, TikTok or Facebook</span></a></div></div>
-                  </template>
-                  <div class="pickchips">
-                    <template x-for="c in channels" :key="c.id">
-                      <button type="button" class="pickchip" :class="pubIds.includes(c.id)&&'on'" @click="toggle(pubIds, c.id)">
-                        <span class="avatar"><img x-show="c.avatar" :src="c.avatar" alt=""><span x-show="!c.avatar" x-text="initial(c.name)"></span></span>
-                        <span x-text="c.name"></span><span class="small muted" x-text="platformLabel(c)"></span></button>
-                    </template>
-                  </div>
-                  <div class="grid-2" style="margin-top:14px" x-show="selectedProviders().includes('youtube') || selectedProviders().includes('tiktok')">
-                    <div class="field" x-show="selectedProviders().includes('youtube')"><label><span x-t>YouTube visibility</span></label>
-                      <select x-select x-model="pubOpts.youtube_visibility"><option value="public" x-t>Public</option><option value="unlisted" x-t>Unlisted</option><option value="private" x-t>Private</option></select></div>
-                    <div class="field" x-show="selectedProviders().includes('tiktok')"><label><span x-t>TikTok</span></label>
-                      <select x-select x-model="pubOpts.tiktok_method"><option value="DIRECT_POST" x-t>Post directly</option><option value="UPLOAD" x-t>Send to TikTok inbox as a draft</option></select></div>
-                  </div>
-                  <div class="actions" style="margin-top:14px;justify-content:flex-end" x-show="channels.length">
-                    <button class="btn primary" @click="publish()" :disabled="!pubIds.length || !cur.video_path || isBusy(cur) || dirty"><svg class="i"><use href="#i-send"/></svg><span x-t>Publish</span></button>
-                  </div>
-                  <p class="hint" x-show="dirty"><span x-t>Save your edits first so the published video includes them.</span></p>
-                </div>
-                <div class="card" x-show="(cur.publish_result||[]).length">
-                  <div class="card-head"><div class="grow"><h2 x-text="t('Results · version {v}', {v: cur.version})"></h2></div></div>
-                  <template x-for="r in (cur.publish_result||[])">
-                    <div class="acct-row">
-                      <span class="chip" :class="r.ok?'ok':'err'" x-text="r.ok?t('Published'):t('Failed')"></span>
-                      <div class="grow"><div x-text="(r.channel?.name || t('Postiz')) + (platformLabel(r.channel) ? t(' · ') + platformLabel(r.channel) : '')"></div>
-                        <div class="small" :style="!r.ok && 'color:var(--err)'" :class="r.ok&&'muted'" x-text="r.ok ? (r.result?.url || r.result?.publish_id || r.result?.video_id || '') : r.error"></div></div>
-                      <a class="btn sm" x-show="r.result?.url" :href="r.result?.url" target="_blank" rel="noopener"><svg class="i"><use href="#i-ext"/></svg></a>
-                    </div>
-                  </template>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div class="savebar" x-show="dirty && ['scenes','style'].includes(route.sub)" x-transition>
@@ -2042,12 +2097,13 @@ function app() {
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
     status: {}, cl: {}, cfg: { claude:{}, footage:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
     channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] },
-    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'', github_repo:'', style_id:'', playbook_id:'' },
+    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'', github_repo:'', style_id:'', playbook_id:'', hook:'' },
     models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, plan: {}, planLoading: false, showTable: false, hoverDay: null,
     projUsage: {}, editModel: '', editEffort: '',
     mp: { open:false, key:'form', sub:false, pos:{}, up:false, left:false, narrow:false },
     ghPick: { open:false, q:'', pos:{}, loading:false, current:'' },
     conn: '',
+    hooks: { list:[], loading:false, ab:false, topic:'' }, post: { title:'', description:'', hashtags:'', youtube_tags:'' }, postBusy: false, coverText: '', coverBusy: false,
     styleList: [], styleOpen: false, styleQ: '', styleSrc: '', pbList: [], pbOpen: false,
     rv: { time:0, dur:0, playing:false, sel:null, pin:null, mode:'time', text:'', comments:[], film:null, sending:false, dragging:null },
     workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' }, siteImport: { open:false, url:'', busy:false },
@@ -2187,6 +2243,7 @@ function app() {
       if (r.page === 'brand' && (prev.page !== 'brand' || prev.id !== r.id || !this.brand)) this.loadBrand(r.id);
       if (r.page === 'project' && (prev.page !== 'project' || prev.id !== r.id || !this.cur)) await this.openProject(r.id);
       if (r.page === 'project' && r.sub === 'review' && this.cur) this.enterReview();
+      if (r.page === 'project' && r.sub === 'publish' && this.cur) this.syncPost();
       this.conn = '';
       if (r.page === 'connections') this.loadConnections();
       if (r.page === 'autopilot') this.loadAutopilot();
@@ -2263,6 +2320,33 @@ function app() {
     },
     ghChoose(name) { this.ghPick.open = false; this._ghOnPick?.(name); },
     brandForRepo(repo) { return this.brandList.find(b => b.source?.type === 'github' && (b.source.repo || '').toLowerCase() === (repo || '').toLowerCase()); },
+    async suggestHooks() {
+      this.hooks.loading = true;
+      const r = await this.run(() => this.api('/api/hooks', { method:'POST', body:{ topic: this.form.topic, language: this.form.language, playbook_id: this.form.playbook_id || null, brand_id: this.form.brand_id || null } }));
+      this.hooks.loading = false;
+      if (r) { this.hooks.list = r; this.hooks.topic = this.form.topic; if (!r.some(h => h.text === this.form.hook)) this.form.hook = ''; }
+    },
+    // ---- publish: post copy & covers
+    syncPost() { const s = this.cur?.script || {}; this.post = { title: s.title || '', description: s.description || '', hashtags: (s.hashtags || []).map(h => '#' + h).join(' '), youtube_tags: (s.youtube_tags || []).join(', ') }; this.coverText = this.cur?.extra?.covers?.text || s.thumbnail_text || ''; },
+    async writePost() {
+      this.postBusy = true;
+      const s = await this.run(() => this.api(`/api/projects/${this.cur.id}/post-copy`, { method:'POST' }), 'Written by Claude — review it before publishing');
+      this.postBusy = false;
+      if (s) { this.cur = { ...this.cur, script: s }; this.syncPost(); }
+    },
+    async savePost() {
+      const split = (v, sep) => v.split(sep).map(x => x.trim().replace(/^#/, '')).filter(Boolean);
+      const s = await this.run(() => this.api(`/api/projects/${this.cur.id}/post-copy`, { method:'PUT', body:{ title: this.post.title, description: this.post.description, hashtags: split(this.post.hashtags, /[\s,]+/), youtube_tags: split(this.post.youtube_tags, ',') } }), 'Saved');
+      if (s) { this.cur = { ...this.cur, script: s }; this.syncPost(); }
+    },
+    async makeCovers() {
+      this.coverBusy = true;
+      const cv = await this.run(() => this.api(`/api/projects/${this.cur.id}/covers`, { method:'POST', body:{ text: this.coverText } }));
+      this.coverBusy = false;
+      if (cv) this.cur = { ...this.cur, extra: { ...(this.cur.extra || {}), covers: cv } };
+    },
+    async chooseCover(i) { const cv = await this.run(() => this.api(`/api/projects/${this.cur.id}/covers/${i}`, { method:'PUT' })); if (cv) this.cur = { ...this.cur, extra: { ...(this.cur.extra || {}), covers: cv } }; },
+    curCovers() { const cv = this.cur?.extra?.covers; return cv && cv.version === this.cur.version ? cv : null; },
     async loadPlaybooks() { this.pbList = await this.api('/api/playbooks').catch(() => this.pbList); },
     openPlaybooks() { this.pbOpen = true; this.loadPlaybooks(); },
     curPlaybook() { return this.form.playbook_id ? this.pbList.find(p => p.id === this.form.playbook_id) || null : null; },
@@ -2347,9 +2431,17 @@ function app() {
       this.creating = true;
       const { channelIds, ...f } = this.form;
       const { context, ...rest } = f;
-      const p = await this.run(() => this.api('/api/projects', { method:'POST', body:{ ...rest, topic: rest.topic.trim() || `A short video introducing the GitHub project ${rest.github_repo}`, github_repo: rest.github_repo || null, workspace_id: this.ws()?.id || null, model: rest.model || null, effort: rest.effort || null, context_ids: context.map(c => c.id), auto_publish: f.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }));
+      const body = { ...rest, topic: rest.topic.trim() || `A short video introducing the GitHub project ${rest.github_repo}`, github_repo: rest.github_repo || null, workspace_id: this.ws()?.id || null, model: rest.model || null, effort: rest.effort || null, context_ids: context.map(c => c.id), auto_publish: f.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) };
+      const p = await this.run(() => this.api('/api/projects', { method:'POST', body }));
       this.creating = false;
-      if (p) { this.form.topic = ''; this.form.context = []; this.form.github_repo = ''; await this.loadProjects(); this.nav(`/projects/${p.id}`); }
+      if (p && this.hooks.ab && this.form.hook) {  // B version: same settings, the next hook
+        const other = this.hooks.list.find(h => h.text !== this.form.hook);
+        if (other) {
+          const b = await this.run(() => this.api('/api/projects', { method:'POST', body:{ ...body, hook: other.text } }));
+          if (b) this.say(this.t('Made 2 versions to compare: A and B'));
+        }
+      }
+      if (p) { Object.assign(this.form, { topic:'', context:[], github_repo:'', hook:'' }); this.hooks = { list:[], loading:false, ab:false, topic:'' }; await this.loadProjects(); this.nav(`/projects/${p.id}`); }
     },
     async loadLeftovers() { this.leftovers = await this.api('/api/leftovers').catch(() => this.leftovers); if (!this.leftovers.length) this.leftoverOpen = false; },
     leftoverParts(l) {

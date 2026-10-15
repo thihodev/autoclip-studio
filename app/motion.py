@@ -173,6 +173,8 @@ def _brief(req: dict, brand: dict | None, resolution: str, root: Path | None = N
         guide = brands.prompt_context({**brand, "clips": []})
         if guide:
             lines += ["", "## Customizations", "", guide]
+    if req.get("hook"):
+        lines += ["", "## Hook", f'The first spoken line — and the first frame\'s headline — is exactly: "{req["hook"]}"']
     if root and req.get("playbook_id"):
         lines += playbooks.brief_lines(req["playbook_id"], root)
     if root and req.get("style_id"):

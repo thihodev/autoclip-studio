@@ -208,7 +208,9 @@ async def run_project(pid: str):
             meta = await claude.write_script(
                 topic=req["topic"], language=req.get("language", "English"),
                 duration=int(req.get("duration", 45)), style=req.get("style", ""),
-                notes="\n\n".join(filter(None, [req.get("notes", ""), playbooks.script_notes(req.get("playbook_id"))])),
+                notes="\n\n".join(filter(None, [
+                    req.get("notes", ""), playbooks.script_notes(req.get("playbook_id")),
+                    f'Open the voice-over with exactly this hook (first scene): "{req["hook"]}"' if req.get("hook") else ""])),
                 brand_context=brands.prompt_context(brand),
                 source=source_material(req), project_id=pid, model=req.get("model"), effort=req.get("effort"),
             )
@@ -415,6 +417,11 @@ async def publish_project(pid: str, channels: list[dict] | None = None, opts: di
     req = p["request"]
     channels = channels or req.get("integrations") or []
     opts = {"format": p["timeline"]["format"], **req.get("publish_options", {}), **(opts or {})}
+    cv = _extra(p).get("covers") or {}
+    if cv.get("version") == p.get("version") and cv.get("items"):  # the chosen cover of this version
+        chosen = cv["items"][min(cv.get("chosen", 0), len(cv["items"]) - 1)]
+        if (VIDEOS_DIR / chosen["file"]).exists():
+            opts.update(cover_path=str(VIDEOS_DIR / chosen["file"]), cover_t=chosen["t"])
     if not channels:
         raise ValueError("No channels selected")
     db.update_project(pid, status="publishing")

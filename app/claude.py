@@ -203,6 +203,44 @@ async def edit_timeline(timeline: dict, meta: dict, language: str, instruction: 
     )
 
 
+HOOKS_PROMPT = """Write 3 different opening hooks for a short video (YouTube Shorts / TikTok / Reels).
+
+Topic: {topic}
+Language of the hooks: {language}
+{extra}
+A hook is the first spoken line (max 14 words), said in the first 2 seconds. Make the 3 take clearly different angles,
+e.g. a surprising fact, a bold claim, a question, a mistake to avoid, a result first, a relatable pain.
+No clickbait that the video can't deliver.
+
+Reply with JSON: {{"hooks": [{{"text": "the hook in {language}", "angle": "2-4 word label in English"}}]}}"""
+
+POST_PROMPT = """Write the post copy for this short video, to publish on YouTube, TikTok and Facebook.
+
+Language: {language}
+Video title so far: {title}
+What the video says (its narration):
+{narration}
+{extra}
+Reply with JSON:
+{{"title": "catchy, honest title, max 90 characters, in {language}",
+  "description": "2-4 sentence caption in {language}: the promise, one key detail, a call to action",
+  "hashtags": ["6-10 relevant hashtags without #, mixing broad and niche"],
+  "youtube_tags": ["8-12 SEO keywords people would search"],
+  "thumbnail_text": "2-5 punchy words for the cover image, in {language}"}}"""
+
+
+async def suggest_hooks(topic: str, language: str, extra: str = "", model: str | None = None) -> list[dict]:
+    data = await ask_json(HOOKS_PROMPT.format(topic=topic, language=language, extra=extra), kind="hooks",
+                          model=model, effort="low")
+    return [h for h in data.get("hooks", []) if isinstance(h, dict) and h.get("text")][:3]
+
+
+async def write_post(title: str, narration: str, language: str, extra: str = "", project_id: str | None = None,
+                     model: str | None = None) -> dict:
+    return await ask_json(POST_PROMPT.format(title=title, narration=narration[:6000], language=language, extra=extra),
+                          kind="post", project_id=project_id, model=model, effort="low")
+
+
 async def suggest_ideas(niche: str, language: str, count: int = 8) -> list[dict]:
     data = await ask_json(IDEAS_PROMPT.format(niche=niche, language=language, count=count), kind="ideas")
     return data.get("ideas", [])

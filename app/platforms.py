@@ -122,7 +122,16 @@ class YouTube(Platform):
         if r.status_code >= 400:
             raise RuntimeError(f"YouTube upload: {r.text[:400]}")
         vid = r.json()["id"]
-        return {"id": vid, "url": f"https://youtu.be/{vid}"}
+        result = {"id": vid, "url": f"https://youtu.be/{vid}"}
+        if opts.get("cover_path") and opts.get("format") == "youtube":
+            # Custom thumbnails need a verified channel; the video is already up either way.
+            async with httpx.AsyncClient(timeout=60) as h:
+                t = await h.post("https://www.googleapis.com/upload/youtube/v3/thumbnails/set", params={"videoId": vid},
+                                 headers={"Authorization": f"Bearer {token}", "Content-Type": "image/jpeg"},
+                                 content=Path(opts["cover_path"]).read_bytes())
+            if t.status_code >= 400:
+                result["note"] = f"Thumbnail not set: {t.text[:200]}"
+        return result
 
 
 # ---------------------------------------------------------------- TikTok
@@ -195,7 +204,9 @@ class TikTok(Platform):
                 title = f"{meta.get('title', '')}\n{_caption(meta)}"[:2200]
                 r = await h.post(f"{self.API}/post/publish/video/init/", headers=headers, json={
                     "post_info": {"title": title, "privacy_level": privacy, "disable_duet": False,
-                                  "disable_comment": False, "disable_stitch": False, "is_aigc": True},
+                                  "disable_comment": False, "disable_stitch": False, "is_aigc": True,
+                                  **({"video_cover_timestamp_ms": int(opts["cover_t"] * 1000)}
+                                     if opts.get("cover_t") is not None else {})},
                     "source_info": source,
                 })
             body = r.json()
