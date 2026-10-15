@@ -320,11 +320,13 @@
           <h3>1 · Claude</h3>
           <p class="muted">Writes scripts, ideas and edits. Uses your Claude subscription through the Claude Agent SDK — no API key needed.</p>
           <div :class="cl.current?.ok ? 'okmsg' : 'err'" x-text="(cl.current?.ok ? '✓ Connected — ' : '✗ ') + (cl.current?.detail || 'checking…') + sourceLabel(cl.current?.source)"></div>
+          <div class="muted" x-show="cl.current && !cl.current.source">Choose how this app should use Claude — it never picks an account on its own.</div>
 
           <div class="btns">
             <button class="primary" @click="claudeLogin()" x-show="!['waiting_code','verifying'].includes(cl.login?.state)">Sign in with Claude</button>
-            <button class="ghost" x-show="cl.system?.ok && cl.current?.source!=='system'" @click="claudeSource('system')" x-text="`Use this computer's login (${cl.system?.email||''})`"></button>
+            <button class="ghost" x-show="cl.system?.ok && cl.current?.source!=='system'" @click="claudeSource('system')" x-text="`Use this computer's Claude Code login (${cl.system?.email||''})`"></button>
             <button class="ghost" x-show="cl.current?.source==='app' && cl.current?.ok" @click="claudeLogout()">Sign out</button>
+            <button class="ghost" x-show="['system','api_key'].includes(cl.current?.source)" @click="claudeSource('')">Disconnect</button>
           </div>
 
           <div x-show="['waiting_code','verifying'].includes(cl.login?.state)" style="margin-top:10px">

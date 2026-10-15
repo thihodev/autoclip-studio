@@ -20,7 +20,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 The app opens on **Connections** until two things are set:
 
-1. **Claude**: if Claude Code is already logged in on this computer, it's used automatically. Otherwise click **Sign in with Claude**, approve in the browser, and paste the code back. You can also paste an Anthropic API key.
+1. **Claude**: click **Sign in with Claude**, approve in the browser and paste the code back, or pick *Use this computer's Claude Code login*, or paste an Anthropic API key. The app never uses an account until you choose one.
 2. **Stock footage**: paste a free [Pexels](https://www.pexels.com/api/) (or [Pixabay](https://pixabay.com/api/docs/)) API key.
 
 Social accounts, FrameJam and Postiz are optional and can be connected at any time from the same tab.
@@ -56,7 +56,7 @@ Social accounts, FrameJam and Postiz are optional and can be connected at any ti
 
 | Option | When to use |
 |---|---|
-| This computer's Claude Code login | Default if `claude` is already logged in. |
+| This computer's Claude Code login | One click if `claude` is already logged in on this machine (the button shows which account). |
 | **Sign in with Claude** (in the UI) | A separate login stored in `data/claude/`, so it can be a different account from your terminal. |
 | Anthropic API key | Pay-as-you-go instead of a subscription. |
 

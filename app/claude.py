@@ -1,7 +1,8 @@
 """Claude via the Claude Agent SDK.
 
 The SDK drives the Claude Code CLI it bundles, so it authenticates the way
-Claude Code does. Three sources, picked in the Connections tab:
+Claude Code does. Nothing is used until the user picks one of three
+sources in the Connections tab:
 
 - "app":     a login made from the web UI, stored in DATA_DIR/claude
              (separate from any login in your terminal)
@@ -107,6 +108,8 @@ def _extract_json(text: str) -> dict:
 
 
 async def ask_json(prompt: str, system: str = SCRIPT_SYSTEM) -> dict:
+    if not settings.get("claude")["source"]:
+        raise RuntimeError("Claude is not connected — open Connections and choose how to sign in")
     options = ClaudeAgentOptions(
         system_prompt=system,
         model=settings.get("claude")["model"],
@@ -188,7 +191,9 @@ def _cli_status(env: dict) -> dict:
 def auth_status() -> dict:
     cfg = settings.get("claude")
     source = cfg["source"]
-    if source == "api_key":
+    if not source:
+        res = {"ok": False, "detail": "Not connected"}
+    elif source == "api_key":
         key = cfg["api_key"]
         res = {"ok": bool(key), "detail": f"API key …{key[-4:]}" if key else "API key not set"}
     else:

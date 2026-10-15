@@ -103,7 +103,7 @@ class CodeIn(BaseModel):
 
 
 class SourceIn(BaseModel):
-    source: str  # app | system | api_key
+    source: str  # "" (disconnected) | app | system | api_key
 
 
 # ------------------------------------------------------------------ status & settings
@@ -178,7 +178,7 @@ def claude_login_cancel():
 
 @app.post("/api/claude/source")
 def claude_source(body: SourceIn):
-    if body.source not in ("app", "system", "api_key"):
+    if body.source not in ("", "app", "system", "api_key"):
         raise HTTPException(400, "Unknown source")
     settings.put("claude", {**settings.get("claude"), "source": body.source})
     return {"ok": True}
@@ -187,7 +187,7 @@ def claude_source(body: SourceIn):
 @app.post("/api/claude/logout")
 async def claude_logout():
     await asyncio.to_thread(claude.logout_app)
-    settings.put("claude", {**settings.get("claude"), "source": "system"})
+    settings.put("claude", {**settings.get("claude"), "source": ""})
     return {"ok": True}
 
 
