@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Python compiles and the app imports
+        env:
+          DATA_DIR: ${{ runner.temp }}/autoclip-data
+        run: |
+          python -m compileall -q app
+          python -c "import app.main"
+      - name: UI scripts parse
+        run: |
+          node -e "const s=require('fs').readFileSync('static/index.html','utf8');let n=0;for(const m of s.matchAll(/<script>([\s\S]*?)<\/script>/g)){new Function(m[1]);n++}console.log('scripts ok:',n)"
+      - name: Translations are valid JSON
+        run: |
+          for f in static/locales/*.json; do python -c "import json,sys;json.load(open(sys.argv[1]))" "$f" && echo "$f ok"; done
+      - name: Bundled styles and playbooks load
+        env:
+          DATA_DIR: ${{ runner.temp }}/autoclip-data
+        run: |
+          python -c "from app import styles, playbooks; s=styles.list_all(); p=playbooks.list_all(); assert len(s)>=30 and len(p)>=11, (len(s), len(p)); print(len(s), 'styles,', len(p), 'playbooks')"

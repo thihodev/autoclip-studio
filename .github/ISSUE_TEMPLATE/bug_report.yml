@@ -1,0 +1,32 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead. Error messages help.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Open Studio\n2. Pick Claude Motion and the Ink Wash style\n3. …"
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `git log -1 --format=%h` in your clone.
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [macOS, Linux, Windows]
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant terminal output (remove any keys or tokens first).
+      render: text
