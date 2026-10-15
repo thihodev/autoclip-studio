@@ -74,7 +74,7 @@ HyperFrames' own skill installer writes into your global agent folders (`~/.clau
 - **Live view**: while a video is being made, the editor shows what Claude is doing step by step with the latest frame it looked at; elsewhere in the app a corner dock keeps every running video's progress in view.
 - **FrameJam on by default**: AutoClip starts FrameJam if it isn't running and sends every render to its review (toggle in Connections).
 - **Models & effort**: pick the Claude model (Opus 5.5, Sonnet 5.5, Haiku 5.5, Fable 5.1) and effort level (low → max) as defaults for scripts/edits and for Claude Motion in Connections, and override them per video or per AI edit. Each version records the model and effort that made it.
-- **Usage** (`/usage`): plan-limit windows as Claude reports them (5-hour, weekly), today and period totals, cost per day, breakdowns by model and task, and recent runs; each video shows its own Claude usage. Cost is the API-equivalent estimate reported by Claude — on a Claude plan you aren't billed per token.
+- **Usage** (`/usage`): on a Claude plan, how much of the 5-hour session and weekly limits (overall and per model) is used and when each resets — the same numbers as `/usage` in Claude Code, read from the Claude CLI without sending a message; then today and period totals, cost per day, breakdowns by model and task, and recent runs; each video shows its own Claude usage. On a plan, cost is the API-equivalent estimate (you aren't billed per token); with an API key it's what you pay.
 - **Context files** (optional): attach articles, notes, product docs or transcripts (TXT, MD, PDF, DOCX, HTML, CSV, JSON, SRT/VTT) when creating a video, or later in the editor. Claude uses them as source material for the script and for AI edits.
 - **Brand kits**: a design system for videos — see below.
 - **Ideas**: Claude suggests topics for a niche, each with an opening hook.
@@ -112,7 +112,9 @@ Pick a kit when creating a video (Studio), in the editor (Style → Brand kit, w
 |---|---|
 | This computer's Claude Code login | One click if `claude` is already logged in on this machine (the button shows which account). |
 | **Sign in with Claude** (in the UI) | A separate login stored in `data/claude/`, so it can be a different account from your terminal. |
-| Anthropic API key | Pay-as-you-go instead of a subscription. |
+| Anthropic API key | Pay-as-you-go instead of a subscription, with no plan limits. The key is checked (by listing models, which is free) before it's saved. |
+
+A sign-in and an API key can both be saved; switch between them in Connections → Claude without signing in again.
 
 > ⚠️ Use your subscription for **yourself only**. Since June 15, 2026, Agent SDK usage on subscription plans draws from a monthly "Agent SDK credit", separate from your chat limits. Don't share your login with other people; for multi-user deployments, each user should connect their own account or use an API key. See the [authentication docs](https://code.claude.com/docs/en/authentication).
 
@@ -152,6 +154,8 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 | GET | `/api/status` | Claude / footage / accounts / FrameJam / Postiz status |
 | GET, PUT | `/api/settings`, `/api/settings/{section}` | Connections settings (secrets are masked on read) |
 | GET, POST | `/api/claude`, `/api/claude/login/{start,code,cancel}`, `/api/claude/{source,logout}` | Claude connection |
+| POST, DELETE | `/api/claude/api-key` | Check and save an Anthropic API key `{key, use}` / remove it |
+| GET | `/api/claude/plan-usage?refresh=` | Plan limits: 5-hour session and weekly windows with reset times (cached 60 s) |
 | GET | `/oauth/{youtube,tiktok,facebook}/start` | Connect a social account |
 | GET | `/api/channels` | Connected accounts + Postiz channels |
 | GET | `/api/voices?language=` | edge-tts voices for a language |

@@ -9,6 +9,7 @@ sources in the Connections tab:
 - "system":  this computer's existing Claude Code login (~/.claude)
 - "api_key": an Anthropic API key (pay-as-you-go)
 """
+import asyncio
 import json
 import os
 import re
@@ -18,8 +19,9 @@ import threading
 import time
 from pathlib import Path
 
+import anthropic
 import claude_agent_sdk
-from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
+from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient, ResultMessage, query
 
 from . import settings, usage
 from .config import CLAUDE_CONFIG_DIR, DATA_DIR
@@ -237,6 +239,90 @@ def auth_status() -> dict:
     else:
         res = _cli_status(_env(source))
     return {**res, "source": source}
+
+
+def app_status() -> dict:
+    """The login made from the web UI, whether or not it's the one in use."""
+    return _cli_status(_env("app"))
+
+
+async def check_api_key(key: str) -> str | None:
+    """None when the key works, else an error message. Listing models costs nothing."""
+    try:
+        async with anthropic.AsyncAnthropic(api_key=key, max_retries=1, timeout=20) as client:
+            await client.models.list(limit=1)
+    except anthropic.AuthenticationError:
+        return "Anthropic rejected this API key"
+    except anthropic.PermissionDeniedError:
+        return "This API key isn't allowed to use the Claude API"
+    except anthropic.APIConnectionError:
+        return "Could not reach the Claude API"
+    except anthropic.APIStatusError as e:
+        return f"Claude API error {e.status_code}"
+    return None
+
+
+# ---------- plan usage: the windows Claude Code's /usage shows ----------
+
+_plan_cache: dict[str, dict] = {}
+_plan_lock = asyncio.Lock()
+
+
+def _money(m) -> float | None:
+    return m["amount_minor"] / 10 ** m.get("exponent", 2) if isinstance(m, dict) and "amount_minor" in m else None
+
+
+def _plan_view(raw: dict) -> dict:
+    rl = raw.get("rate_limits") or {}
+    limits = [{
+        "kind": x.get("kind"), "group": x.get("group"), "percent": x.get("percent"), "resets_at": x.get("resets_at"),
+        "model": (((x.get("scope") or {}).get("model") or {}).get("display_name")),
+        "severity": x.get("severity"), "active": x.get("is_active"),
+    } for x in rl.get("limits") or []]
+    if not limits:  # older answers only have the named windows
+        for key, group, model in [("five_hour", "session", None), ("seven_day", "weekly", None),
+                                  ("seven_day_opus", "weekly", "Opus"), ("seven_day_sonnet", "weekly", "Sonnet")]:
+            if (w := rl.get(key)) and w.get("utilization") is not None:
+                limits.append({"kind": key, "group": group, "percent": w["utilization"], "resets_at": w.get("resets_at"),
+                               "model": model, "severity": None, "active": None})
+        for w in rl.get("model_scoped") or []:
+            limits.append({"kind": "weekly_scoped", "group": "weekly", "percent": w.get("utilization"),
+                           "resets_at": w.get("resets_at"), "model": w.get("display_name"), "severity": None, "active": None})
+    spend = rl.get("spend") or {}
+    extra = None
+    if spend.get("enabled"):
+        extra = {"used": _money(spend.get("used")), "limit": _money(spend.get("limit")),
+                 "currency": (spend.get("used") or {}).get("currency"), "percent": spend.get("percent")}
+    return {"plan": raw.get("subscription_type"), "available": bool(raw.get("rate_limits_available")),
+            "limits": limits, "extra": extra}
+
+
+async def plan_usage(refresh: bool = False) -> dict:
+    """How much of the plan's 5-hour session and weekly limits is used, and when they reset.
+
+    Asks the Claude CLI itself (the `get_usage` control request behind /usage, still marked
+    experimental). No message goes to Claude, so checking uses nothing. API keys have no plan limits.
+    """
+    source = settings.get("claude")["source"]
+    if source not in ("app", "system"):
+        return {"source": source, "applies": False}
+    async with _plan_lock:
+        hit = _plan_cache.get(source)
+        if hit and not refresh and time.time() - hit["at"] < 60:
+            return hit
+        options = ClaudeAgentOptions(setting_sources=[], tools=[], allowed_tools=[], max_turns=1, cwd=str(DATA_DIR),
+                                     env=_env(source), cli_path=cli_path())
+        try:
+            async with ClaudeSDKClient(options=options) as client:
+                # The Python SDK has no public wrapper for this request yet.
+                raw = await client._query._send_control_request({"subtype": "get_usage", "skip_behaviors": True},
+                                                                timeout=45)
+            res = _plan_view(raw)
+        except Exception as e:
+            res = {"error": f"Could not read your plan usage: {str(e)[:200] or e.__class__.__name__}"}
+        res.update(source=source, applies=True, at=time.time())
+        _plan_cache[source] = res
+        return res
 
 
 def system_status() -> dict:

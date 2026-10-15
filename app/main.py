@@ -138,6 +138,11 @@ class TokenIn(BaseModel):
     token: str
 
 
+class ApiKeyIn(BaseModel):
+    key: str
+    use: bool = True
+
+
 class SourceIn(BaseModel):
     source: str  # "" (disconnected) | app | system | api_key
 
@@ -201,12 +206,14 @@ async def put_settings(section: str, value=Body(...)):
 
 @app.get("/api/claude")
 async def claude_info():
-    current, system = await asyncio.gather(
-        asyncio.to_thread(claude.auth_status), asyncio.to_thread(claude.system_status)
+    current, system, app_login = await asyncio.gather(
+        asyncio.to_thread(claude.auth_status), asyncio.to_thread(claude.system_status),
+        asyncio.to_thread(claude.app_status),
     )
     state = "connected" if current["ok"] else ("expired" if current["source"] else "disconnected")
-    return {"state": state, "current": current, "system": system, "login": claude.login_state(),
-            "model": settings.get("claude")["model"]}
+    key = settings.get("claude")["api_key"]
+    return {"state": state, "current": current, "system": system, "app": app_login, "login": claude.login_state(),
+            "api_key": f"…{key[-4:]}" if key else None, "model": settings.get("claude")["model"]}
 
 
 @app.post("/api/claude/login/start")
@@ -235,8 +242,33 @@ def claude_login_cancel():
 def claude_source(body: SourceIn):
     if body.source not in ("", "app", "system", "api_key"):
         raise HTTPException(400, "Unknown source")
+    if body.source == "api_key" and not settings.get("claude")["api_key"]:
+        raise HTTPException(400, "Add an API key first")
     settings.put("claude", {**settings.get("claude"), "source": body.source})
     return {"ok": True}
+
+
+@app.post("/api/claude/api-key")
+async def claude_api_key(body: ApiKeyIn):
+    """Save (after checking) an Anthropic API key and use it."""
+    key = body.key.strip()
+    if err := await claude.check_api_key(key):
+        raise HTTPException(400, err)
+    settings.put("claude", {**settings.get("claude"), "api_key": key, "source": "api_key" if body.use else
+                            settings.get("claude")["source"]})
+    return {"ok": True}
+
+
+@app.delete("/api/claude/api-key")
+def claude_api_key_remove():
+    cfg = settings.get("claude")
+    settings.put("claude", {**cfg, "api_key": "", "source": "" if cfg["source"] == "api_key" else cfg["source"]})
+    return {"ok": True}
+
+
+@app.get("/api/claude/plan-usage")
+async def claude_plan_usage(refresh: bool = False):
+    return await claude.plan_usage(refresh)
 
 
 @app.post("/api/claude/logout")

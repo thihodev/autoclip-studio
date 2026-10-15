@@ -239,6 +239,7 @@
   .tile { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); }
   .tile .k { font-size:12px; color:var(--text-2); } .tile .v { font-size:24px; font-weight:700; letter-spacing:-.01em; margin-top:2px; font-variant-numeric:tabular-nums; }
   .tile .s { font-size:12px; color:var(--text-3); margin-top:2px; }
+  .limits { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:18px 24px; }
   .meter { height:8px; background:var(--surface-2); border-radius:99px; overflow:hidden; margin-top:6px; }
   .meter i { display:block; height:100%; border-radius:99px; }
   .bars { position:relative; height:180px; display:flex; align-items:flex-end; gap:2px; padding-top:8px; border-bottom:1px solid var(--border); }
@@ -1085,21 +1086,35 @@
 
       <!-- plan limits -->
       <div class="card">
-        <div class="card-head"><div class="grow"><h2><span x-t>Plan limits</span></h2>
-          <p x-text="usageInfo.source==='api_key' ? t('You use an API key — usage is billed to your Anthropic account, without plan windows.') : t('Reported by Claude while your videos run; refreshed with every run.')"></p></div></div>
-        <template x-if="!Object.keys(usageInfo.rate_limits||{}).length"><p class="small muted"><span x-t>No limit information yet — it appears after the next Claude run.</span></p></template>
-        <div class="grid-2">
-          <template x-for="[type, rl] in Object.entries(usageInfo.rate_limits||{})" :key="type">
-            <div>
-              <div class="actions" style="justify-content:space-between">
-                <strong x-text="limitLabel(type)"></strong>
-                <span class="chip" :class="{allowed:'ok', allowed_warning:'warn', rejected:'err'}[rl.status]" x-text="t({allowed:'Within limit', allowed_warning:'Near the limit', rejected:'Limit reached'}[rl.status] || rl.status)"></span>
-              </div>
-              <div class="meter" x-show="rl.utilization != null"><i :style="`width:${Math.round((rl.utilization||0)*100)}%;background:${rl.status==='rejected'?'var(--err)':rl.status==='allowed_warning'?'var(--warn)':'var(--ok)'}`"></i></div>
-              <div class="small muted" style="margin-top:4px" x-text="(rl.utilization != null ? t('{n}% used', {n: Math.round(rl.utilization*100)}) + ' · ' : '') + (rl.resets_at ? t('resets {when}', {when: when(rl.resets_at)}) : '') + ' · ' + t('checked {ago}', {ago: ago(rl.at)})"></div>
+        <template x-if="usageInfo.source==='api_key'">
+          <div class="card-head"><div class="grow"><h2><span x-t>Billing</span></h2>
+            <p><span x-t>Connected with an Anthropic API key: no plan limits apply. Every run is billed per token to your Claude Console account, so the costs below are what you pay.</span></p></div>
+            <span class="chip"><span x-t>API key</span></span></div>
+        </template>
+        <template x-if="usageInfo.source!=='api_key'">
+          <div>
+            <div class="card-head">
+              <div class="grow"><h2><span x-t>Plan limits</span></h2>
+                <p x-text="t('Your Claude plan, as /usage shows it in Claude Code.') + (plan.at ? ' ' + t('Checked {ago}.', {ago: ago(plan.at)}) : '')"></p></div>
+              <span class="chip" x-show="plan.plan" x-text="t('{plan} plan', {plan: planName(plan.plan)})"></span>
+              <button class="btn ghost icon" :title="t('Refresh')" :aria-label="t('Refresh')" @click="loadPlan(true)" :disabled="planLoading"><span class="spin" x-show="planLoading"></span><svg class="i" x-show="!planLoading"><use href="#i-retry"/></svg></button>
             </div>
-          </template>
-        </div>
+            <p class="small muted" x-show="!usageInfo.source"><span x-t>Connect Claude in Connections to see your plan limits.</span></p>
+            <div class="notice err" x-show="plan.error" x-text="plan.error"></div>
+            <p class="small muted" x-show="planLoading && !plan.limits"><span x-t>Asking Claude for your plan usage…</span></p>
+            <p class="small muted" x-show="plan.applies && !plan.error && plan.limits && !plan.limits.length"><span x-t>Claude reported no plan limits for this account.</span></p>
+            <div class="limits">
+              <template x-for="l in plan.limits||[]" :key="l.kind + (l.model||'')">
+                <div :style="l.active===false && 'opacity:.75'">
+                  <div class="actions" style="justify-content:space-between"><strong x-text="planLimitLabel(l)"></strong><span class="small" x-text="t('{n}% used', {n: Math.round(l.percent||0)})"></span></div>
+                  <div class="meter" role="meter" :aria-valuenow="Math.round(l.percent||0)" aria-valuemin="0" aria-valuemax="100" :aria-label="planLimitLabel(l)"><i :style="`width:${Math.min(100, l.percent||0)}%;background:${limitColor(l)}`"></i></div>
+                  <div class="small muted" style="margin-top:4px" x-text="l.resets_at ? t('Resets {when}', {when: resetsIn(l.resets_at)}) : ''"></div>
+                </div>
+              </template>
+            </div>
+            <p class="small muted" style="margin-top:12px" x-show="plan.extra" x-text="plan.extra ? t('Extra usage: {used} used', {used: fmtMoney(plan.extra.used, plan.extra.currency)}) + (plan.extra.limit != null ? ' ' + t('of {limit}', {limit: fmtMoney(plan.extra.limit, plan.extra.currency)}) : '') : ''"></p>
+          </div>
+        </template>
       </div>
 
       <!-- tiles -->
@@ -1113,7 +1128,7 @@
 
       <!-- daily chart -->
       <div class="card" style="margin-top:16px">
-        <div class="card-head"><div class="grow"><h2><span x-t>Cost per day</span></h2><p x-text="t('API-equivalent, last {n} days', {n: usageDays})"></p></div>
+        <div class="card-head"><div class="grow"><h2><span x-t>Cost per day</span></h2><p x-text="t(usageInfo.source==='api_key' ? 'Last {n} days' : 'API-equivalent, last {n} days', {n: usageDays})"></p></div>
           <button class="btn ghost sm" @click="showTable=!showTable" x-text="showTable ? t('Show chart') : t('Show table')"></button></div>
         <template x-if="!showTable">
           <div>
@@ -1241,6 +1256,36 @@
                   <div class="grow"><div class="t" x-text="cl.current.email || cl.current.detail"></div>
                     <div class="d" x-text="sourceText(cl.current.source) + (cl.current.email && cl.current.detail.includes('·') ? t(' · ') + cl.current.detail.split('·').slice(1).join('·').trim() + t(' plan') : '')"></div></div>
                 </div>
+                <a class="small" href="/usage" @click.prevent="nav('/usage')" style="display:block;margin-top:10px" x-show="cl.current.source!=='api_key' && sessionLimit()" x-text="sessionLimit() ? t('Current session: {n}% used', {n: Math.round(sessionLimit().percent||0)}) + ' · ' + t('Resets {when}', {when: resetsIn(sessionLimit().resets_at)}) : ''"></a>
+                <div class="field" style="margin-top:14px"><label><span x-t>Connect with</span></label>
+                  <div class="options">
+                    <div class="option" :class="cl.current.source==='app' && 'rec'">
+                      <div class="grow"><div class="t"><span x-t>Claude subscription, signed in here</span></div>
+                        <div class="d" x-text="cl.app?.ok ? cl.app.detail + ' · ' + t('plan limits apply') : t('Any Claude Pro, Max or Team account.')"></div></div>
+                      <span class="chip ok" x-show="cl.current.source==='app'"><span x-t>In use</span></span>
+                      <button class="btn sm" x-show="cl.current.source!=='app'" @click="cl.app?.ok ? claudeSource('app') : claudeLogin()" x-text="cl.app?.ok ? t('Use') : t('Sign in')"></button>
+                    </div>
+                    <div class="option" x-show="cl.system?.ok" :class="cl.current.source==='system' && 'rec'">
+                      <div class="grow"><div class="t"><span x-t>This computer's Claude Code login</span></div>
+                        <div class="d" x-text="(cl.system?.detail || '') + ' · ' + t('plan limits apply')"></div></div>
+                      <span class="chip ok" x-show="cl.current.source==='system'"><span x-t>In use</span></span>
+                      <button class="btn sm" x-show="cl.current.source!=='system'" @click="claudeSource('system')"><span x-t>Use</span></button>
+                    </div>
+                    <div class="option" :class="cl.current.source==='api_key' && 'rec'">
+                      <div class="grow"><div class="t"><span x-t>Anthropic API key</span></div>
+                        <div class="d" x-text="cl.api_key ? t('Key {hint} · billed per token, no plan limits', {hint: cl.api_key}) : t('Pay as you go from the Claude Console, no plan limits.')"></div>
+                        <div class="actions" style="margin-top:8px;flex-wrap:nowrap" x-show="!cl.api_key || keyEdit">
+                          <input type="password" x-model="apiKey" placeholder="sk-ant-…" autocomplete="off" @keydown.enter="useApiKey()" :aria-label="t('Anthropic API key')">
+                          <button class="btn" @click="useApiKey()" :disabled="!apiKey.trim().startsWith('sk-') || savingKey"><span class="spin" x-show="savingKey"></span><span x-t>Check and use</span></button>
+                          <button class="btn ghost" x-show="keyEdit" @click="keyEdit=false; apiKey=''"><span x-t>Cancel</span></button>
+                        </div></div>
+                      <span class="chip ok" x-show="cl.current.source==='api_key'"><span x-t>In use</span></span>
+                      <button class="btn sm" x-show="cl.api_key && cl.current.source!=='api_key' && !keyEdit" @click="claudeSource('api_key')"><span x-t>Use</span></button>
+                      <button class="btn ghost sm" x-show="cl.api_key && !keyEdit" @click="keyEdit=true"><span x-t>Replace</span></button>
+                      <button class="btn ghost icon danger" x-show="cl.api_key && !keyEdit" :title="t('Remove the API key')" :aria-label="t('Remove the API key')" @click="removeApiKey()"><svg class="i"><use href="#i-trash"/></svg></button>
+                    </div>
+                  </div>
+                </div>
                 <div class="stack" style="margin-top:14px">
                   <template x-for="task in [['script','Scripts, ideas & quick edits'],['motion','Claude Motion videos']]" :key="task[0]">
                     <div class="field"><label x-text="t(task[1])"></label>
@@ -1298,7 +1343,7 @@
                   <div class="option">
                     <div class="grow"><div class="t"><span x-t>Anthropic API key</span></div><div class="d"><span x-t>Pay as you go from the Claude Console.</span></div>
                       <div class="actions" style="margin-top:8px;flex-wrap:nowrap"><input type="password" x-model="apiKey" placeholder="sk-ant-…" autocomplete="off" @keydown.enter="useApiKey()">
-                        <button class="btn" @click="useApiKey()" :disabled="!apiKey.trim().startsWith('sk-')"><span x-t>Use key</span></button></div></div>
+                        <button class="btn" @click="useApiKey()" :disabled="!apiKey.trim().startsWith('sk-') || savingKey"><span class="spin" x-show="savingKey"></span><span x-t>Use key</span></button></div></div>
                   </div>
                 </div>
                 <button class="btn ghost sm" x-show="switching" @click="switching=false"><span x-t>Cancel</span></button>
@@ -1661,7 +1706,7 @@ function app() {
     status: {}, cl: {}, cfg: { claude:{}, footage:{}, framejam:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
     channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] },
     form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'' },
-    models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, showTable: false, hoverDay: null,
+    models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, plan: {}, planLoading: false, showTable: false, hoverDay: null,
     projUsage: {}, editModel: '', editEffort: '',
     workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' }, siteImport: { open:false, url:'', busy:false },
     live: {}, dockOpen: true, startingFj: false,
@@ -1670,7 +1715,7 @@ function app() {
     importer: { open:false, url:'', ref:'', busy:false }, newBrand: { open:false, name:'' },
     github: { connected:false, login:'' }, githubToken: '', githubSaving: false, githubRepos: [],
     creating: false, thinking: false, ideaForm: { niche:'', language:'English' },
-    switching: false, claudeCode: '', apiKey: '', footageEdit: false, footageKey: '', footageProvider: 'pixabay', savingFootage: false,
+    switching: false, claudeCode: '', apiKey: '', keyEdit: false, savingKey: false, footageEdit: false, footageKey: '', footageProvider: 'pixabay', savingFootage: false,
     cur: null, curMissing: false, tl: { captions:{}, scenes:[] }, baseTl: '', edTitle: '', baseTitle: '', preview: null, instruction: '',
     pubIds: [], pubOpts: { youtube_visibility:'public', tiktok_method:'DIRECT_POST' },
     editorTabs: [{key:'scenes',label:'Scenes'},{key:'style',label:'Style'},{key:'review',label:'AI & review'},{key:'publish',label:'Publish'}],
@@ -1795,7 +1840,7 @@ function app() {
       const r = this.route = parseRoute(location.pathname);
       this.setTitle();
       if (r.page === 'brands') this.loadBrands();
-      if (r.page === 'usage') this.loadUsage();
+      if (r.page === 'usage') { this.loadUsage(); this.loadPlan(); }
       if (r.page === 'studio' && r.id !== prev.id) { this.wsOpen = false; this.syncWsForm(); }
       if (r.page === 'brand' && (prev.page !== 'brand' || prev.id !== r.id || !this.brand)) this.loadBrand(r.id);
       if (r.page === 'project' && (prev.page !== 'project' || prev.id !== r.id || !this.cur)) await this.openProject(r.id);
@@ -1826,6 +1871,8 @@ function app() {
       window.addEventListener('beforeunload', e => { if (this.dirty || this.brandDirty) { e.preventDefault(); e.returnValue = ''; } });
       try { this.form.brand_id = localStorage.getItem('autoclip.brand') || null; } catch {}
       await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers()]);
+      // Plan limits move while videos render: keep the Usage page current.
+      setInterval(() => { if (this.route.page === 'usage' && !document.hidden && !this.planLoading) this.loadPlan(); }, 60000);
       if (['node','ffmpeg'].includes(this.motionInfo.code)) this.form.engine = 'classic';
       if (this.form.brand_id && !this.brandById(this.form.brand_id)) this.form.brand_id = null;
       this.ready = true;
@@ -2127,7 +2174,28 @@ function app() {
     modelShort(id) { const m = (this.models.models || []).find(x => x.id === id); return m ? m.label.replace('Claude ', '') : id; },
     effortLabel(e) { return this.t({ '':'Model default', low:'Low effort', medium:'Medium effort', high:'High effort', xhigh:'Extra-high effort', max:'Max effort' }[e] ?? e); },
     kindLabel(k) { return this.t({ script:'Script', ideas:'Ideas', edit:'AI edit', motion:'Claude Motion', 'motion-edit':'Claude Motion edit', 'brand-import':'Brand import' }[k] || k); },
-    limitLabel(k) { return this.t({ five_hour:'5-hour window', seven_day:'Weekly', seven_day_opus:'Weekly · Opus', seven_day_sonnet:'Weekly · Sonnet', overage:'Extra usage' }[k] || k); },
+    async loadPlan(refresh = false) {
+      this.planLoading = true;
+      this.plan = await this.api(`/api/claude/plan-usage${refresh ? '?refresh=true' : ''}`).catch(e => ({ error: e.message }));
+      this.planLoading = false;
+    },
+    sessionLimit() { return (this.plan.limits || []).find(l => l.group === 'session'); },
+    planName(p) { return { pro:'Pro', max:'Max', team:'Team', enterprise:'Enterprise' }[p] || p; },
+    planLimitLabel(l) {
+      if (l.group === 'session') return this.t('Current session (5 hours)');
+      if (l.group === 'weekly') return l.model ? this.t('This week · {model}', {model: l.model}) : this.t('This week · all models');
+      return l.kind;
+    },
+    limitColor(l) { const p = l.percent || 0; return l.severity === 'critical' || p >= 90 ? 'var(--err)' : l.severity === 'warning' || p >= 75 ? 'var(--warn)' : 'var(--ok)'; },
+    resetsIn(iso) {
+      const d = new Date(iso), s = (d - Date.now()) / 1000;
+      if (s >= 86400) return d.toLocaleString(this.lang, { weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+      const at = d.toLocaleTimeString(this.lang, { hour:'2-digit', minute:'2-digit' });
+      if (s <= 0) return at;
+      const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
+      return this.t('in {d} ({at})', {d: h ? this.t('{h} h {m} min', {h, m}) : this.t('{m} min', {m}), at});
+    },
+    fmtMoney(n, cur) { try { return new Intl.NumberFormat(this.lang, { style:'currency', currency: cur || 'USD' }).format(n || 0); } catch { return `${(n || 0).toFixed(2)} ${cur || ''}`; } },
     totalTokens(r) { return (r?.input_tokens||0) + (r?.output_tokens||0) + (r?.cache_read_tokens||0) + (r?.cache_write_tokens||0); },
     fmtTokens(n) { n = +n || 0; if (n >= 1e6) return (n/1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M'; if (n >= 1e3) return (n/1e3).toFixed(n >= 1e4 ? 0 : 1) + 'k'; return String(n); },
     fmtCost(v) { v = +v || 0; return '$' + (v >= 100 ? v.toFixed(0) : v >= 1 ? v.toFixed(2) : v >= 0.01 ? v.toFixed(2) : v > 0 ? v.toFixed(4) : '0'); },
@@ -2186,6 +2254,7 @@ function app() {
       const [s, c] = await Promise.all([this.api('/api/settings').catch(() => null), this.api('/api/claude').catch(() => null)]);
       if (s) { this.cfg = s; if (!this.footageEdit) this.footageProvider = s.footage.provider; }
       if (c) this.cl = c;
+      if (c?.state === 'connected' && c.current.source !== 'api_key') this.loadPlan();
       await Promise.all([this.loadChannels(), this.refreshStatus(), this.loadGithub(), this.loadMotion()]);
       this.loadElevenVoices();
     },
@@ -2208,13 +2277,19 @@ function app() {
     },
     async claudeCancel() { await this.run(() => this.api('/api/claude/login/cancel', { method:'POST' })); this.cl = { ...this.cl, login: { state:'idle' } }; },
     async claudeSource(source) {
-      if (await this.run(() => this.api('/api/claude/source', { method:'POST', body:{ source } }), source ? 'Claude connected' : 'Claude disconnected')) { this.switching = false; this.loadConnections(); }
+      if (await this.run(() => this.api('/api/claude/source', { method:'POST', body:{ source } }), source ? 'Claude connected' : 'Claude disconnected')) { this.switching = false; this.plan = {}; this.loadConnections(); }
     },
     async useApiKey() {
-      if (!this.apiKey.trim().startsWith('sk-')) return;
-      if (await this.run(() => this.api('/api/settings/claude', { method:'PUT', body:{ ...this.cfg.claude, api_key: this.apiKey.trim(), source:'api_key' } }), 'Claude connected')) {
-        this.apiKey = ''; this.switching = false; this.loadConnections();
-      }
+      if (!this.apiKey.trim().startsWith('sk-') || this.savingKey) return;
+      this.savingKey = true;
+      const ok = await this.run(() => this.api('/api/claude/api-key', { method:'POST', body:{ key: this.apiKey.trim() } }), 'API key checked and in use');
+      this.savingKey = false;
+      if (ok) { this.apiKey = ''; this.keyEdit = false; this.switching = false; this.plan = {}; this.loadConnections(); }
+    },
+    removeApiKey() {
+      this.confirm('Remove the API key?', this.cl.current?.source === 'api_key' ? 'Claude is disconnected until you choose another way to connect.' : 'You can add a key again at any time.', 'Remove', async () => {
+        if (await this.run(() => this.api('/api/claude/api-key', { method:'DELETE' }), 'Removed')) this.loadConnections();
+      });
     },
     async setModel(model) { if (await this.run(() => this.api('/api/settings/claude', { method:'PUT', body:{ ...this.cfg.claude, model } }), 'Model updated')) this.loadConnections(); },
     async claudeLogout() { if (await this.run(() => this.api('/api/claude/logout', { method:'POST' }), 'Signed out')) this.loadConnections(); },
