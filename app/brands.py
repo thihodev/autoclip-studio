@@ -50,6 +50,7 @@ EMPTY = {
     "music": [],       # [{file, name, volume}]
     "clips": [],       # [{id, file, description, duration, thumb}]
     "knowledge": [],   # context files: [{id, name, chars}]
+    "site": None,      # website capture: {url, domain, title, fonts, images: [{file, description}]}
     "source": {"type": "manual"},
     "warnings": [],
 }
@@ -127,6 +128,8 @@ def delete(bid: str):
 
 
 def asset_path(bid: str, file: str) -> Path:
+    if file.startswith("site/"):  # website visuals live in a subfolder
+        return brand_dir(bid) / "site" / Path(file).name
     return brand_dir(bid) / Path(file).name
 
 
@@ -240,6 +243,8 @@ def prompt_context(brand: dict | None) -> str:
     if not brand:
         return ""
     lines = [f"Brand: {brand['name']}" + (f" — {brand['description']}" if brand["description"] else "")]
+    if (brand.get("site") or {}).get("domain"):
+        lines.append(f"Website: {brand['site']['domain']}")
     if brand["voice"]:
         lines.append(f"Voice & tone: {brand['voice']}")
     if brand["audience"]:
@@ -541,6 +546,177 @@ async def import_github(url: str, ref: str | None = None, bid: str | None = None
         data["source"] = {"type": "github", "repo": repo, "ref": dl["ref"], "mode": mode, "imported_at": time.time()}
         data["warnings"] = warnings
         db.save_brand(bid, b["name"], data)
+        return get(bid)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+# ---------------------------------------------------------------- website import
+
+DOMAIN_RE = re.compile(
+    r"(?<![@\w.-])(?:https?://)?((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:com\.vn|com|net|org|io|ai|app|co|dev|vn|edu|"
+    r"gov|xyz|me|tv|store|shop|tech|so|gg|studio|design|cloud|site|online|info|biz|us|uk|de|fr|jp|sg|id|in))"
+    r"(?:/[^\s,;)]*)?", re.I)
+
+
+def find_domain(text: str) -> str | None:
+    m = DOMAIN_RE.search(text or "")
+    return m.group(1).lower().removeprefix("www.") if m else None
+
+
+def find_by_website(domain: str) -> dict | None:
+    for b in list_all():
+        if (b.get("site") or {}).get("domain") == domain:
+            return b
+    return None
+
+
+SITE_PROMPT = """You are setting up a video brand kit (a design system for short videos) from a captured website.
+
+Website: {url}
+Page title: {title}
+Meta description: {description}
+
+Design tokens found on the site (CSS variables, colors, fonts):
+{tokens}
+
+Visible text (excerpt):
+{text}
+
+Image files captured from the site (choose only from these):
+{images}
+
+Before answering, LOOK at the images with the Read tool: open the asset contact sheets
+(`assets/contact-sheet-*.jpg`, which label each file) and `screenshots/contact-sheet.jpg`, and open single
+files when unsure. Many sites show logos of partners, clubs, customers or sponsors — pick only the site's OWN
+brand mark (it usually sits in the header and matches the favicon). If the own logo is only an SVG, pick the
+favicon/app icon PNG of the same mark instead, or null.
+
+Return JSON with exactly these keys:
+{{
+  "name": "brand or product name",
+  "description": "one or two sentences: what it is and for whom",
+  "voice": "tone of voice guidance for video scripts, matching the site's copy",
+  "audience": "who the videos are for",
+  "cta": "short call to action that mentions {domain}",
+  "language": "the site's main language as an English name, e.g. Vietnamese or English",
+  "colors": {{"primary": "#RRGGBB brand color", "accent": "#RRGGBB bright highlight", "text": "#FFFFFF or a very light color"}},
+  "captions": {{"preset": "bold | box | minimal"}},
+  "logo": "the best logo image file (prefer PNG with transparency) or null",
+  "images": [{{"file": "a product screenshot or photo that shows the product well", "description": "what it shows"}}]
+}}
+Pick at most 8 images; skip icons, avatars and tiny decorations."""
+
+
+async def import_website(url: str, bid: str | None = None, report=None) -> dict:
+    """Capture a website with HyperFrames and turn it into a brand kit."""
+    from . import claude, motion
+
+    say = report or (lambda _t: None)
+    url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    domain = find_domain(url) or url
+    if not motion.status()["ok"]:
+        say("Installing the website capture tool (one time)…")
+        await motion.install()
+    tmp = Path(tempfile.mkdtemp(dir=DATA_DIR))
+    try:
+        say(f"Opening {domain} in a headless browser…")
+        out = await motion._run([shutil.which("npx"), "-y", f"hyperframes@{motion.HF_VERSION}", "capture", url, "-o", "site",
+                                 "--skip-vision", "--max-screenshots", "8", "--json"], tmp, timeout=420)
+        site = tmp / "site"
+        try:
+            meta = json.loads(out[out.index("{"):])
+        except ValueError:
+            meta = {}
+        if not (site / "extracted").exists():
+            raise ValueError(f"Could not capture {url}")
+        tokens = json.loads(_read(site / "extracted" / "tokens.json", 200000) or "{}")
+        text = _read(site / "extracted" / "visible-text.txt", 6000)
+        marks = re.compile(r"logo|icon|favicon|brand", re.I)
+        imgs = sorted([p for p in (site / "assets").glob("*") if p.suffix.lower() in IMAGE_EXT and "contact-sheet" not in p.name
+                       and (p.stat().st_size > 4000 or marks.search(p.name))],
+                      key=lambda p: (not marks.search(p.name), -p.stat().st_size))[:40]
+        shots = [p for p in sorted((site / "screenshots").glob("scroll-*.png"))][:6]
+        say(f"Found {len(imgs)} images, {len(tokens.get('colors') or [])} colors and fonts {', '.join(f['family'] for f in tokens.get('fonts', [])[:3])}")
+
+        candidates = [p.name for p in imgs] + [f"screenshots/{p.name}" for p in shots]
+        token_view = json.dumps({"cssVariables": tokens.get("cssVariables"), "colors": (tokens.get("colors") or [])[:24],
+                                 "fonts": [f["family"] for f in tokens.get("fonts", [])]}, ensure_ascii=False)[:5000]
+        if settings.get("claude")["source"]:
+            say("Claude is reading the site to define the brand")
+            plan = await claude.ask_json(
+                SITE_PROMPT.format(url=url, domain=domain, title=tokens.get("title") or meta.get("title", ""),
+                                   description=tokens.get("description", ""), tokens=token_view, text=text[:5000],
+                                   images="\n".join(candidates)),
+                system="You are a brand designer. Look at the images before choosing. "
+                       "Your final message is ONE JSON object only, no markdown fences, no commentary.",
+                kind="brand-import", tools=["Read", "Glob"], cwd=str(site), max_turns=16,
+            )
+        else:
+            plan = {"name": tokens.get("title") or domain, "description": tokens.get("description", ""),
+                    "logo": next((c for c in candidates if "logo" in c.lower() and c.lower().endswith(".png")), None),
+                    "images": [{"file": f"screenshots/{p.name}", "description": "website screenshot"} for p in shots[:4]]}
+
+        identity = {k: plan.get(k) for k in ("description", "voice", "audience", "cta", "language") if plan.get(k)}
+        if isinstance(plan.get("colors"), dict):
+            identity["colors"] = {k: v for k, v in plan["colors"].items() if re.fullmatch(r"#[0-9A-Fa-f]{6}", str(v))}
+        if isinstance(plan.get("captions"), dict):
+            identity["captions"] = plan["captions"]
+        name = (plan.get("name") or domain)[:80]
+        if bid:
+            b = get(bid)
+            for kind in ("logo", "font"):
+                remove_asset(bid, kind)
+            for k in b["knowledge"]:
+                remove_asset(bid, "context", k["id"])
+            update(bid, {"name": name, **identity})
+        else:
+            bid = create(name, identity)["id"]
+
+        warnings = []
+        resolve = lambda f: (site / "assets" / f) if not f.startswith("screenshots/") else (site / f)  # noqa: E731
+        if plan.get("logo") and (p := resolve(Path(plan["logo"]).as_posix())).exists():
+            try:
+                await add_asset(bid, "logo", p, p.name)
+            except ValueError as e:
+                warnings.append(str(e))
+        elif any(p.suffix.lower() == ".svg" and "logo" in p.name.lower() for p in (site / "assets").glob("*")):
+            warnings.append("The site's logo is an SVG — upload a PNG version of the logo.")
+        for f in sorted((site / "assets" / "fonts").glob("*")) if (site / "assets" / "fonts").exists() else []:
+            if f.suffix.lower() in FONT_EXT:
+                try:
+                    await add_asset(bid, "font", f, f.name)
+                    break
+                except ValueError:
+                    continue
+        # The site's copy becomes brand knowledge.
+        if text.strip():
+            know = tmp / f"{domain}.md"
+            know.write_text(f"# {tokens.get('title') or domain}\n\n{tokens.get('description', '')}\n\n{text}", encoding="utf-8")
+            await add_asset(bid, "context", know, know.name)
+        # Product visuals for Claude Motion.
+        site_dir = brand_dir(bid) / "site"
+        shutil.rmtree(site_dir, ignore_errors=True)
+        site_dir.mkdir(parents=True)
+        images = []
+        for item in (plan.get("images") or [])[:8]:
+            src = resolve(str(item.get("file", "")))
+            if src.exists() and src.suffix.lower() in IMAGE_EXT:
+                dest = site_dir / src.name
+                shutil.copyfile(src, dest)
+                images.append({"file": f"site/{src.name}", "description": item.get("description", "")[:200]})
+        b = get(bid)
+        data = {k: b[k] for k in EMPTY}
+        data["site"] = {"url": url, "domain": domain, "title": tokens.get("title") or meta.get("title"),
+                        "fonts": [f["family"] for f in tokens.get("fonts", []) if not f["family"].startswith("-")][:3],
+                        "images": images}
+        data["source"] = {"type": "website", "url": url, "domain": domain, "imported_at": time.time(),
+                          "mode": "claude" if settings.get("claude")["source"] else "heuristic"}
+        data["warnings"] = warnings
+        db.save_brand(bid, b["name"], data)
+        say(f"Brand kit ready: {b['name']}")
         return get(bid)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

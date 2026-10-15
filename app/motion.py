@@ -28,7 +28,7 @@ from claude_agent_sdk import (
     TextBlock, ToolUseBlock, create_sdk_mcp_server, query, tool,
 )
 
-from . import brands, claude, context, render, settings, tts, usage
+from . import activity, brands, claude, context, render, settings, tts, usage
 from .config import DATA_DIR
 
 log = logging.getLogger("motion")
@@ -138,6 +138,8 @@ def _brief(req: dict, brand: dict | None, resolution: str) -> str:
     ]
     if req.get("style"):
         lines += ["", f"Tone and style: {req['style']}"]
+    if req.get("notes"):
+        lines += ["", req["notes"]]
     lines += ["", "## Notes", "",
               f"- Narration and all on-screen text are in {req.get('language', 'English')}.",
               "- Fully autonomous run inside AutoClip Studio: no questions, no review pauses.",
@@ -155,6 +157,14 @@ def _brief(req: dict, brand: dict | None, resolution: str) -> str:
         if brand["clips"]:
             lines.append("- Brand footage in `public/brand/` may be used where it fits: "
                          + "; ".join(f"{x['file']} ({x['description']})" for x in brand["clips"]))
+        site = brand.get("site") or {}
+        if site.get("fonts") and not brand["font"]:
+            lines.append(f"- The brand's website ({site.get('domain')}) uses the fonts {', '.join(site['fonts'])} — load them "
+                         "from Google Fonts (they must cover Vietnamese when the narration is Vietnamese).")
+        if site.get("images"):
+            lines.append("- Real product visuals captured from the website are in `public/brand/site/` — feature them "
+                         "(device frames, zooms, reveals) where the story talks about the product: "
+                         + "; ".join(f"{Path(i['file']).name} ({i['description']})" for i in site["images"]))
         guide = brands.prompt_context({**brand, "clips": []})
         if guide:
             lines += ["", "## Customizations", "", guide]
@@ -187,6 +197,10 @@ async def prepare(pid: str, req: dict, brand: dict | None) -> Path:
         for item in [brand["logo"], brand["font"], *brand["clips"]]:
             if item and (p := brands.asset_path(brand["id"], item["file"])).exists():
                 shutil.copyfile(p, dest / item["file"])
+        for item in (brand.get("site") or {}).get("images", []):
+            if (p := brands.asset_path(brand["id"], item["file"])).exists():
+                (dest / "site").mkdir(exist_ok=True)
+                shutil.copyfile(p, dest / "site" / p.name)
     return root
 
 
@@ -227,6 +241,7 @@ def _voiceover_server(pid: str, root: Path, req: dict, brand: dict | None):
                              "words": [{"id": f"w{frame:02d}_{i}", "text": w, "start": round(s, 3), "end": round(e, 3)}
                                        for i, (s, e, w) in enumerate(words)], "text": text}
             done.append(f"frame {frame}: {dur:.2f}s, {len(words)} words")
+            activity.add(pid, f"Scene {frame}: “{text[:140]}”", "say")
         bgm = meta.get("bgm")
         tracks = [m for m in (brand or {}).get("music", []) if brands.asset_path(brand["id"], m["file"]).exists()]
         if tracks and not bgm:
@@ -356,6 +371,7 @@ async def _agent(pid: str, root: Path, req: dict, brand: dict | None, task: str,
         can_use_tool=_make_permission(root),
         mcp_servers={"autoclip": _voiceover_server(pid, root, req, brand)},
         max_turns=400,
+        max_buffer_size=64 * 1024 * 1024,  # snapshots / contact sheets Claude reads arrive as base64
     )
 
     async def prompt():
@@ -376,8 +392,15 @@ async def _agent(pid: str, root: Path, req: dict, brand: dict | None, task: str,
                         if isinstance(block, ToolUseBlock):
                             logf.write(f"[tool] {block.name} {json.dumps(block.input, ensure_ascii=False)[:400]}\n")
                             progress.see(block)
+                            if text := activity.describe_tool(block.name, block.input or {}):
+                                activity.add(pid, text)
+                            img = (block.input or {}).get("file_path", "")
+                            if block.name == "Read" and re.search(r"\.(jpe?g|png|webp)$", img, re.I):
+                                activity.preview(pid, Path(img))
                         elif isinstance(block, TextBlock) and block.text.strip():
                             logf.write(f"[claude] {block.text.strip()[:2000]}\n")
+                            if not getattr(msg, "parent_tool_use_id", None):
+                                activity.add(pid, block.text.strip()[:300], "say")
                     logf.flush()
                 elif isinstance(msg, ResultMessage):
                     final = msg.result or ""

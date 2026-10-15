@@ -109,7 +109,8 @@ def _extract_json(text: str) -> dict:
 
 
 async def ask_json(prompt: str, system: str = SCRIPT_SYSTEM, *, kind: str = "script", project_id: str | None = None,
-                   model: str | None = None, effort: str | None = None) -> dict:
+                   model: str | None = None, effort: str | None = None, tools: list[str] | None = None,
+                   cwd: str | None = None, max_turns: int = 1) -> dict:
     if not settings.get("claude")["source"]:
         raise RuntimeError("Claude is not connected — open Connections and choose how to sign in")
     model, effort = usage.choose("script", model, effort)
@@ -118,8 +119,11 @@ async def ask_json(prompt: str, system: str = SCRIPT_SYSTEM, *, kind: str = "scr
         system_prompt=system,
         model=model,
         effort=effort,
-        max_turns=1,
-        allowed_tools=[],
+        max_turns=max_turns,
+        allowed_tools=tools or [],
+        tools=tools or [],  # read-only helpers at most (e.g. Read to look at images)
+        cwd=cwd,
+        max_buffer_size=64 * 1024 * 1024,  # images Claude reads travel through the stream as base64
         setting_sources=[],  # don't load the user's CLAUDE.md / project settings
         env=_env(),
         cli_path=cli_path(),

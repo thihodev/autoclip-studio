@@ -20,7 +20,7 @@ import edge_tts
 import httpx
 import imageio_ffmpeg
 
-from . import brands, settings, tts
+from . import activity, brands, settings, tts
 from .config import DATA_DIR, FONT_PATH
 
 log = logging.getLogger("render")
@@ -578,6 +578,7 @@ async def render_timeline(pid: str, tl: dict, out: Path, on_progress) -> dict:
     cache = project_dir(pid) / "cache"
 
     voices = []
+    activity.add(pid, f"Recording the voice-over ({tts.provider()})")
     for i, s in enumerate(scenes):
         voices.append(await scene_voice(pid, s["text"], tl["voice"], tl["voice_rate"], tl.get("language", "English")))
         on_progress(0.15 * (i + 1) / n)
@@ -591,11 +592,16 @@ async def render_timeline(pid: str, tl: dict, out: Path, on_progress) -> dict:
             s["clip"].setdefault("colors", motion_clip(i, brand)["colors"])
             if not s["clip"].get("thumb_local"):
                 s["clip"]["thumb_local"] = await motion_thumbnail(pid, s["clip"])
+            activity.add(pid, f"Scene {i + 1}: animated background in {'brand' if brand else 'theme'} colors")
+            activity.preview(pid, Path(s["clip"]["thumb_local"]))
             on_progress(0.15 + 0.2 * (i + 1) / n)
             continue
         clip_path = await ensure_clip_file(pid, s["clip"])
         if not s["clip"].get("thumb_local") and not s["clip"].get("thumb_url"):
             s["clip"]["thumb_local"] = str(await thumbnail(clip_path))
+        activity.add(pid, f"Scene {i + 1}: footage from {s['clip'].get('provider', 'your library')}")
+        if s["clip"].get("thumb_local"):
+            activity.preview(pid, Path(s["clip"]["thumb_local"]))
         on_progress(0.15 + 0.2 * (i + 1) / n)
 
     video_parts, audio_parts, t = [], [], 0.0
@@ -603,6 +609,7 @@ async def render_timeline(pid: str, tl: dict, out: Path, on_progress) -> dict:
         v, a, d = await _encode_bumper(pid, style["intro"], size)
         video_parts.append(v); audio_parts.append(a); t += d  # noqa: E702
     for i, (s, (mp3, words, dur)) in enumerate(zip(scenes, voices)):
+        activity.add(pid, f"Rendering scene {i + 1} of {n} with captions")
         video_parts.append(await _encode_scene(pid, s, Path(s["clip"].get("path") or "motion"), dur, words, tl, style))
         audio_parts.append(await _to_wav(mp3, cache, dur))
         s["start"], s["end"] = round(t, 2), round(t + dur, 2)

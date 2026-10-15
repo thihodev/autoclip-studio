@@ -5,7 +5,10 @@ comment. We talk to its MCP endpoint over plain JSON-RPC (streamable HTTP):
 open_review / add_version to send renders, get_feedback to pull comments.
 Start it with `npx -y framejam start` (Node 22+).
 """
+import asyncio
 import json
+import logging
+import shutil
 
 import httpx
 
@@ -71,6 +74,35 @@ async def health() -> dict:
         return {"ok": True, "detail": f"{base_url()} · {data.get('count', 0)} review(s)"}
     except Exception as e:
         return {"ok": False, "detail": f"{base_url()} not reachable — run: npx -y framejam start ({e.__class__.__name__})"}
+
+
+_starting = asyncio.Lock()
+
+
+async def start() -> dict:
+    """Start FrameJam in the background (`npx -y framejam start`) if it isn't running."""
+    async with _starting:
+        if (h := await health())["ok"]:
+            return h
+        npx = shutil.which("npx")
+        if not npx:
+            return {"ok": False, "detail": "Node.js is needed to run FrameJam"}
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                npx, "-y", "framejam", "start", stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
+            )
+            await asyncio.wait_for(proc.wait(), 180)
+        except Exception:
+            logging.getLogger("framejam").warning("could not start FrameJam", exc_info=True)
+        for _ in range(20):
+            if (h := await health())["ok"]:
+                return h
+            await asyncio.sleep(1)
+        return await health()
+
+
+def auto() -> bool:
+    return bool(settings.get("framejam").get("auto", True))
 
 
 async def send_version(video_path: str, title: str, review_id: str | None, note: str) -> dict:

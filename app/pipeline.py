@@ -7,7 +7,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import brands, claude, context, db, framejam, motion, platforms, postiz, render, settings, usage
+from . import activity, brands, claude, context, db, framejam, motion, platforms, postiz, render, settings, usage
 from .config import VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
@@ -62,12 +62,54 @@ async def _motion_version(pid: str, note: str, instruction: str | None = None, m
     tl["brand_id"] = p["request"].get("brand_id")
     await render.thumbnail(out)
     saved = _save_version(pid, out, tl, note, model, effort)
-    if _extra(saved)["framejam"].get("review_id"):
+    if _extra(saved)["framejam"].get("review_id") or framejam.auto():
         try:
             await send_to_framejam(pid, note)
+            activity.add(pid, "Sent to FrameJam for review", "done")
         except Exception:
             log.warning("could not push to FrameJam", exc_info=True)
     return saved
+
+
+async def prepare_request(pid: str) -> dict:
+    """Apply the video's project (workspace) settings and, when the topic or project names a website and no
+    brand kit was chosen, build/reuse a brand kit from that website."""
+    p = db.get_project(pid)
+    req = dict(p["request"])
+    changed = False
+    ws = db.get_workspace(p["workspace_id"]) if p.get("workspace_id") else None
+    if ws and not req.get("_workspace_applied"):
+        d = ws["data"]
+        if not req.get("brand_id") and d.get("brand_id") and brands.get(d["brand_id"]):
+            req["brand_id"] = d["brand_id"]
+        if d.get("notes"):
+            req["notes"] = f"Project instructions: {d['notes']}\n{req.get('notes', '')}".strip()
+        own = {m["id"] for m in req.get("context") or []}
+        req["context"] = [m for m in d.get("context") or [] if m["id"] not in own] + list(req.get("context") or [])
+        req["website"] = req.get("website") or d.get("website") or ""
+        req["_workspace_applied"] = True
+        changed = True
+    if not req.get("brand_id"):
+        domain = brands.find_domain(req.get("website") or "") or brands.find_domain(req.get("topic", ""))
+        if domain:
+            brand = brands.find_by_website(domain)
+            if brand:
+                activity.add(pid, f"Using the {brand['name']} brand kit for {domain}")
+            else:
+                activity.add(pid, f"No brand kit for {domain} yet — building one from the website")
+                STAGES[pid] = f"Reading {domain}"
+                try:
+                    brand = await brands.import_website(domain, report=lambda t: activity.add(pid, t))
+                except Exception as e:
+                    log.warning("website import failed for %s", domain, exc_info=True)
+                    activity.add(pid, f"Couldn't read {domain} ({e.__class__.__name__}) — continuing without its design", "warn")
+                    brand = None
+            if brand:
+                req["brand_id"] = brand["id"]
+                changed = True
+    if changed:
+        db.update_project(pid, request=req)
+    return req
 
 
 def is_motion(p: dict) -> bool:
@@ -97,15 +139,23 @@ async def _render_version(pid: str, note: str) -> dict:
     extra["versions"].append({"version": version, "file": out.name, "note": note, "at": time.time()})
     db.update_project(pid, timeline=tl, video_path=str(out), version=version, extra=extra,
                       status="ready", progress=100, error=None, publish_result=None)
-    if extra["framejam"].get("review_id"):
+    if extra["framejam"].get("review_id") or framejam.auto():
         try:
             await send_to_framejam(pid, note)
+            activity.add(pid, "Sent to FrameJam for review", "done")
         except Exception:
             log.warning("could not push v%s to FrameJam", version, exc_info=True)
     return db.get_project(pid)
 
 
 async def run_project(pid: str):
+    activity.clear(pid)
+    db.update_project(pid, status="designing" if db.get_project(pid)["request"].get("engine") == "motion" else "scripting",
+                      progress=1)
+    try:
+        await prepare_request(pid)
+    finally:
+        STAGES.pop(pid, None)
     p = db.get_project(pid)
     req = p["request"]
     if req.get("engine") == "motion":
@@ -119,6 +169,7 @@ async def run_project(pid: str):
     try:
         if not p.get("timeline"):
             db.update_project(pid, status="scripting", progress=5)
+            activity.add(pid, "Claude is writing the script")
             brand = brands.get(req.get("brand_id"))
             meta = await claude.write_script(
                 topic=req["topic"], language=req.get("language", "English"),
@@ -127,6 +178,7 @@ async def run_project(pid: str):
                 source=source_material(req), project_id=pid, model=req.get("model"), effort=req.get("effort"),
             )
             db.update_project(pid, script=meta, timeline=render.new_timeline(meta, req, brand))
+            activity.add(pid, f"Script ready: “{meta['title']}” — {len(meta['scenes'])} scenes", "say")
         await _render_version(pid, "First cut")
         if req.get("auto_publish") and req.get("integrations"):
             await publish_project(pid)
@@ -239,6 +291,8 @@ async def manual_edit(pid: str, timeline: dict, title: str | None = None):
 # ---------- FrameJam review loop ----------
 
 async def send_to_framejam(pid: str, note: str = "") -> dict:
+    if framejam.auto() and not (await framejam.health())["ok"]:
+        await framejam.start()
     p = db.get_project(pid)
     extra = _extra(p)
     fj = extra.get("framejam", {})

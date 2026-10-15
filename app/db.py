@@ -26,6 +26,12 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS workspaces (
+    id TEXT PRIMARY KEY,
+    created_at REAL NOT NULL,
+    name TEXT NOT NULL,
+    data TEXT NOT NULL             -- JSON: notes, website, brand_id, language, format, context files
+);
 CREATE TABLE IF NOT EXISTS usage (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     at REAL NOT NULL,
@@ -79,7 +85,7 @@ def conn():
         c.close()
 
 
-MIGRATIONS = {"timeline": "TEXT", "version": "INTEGER DEFAULT 0", "extra": "TEXT"}
+MIGRATIONS = {"timeline": "TEXT", "version": "INTEGER DEFAULT 0", "extra": "TEXT", "workspace_id": "TEXT"}
 
 
 def init():
@@ -107,12 +113,12 @@ def _row(r):
     return d
 
 
-def create_project(request: dict) -> dict:
+def create_project(request: dict, workspace_id: str | None = None) -> dict:
     pid = uuid.uuid4().hex[:12]
     with conn() as c:
         c.execute(
-            "INSERT INTO projects (id, created_at, status, request) VALUES (?,?,?,?)",
-            (pid, time.time(), "queued", json.dumps(request, ensure_ascii=False)),
+            "INSERT INTO projects (id, created_at, status, request, workspace_id) VALUES (?,?,?,?,?)",
+            (pid, time.time(), "queued", json.dumps(request, ensure_ascii=False), workspace_id),
         )
     return get_project(pid)
 
@@ -131,9 +137,13 @@ def get_project(pid: str):
         return _row(c.execute("SELECT * FROM projects WHERE id=?", (pid,)).fetchone())
 
 
-def list_projects(limit: int = 100):
+def list_projects(limit: int = 100, workspace_id: str | None = None):
     with conn() as c:
-        rows = c.execute("SELECT * FROM projects ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        if workspace_id:
+            rows = c.execute("SELECT * FROM projects WHERE workspace_id=? ORDER BY created_at DESC LIMIT ?",
+                             (workspace_id, limit)).fetchall()
+        else:
+            rows = c.execute("SELECT * FROM projects ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
     return [_row(r) for r in rows]
 
 
@@ -270,3 +280,32 @@ def usage_recent(limit: int = 30, project_id: str | None = None) -> list[dict]:
         d["project_title"] = script.get("title") or req.get("topic", "")[:80] or None
         out.append(d)
     return out
+
+
+def save_workspace(wid: str, name: str, data: dict, created_at: float | None = None):
+    with conn() as c:
+        c.execute(
+            "INSERT INTO workspaces (id, created_at, name, data) VALUES (?,?,?,?) "
+            "ON CONFLICT(id) DO UPDATE SET name=excluded.name, data=excluded.data",
+            (wid, created_at or time.time(), name, json.dumps(data, ensure_ascii=False)),
+        )
+
+
+def get_workspace(wid: str):
+    with conn() as c:
+        return _row(c.execute("SELECT * FROM workspaces WHERE id=?", (wid,)).fetchone())
+
+
+def list_workspaces():
+    with conn() as c:
+        rows = c.execute(
+            "SELECT w.*, (SELECT COUNT(*) FROM projects p WHERE p.workspace_id = w.id) AS videos "
+            "FROM workspaces w ORDER BY w.created_at"
+        ).fetchall()
+    return [_row(r) for r in rows]
+
+
+def delete_workspace(wid: str):
+    with conn() as c:
+        c.execute("UPDATE projects SET workspace_id=NULL WHERE workspace_id=?", (wid,))
+        c.execute("DELETE FROM workspaces WHERE id=?", (wid,))

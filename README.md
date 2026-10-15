@@ -69,6 +69,10 @@ HyperFrames' own skill installer writes into your global agent folders (`~/.clau
   - **Edit with AI**: describe the change ("punchier hook, shorten scene 3, captions at the top") and Claude edits the timeline;
   - **FrameJam review**: send the render to FrameJam, click frames and comment, then **Apply feedback**;
   - every render is kept as a version (v1, v2, …) you can preview and compare.
+- **Projects**: group videos per product or channel (`/w/<id>`). A project carries a website, a brand kit, instructions for Claude and context files, and every video in it uses them.
+- **Design from a website**: when a topic or project names a domain (e.g. `pickcourt.com`) and no brand kit is chosen, AutoClip opens the site in headless Chrome (HyperFrames `capture`), lets Claude look at it and builds a brand kit — colors, fonts, logo, voice, call to action, the site's copy as knowledge, and real product images that Claude Motion features. Also available as **Brand kits → Import from website**.
+- **Live view**: while a video is being made, the editor shows what Claude is doing step by step with the latest frame it looked at; elsewhere in the app a corner dock keeps every running video's progress in view.
+- **FrameJam on by default**: AutoClip starts FrameJam if it isn't running and sends every render to its review (toggle in Connections).
 - **Models & effort**: pick the Claude model (Opus 5.5, Sonnet 5.5, Haiku 5.5, Fable 5.1) and effort level (low → max) as defaults for scripts/edits and for Claude Motion in Connections, and override them per video or per AI edit. Each version records the model and effort that made it.
 - **Usage** (`/usage`): plan-limit windows as Claude reports them (5-hour, weekly), today and period totals, cost per day, breakdowns by model and task, and recent runs; each video shows its own Claude usage. Cost is the API-equivalent estimate reported by Claude — on a Claude plan you aren't billed per token.
 - **Context files** (optional): attach articles, notes, product docs or transcripts (TXT, MD, PDF, DOCX, HTML, CSV, JSON, SRT/VTT) when creating a video, or later in the editor. Claude uses them as source material for the script and for AI edits.
@@ -164,7 +168,11 @@ Everything user-facing lives in the UI and is stored in `data/autoclip.db`. Opti
 | GET, POST | `/api/brands` | List / create brand kits |
 | GET, PUT, DELETE | `/api/brands/{id}` | Read / update / delete a kit |
 | POST, DELETE | `/api/brands/{id}/assets`, `/api/brands/{id}/assets/{kind}` | Upload (multipart `kind`, `file`) or remove logo, font, intro, outro, music, clip, context |
-| POST | `/api/brands/import`, `/api/brands/{id}/sync` | Import / re-sync from GitHub `{url, ref}` |
+| POST | `/api/brands/import`, `/api/brands/{id}/sync` | Import / re-sync from GitHub `{url, ref}` (sync also re-reads website kits) |
+| POST | `/api/brands/import-website` | Build a brand kit from a website `{url}` |
+| GET, POST, PUT, DELETE | `/api/workspaces`, `/api/workspaces/{id}`, `/api/workspaces/{id}/context` | Projects: settings, instructions and context files |
+| GET | `/api/projects/{id}/activity` | Live steps and latest preview while a video is made |
+| POST | `/api/framejam/start` | Start FrameJam |
 | GET, POST, DELETE | `/api/github`, `/api/github/repos` | GitHub connection and repo list |
 | GET, PUT | `/api/autopilot` | Autopilot settings |
 | GET | `/api/models` | Available models, effort levels and current defaults |

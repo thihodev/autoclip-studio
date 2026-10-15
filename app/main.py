@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import brands, claude, context, db, framejam, motion, pipeline, platforms, postiz, render, settings, tts, usage
+from . import activity, brands, claude, context, db, framejam, motion, pipeline, platforms, postiz, render, settings, tts, usage
 from .config import ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -26,6 +26,8 @@ async def lifespan(app: FastAPI):
     db.init()
     context.cleanup(_context_in_use())
     task = asyncio.create_task(pipeline.autopilot_loop())
+    if framejam.auto() and shutil.which("npx"):
+        asyncio.create_task(framejam.start())
     yield
     task.cancel()
     render.kill_running()
@@ -37,6 +39,7 @@ app = FastAPI(title="AutoClip Studio", lifespan=lifespan)
 
 def _context_in_use() -> set[str]:
     ids = {m["id"] for p in db.list_projects(limit=100000) for m in (p["request"].get("context") or [])}
+    ids |= {m["id"] for w in db.list_workspaces() for m in (w["data"].get("context") or [])}
     return ids | {k["id"] for b in brands.list_all() for k in b.get("knowledge", [])}
 
 
@@ -75,6 +78,7 @@ class ProjectIn(BaseModel):
     brand_id: str | None = None
     context_ids: list[str] = []
     engine: str | None = None  # motion | classic (default: motion when available)
+    workspace_id: str | None = None
     model: str | None = None   # Claude model for this video (default: Connections setting for the engine)
     effort: str | None = None  # low | medium | high | xhigh | max (default: Connections setting)
 
@@ -313,8 +317,14 @@ def _with_stage(p: dict) -> dict:
 
 
 @app.get("/api/projects")
-def projects():
-    return [_with_stage(p) for p in db.list_projects()]
+def projects(workspace: str | None = None):
+    return [_with_stage(p) for p in db.list_projects(workspace_id=workspace)]
+
+
+@app.get("/api/projects/{pid}/activity")
+def project_activity(pid: str):
+    _project(pid)
+    return activity.get(pid)
 
 
 def _require_setup():
@@ -327,12 +337,14 @@ async def create_project(body: ProjectIn):
     _require_setup()
     if body.brand_id and not brands.get(body.brand_id):
         raise HTTPException(400, "That brand kit no longer exists")
-    req = body.model_dump(exclude={"context_ids"})
+    if body.workspace_id and not db.get_workspace(body.workspace_id):
+        raise HTTPException(400, "That project no longer exists")
+    req = body.model_dump(exclude={"context_ids", "workspace_id"})
     req["context"] = [m for cid in body.context_ids if (m := context.get(cid))]
     req["engine"] = body.engine or pipeline.default_engine()
     if req["engine"] == "motion" and (st := motion.status())["code"] in ("node", "ffmpeg"):
         raise HTTPException(400, f"Claude Motion needs setup: {st['detail']}")
-    p = db.create_project(req)
+    p = db.create_project(req, body.workspace_id)
     pipeline.start(p["id"])
     return p
 
@@ -526,6 +538,91 @@ def media(pid: str, name: str):
     return FileResponse(path)
 
 
+# ------------------------------------------------------------------ projects (workspaces)
+
+WS_FIELDS = ("notes", "website", "brand_id", "language", "format")
+
+
+def _workspace(wid: str) -> dict:
+    w = db.get_workspace(wid)
+    if not w:
+        raise HTTPException(404, "Project not found")
+    return {"id": w["id"], "name": w["name"], "created_at": w["created_at"],
+            **{k: w["data"].get(k, "") for k in WS_FIELDS}, "context": w["data"].get("context", []),
+            "videos": len(db.list_projects(limit=100000, workspace_id=wid))}
+
+
+class WorkspaceIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    notes: str = ""
+    website: str = ""
+    brand_id: str | None = None
+    language: str = ""
+    format: str = ""
+
+
+@app.get("/api/workspaces")
+def list_workspaces():
+    return [_workspace(w["id"]) for w in db.list_workspaces()]
+
+
+@app.post("/api/workspaces")
+def create_workspace(body: WorkspaceIn):
+    wid = uuid.uuid4().hex[:10]
+    db.save_workspace(wid, body.name.strip(), {**body.model_dump(exclude={"name"}), "context": []})
+    return _workspace(wid)
+
+
+@app.get("/api/workspaces/{wid}")
+def get_workspace(wid: str):
+    return _workspace(wid)
+
+
+@app.put("/api/workspaces/{wid}")
+def update_workspace(wid: str, body: WorkspaceIn):
+    w = db.get_workspace(wid)
+    if not w:
+        raise HTTPException(404, "Project not found")
+    if body.brand_id and not brands.get(body.brand_id):
+        raise HTTPException(400, "That brand kit no longer exists")
+    db.save_workspace(wid, body.name.strip(), {**w["data"], **body.model_dump(exclude={"name"})}, w["created_at"])
+    return _workspace(wid)
+
+
+@app.delete("/api/workspaces/{wid}")
+def delete_workspace(wid: str):
+    w = db.get_workspace(wid)
+    if w:
+        db.delete_workspace(wid)
+        in_use = _context_in_use()
+        for m in w["data"].get("context") or []:
+            if m["id"] not in in_use:
+                context.remove(m["id"])
+    return {"ok": True}
+
+
+@app.post("/api/workspaces/{wid}/context")
+async def add_workspace_context(wid: str, file: UploadFile = File(...)):
+    w = db.get_workspace(wid)
+    if not w:
+        raise HTTPException(404, "Project not found")
+    meta = await _save_upload(file)
+    db.save_workspace(wid, w["name"], {**w["data"], "context": [*(w["data"].get("context") or []), meta]}, w["created_at"])
+    return _workspace(wid)
+
+
+@app.delete("/api/workspaces/{wid}/context/{cid}")
+def remove_workspace_context(wid: str, cid: str):
+    w = db.get_workspace(wid)
+    if not w:
+        raise HTTPException(404, "Project not found")
+    db.save_workspace(wid, w["name"], {**w["data"], "context": [m for m in w["data"].get("context") or [] if m["id"] != cid]},
+                      w["created_at"])
+    if cid not in _context_in_use():
+        context.remove(cid)
+    return _workspace(wid)
+
+
 # ------------------------------------------------------------------ brand kits
 
 def _brand(bid: str) -> dict:
@@ -596,16 +693,46 @@ async def import_brand(body: ImportIn):
         raise HTTPException(502, f"Import failed: {e.__class__.__name__}: {e}"[:300])
 
 
+class WebsiteIn(BaseModel):
+    url: str = Field(min_length=3)
+
+
+@app.post("/api/brands/import-website")
+async def import_brand_website(body: WebsiteIn):
+    if not brands.find_domain(body.url):
+        raise HTTPException(400, "Enter a website like example.com")
+    try:
+        return await brands.import_website(body.url)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logging.exception("website import failed")
+        raise HTTPException(502, f"Import failed: {e.__class__.__name__}: {e}"[:300])
+
+
 @app.post("/api/brands/{bid}/sync")
 async def sync_brand(bid: str):
     b = _brand(bid)
     src = b["source"]
+    if src.get("type") == "website":
+        try:
+            return await brands.import_website(src["url"], bid=bid)
+        except Exception as e:
+            raise HTTPException(502, f"Sync failed: {e}"[:300])
     if src.get("type") != "github":
-        raise HTTPException(400, "This brand kit wasn't imported from GitHub")
+        raise HTTPException(400, "This brand kit wasn't imported from GitHub or a website")
     try:
         return await brands.import_github(src["repo"], src.get("ref"), bid=bid)
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+@app.get("/brand-media/{bid}/site/{name}")
+def brand_site_media(bid: str, name: str):
+    path = brands.asset_path(bid, f"site/{name}")
+    if not path.exists():
+        raise HTTPException(404)
+    return FileResponse(path)
 
 
 @app.get("/brand-media/{bid}/{name}")
@@ -678,6 +805,11 @@ _install = {"running": False, "error": None}
 def motion_status():
     return {**motion.status(), "installing": _install["running"], "install_error": _install["error"],
             "default_engine": pipeline.default_engine()}
+
+
+@app.post("/api/framejam/start")
+async def framejam_start():
+    return await framejam.start()
 
 
 @app.post("/api/motion/install")
@@ -766,11 +898,12 @@ INDEX = ROOT / "static" / "index.html"
 @app.get("/autopilot", include_in_schema=False)
 @app.get("/connections", include_in_schema=False)
 @app.get("/usage", include_in_schema=False)
+@app.get("/w/{wid}", include_in_schema=False)
 @app.get("/brands", include_in_schema=False)
 @app.get("/brands/{bid}", include_in_schema=False)
 @app.get("/projects/{pid}", include_in_schema=False)
 @app.get("/projects/{pid}/{section}", include_in_schema=False)
-def page(pid: str | None = None, section: str | None = None, bid: str | None = None):
+def page(pid: str | None = None, section: str | None = None, bid: str | None = None, wid: str | None = None):
     return FileResponse(INDEX, headers={"Cache-Control": "no-cache"})
 
 

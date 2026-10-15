@@ -188,9 +188,37 @@
   .hist { display:flex; gap:10px; font-size:13px; padding:8px 0; border-top:1px solid var(--border); }
   .hist:first-of-type { border-top:0; }
   .hist .src { font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-3); width:72px; flex:none; padding-top:2px; }
-  .savebar { position:fixed; left:0; right:0; bottom:16px; display:flex; justify-content:center; pointer-events:none; z-index:8; }
+  .savebar { z-index:16; position:fixed; left:0; right:0; bottom:16px; display:flex; justify-content:center; pointer-events:none; z-index:8; }
   .savebar > div { pointer-events:auto; display:flex; align-items:center; gap:12px; background:var(--text); color:var(--bg); padding:8px 8px 8px 16px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
   .savebar .btn.ghost { color:var(--bg); } .savebar .btn.ghost:hover { background:rgba(127,127,127,.2); }
+
+  /* workspaces */
+  .wsbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+  .wsbar a, .wsbar button { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:99px; border:1px solid var(--border-strong); background:var(--surface); color:var(--text-2); text-decoration:none; font:inherit; font-size:13px; font-weight:600; cursor:pointer; }
+  .wsbar a.on { background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
+  .wsbar .n { font-size:11px; color:var(--text-3); font-weight:500; }
+  /* live activity */
+  .live { display:grid; grid-template-columns:200px 1fr; gap:14px; }
+  @media (max-width: 700px) { .live { grid-template-columns:1fr; } }
+  .live .shot { border-radius:10px; overflow:hidden; background:var(--surface-2); aspect-ratio:9/12; display:flex; align-items:center; justify-content:center; color:var(--text-3); font-size:12px; text-align:center; }
+  .live .shot img { width:100%; height:100%; object-fit:contain; background:#000; }
+  .feed { display:flex; flex-direction:column; gap:6px; max-height:260px; overflow:auto; }
+  .feed .ev { display:flex; gap:8px; font-size:13px; line-height:1.4; }
+  .feed .ev .t { color:var(--text-3); font-size:11px; width:44px; flex:none; padding-top:2px; font-variant-numeric:tabular-nums; }
+  .feed .ev.say .x { font-style:italic; color:var(--text); }
+  .feed .ev.step .x { color:var(--text-2); }
+  .feed .ev.warn .x { color:var(--warn); } .feed .ev.done .x { color:var(--ok); }
+  .feed .ev:first-child .x { font-weight:600; }
+  /* background jobs dock */
+  .dock { position:fixed; right:16px; bottom:16px; width:min(320px, calc(100vw - 32px)); z-index:15; background:var(--surface); border:1px solid var(--border-strong); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.25); overflow:hidden; }
+  .dock .hd { display:flex; align-items:center; gap:8px; padding:8px 12px; cursor:pointer; font-size:13px; font-weight:600; }
+  .dock .hd .grow { flex:1; }
+  .dock .job { display:grid; grid-template-columns:40px 1fr; gap:10px; padding:10px 12px; border-top:1px solid var(--border); text-decoration:none; color:inherit; }
+  .dock .job:hover { background:var(--surface-2); }
+  .dock .job .th { width:40px; height:52px; border-radius:6px; background:var(--surface-2); overflow:hidden; display:flex; align-items:center; justify-content:center; color:var(--text-3); }
+  .dock .job .th img { width:100%; height:100%; object-fit:cover; }
+  .dock .job .ti { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dock .job .st { font-size:12px; color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
   /* usage */
   .tiles { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; }
@@ -319,8 +347,52 @@
     <!-- ===================================================== STUDIO -->
     <section class="page" x-show="route.page==='studio'">
       <div class="page-head">
-        <div><h1><span x-t>Studio</span></h1><p class="sub"><span x-t>Describe a video and Claude writes it, picks footage and renders it.</span></p></div>
+        <div><h1 x-text="ws() ? ws().name : t('Studio')"></h1>
+          <p class="sub" x-text="ws() ? (ws().website ? t('Videos in this project use {site} and its own context.', {site: ws().website}) : t('Videos in this project share its brand kit, instructions and context files.')) : t('Describe a video and Claude writes it, picks footage and renders it.')"></p></div>
+        <button class="btn" x-show="ws()" @click="wsOpen=!wsOpen"><span x-text="wsOpen ? t('Hide project settings') : t('Project settings')"></span></button>
       </div>
+
+      <nav class="wsbar" :aria-label="t('Projects')">
+        <a href="/" :class="!route.id&&'on'" @click.prevent="nav('/')"><span x-t>All videos</span><span class="n" x-text="projects.length"></span></a>
+        <template x-for="w in workspaces" :key="w.id">
+          <a :href="`/w/${w.id}`" :class="route.id===w.id&&'on'" @click.prevent="nav(`/w/${w.id}`)"><span x-text="w.name"></span><span class="n" x-text="projects.filter(p => p.workspace_id===w.id).length"></span></a>
+        </template>
+        <button type="button" @click="newWs = {open:true, name:'', website:''}"><svg class="i"><use href="#i-plus"/></svg><span x-t>New project</span></button>
+      </nav>
+
+      <template x-if="ws() && wsOpen">
+        <div class="card" style="margin-bottom:16px">
+          <div class="grid-2">
+            <div class="stack">
+              <div class="field"><label><span x-t>Name</span></label><input x-model="wsForm.name"></div>
+              <div class="field"><label><span x-t>Website</span></label><input x-model="wsForm.website" placeholder="example.com">
+                <p class="hint"><span x-t>Without a brand kit, its design (colors, fonts, logo, product images) is read from this site automatically.</span></p></div>
+              <div class="field"><label><span x-t>Brand kit</span></label>
+                <select x-model="wsForm.brand_id"><option value="" x-t>From the website, or none</option><template x-for="b in brandList" :key="b.id"><option :value="b.id" x-text="b.name" :selected="b.id===wsForm.brand_id"></option></template></select></div>
+              <div class="grid-2">
+                <div class="field"><label><span x-t>Language</span></label><select x-model="wsForm.language"><option value="" x-t>Any</option><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===wsForm.language"></option></template></select></div>
+                <div class="field"><label><span x-t>Format</span></label><select x-model="wsForm.format"><option value="" x-t>Any</option><option value="shorts" x-t>Vertical 9:16</option><option value="youtube" x-t>Landscape 16:9</option><option value="square" x-t>Square 1:1</option></select></div>
+              </div>
+            </div>
+            <div class="stack">
+              <div class="field"><label><span x-t>Instructions for Claude</span></label>
+                <textarea x-model="wsForm.notes" style="min-height:120px" :placeholder="t('e.g. Audience: badminton players in Hanoi. Always end with the app download link. Never mention competitors.')"></textarea></div>
+              <div class="field"><label><span x-t>Context files</span></label>
+                <div class="files">
+                  <template x-for="m in (ws().context||[])" :key="m.id">
+                    <span class="filechip"><svg class="i" style="width:13px;height:13px"><use href="#i-clip"/></svg><span class="n" x-text="m.name"></span><span class="muted" x-text="fmtChars(m.chars)"></span><button type="button" class="x" @click="removeWsContext(m)" :title="t('Remove')">✕</button></span>
+                  </template>
+                  <label class="btn ghost sm uploadbtn"><span class="spin" x-show="uploadingContext"></span><svg class="i" x-show="!uploadingContext"><use href="#i-clip"/></svg><span x-t>Add files</span><input type="file" multiple :accept="contextAccept" @change="addWsContext($event)"></label>
+                </div>
+                <p class="hint"><span x-t>Every video in this project uses these files as source material.</span></p></div>
+            </div>
+          </div>
+          <div class="actions" style="margin-top:14px;justify-content:space-between">
+            <button class="btn ghost danger" @click="askDeleteWs()"><svg class="i"><use href="#i-trash"/></svg><span x-t>Delete project</span></button>
+            <button class="btn primary" @click="saveWs()" :disabled="!wsForm.name?.trim() || !wsDirty"><span x-t>Save project</span></button>
+          </div>
+        </div>
+      </template>
 
       <div class="notice" x-show="ready && missingSetup().length" style="margin-bottom:16px">
         <svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg>
@@ -338,6 +410,10 @@
             <label class="btn ghost sm uploadbtn"><span class="spin" x-show="uploadingContext"></span><svg class="i" x-show="!uploadingContext"><use href="#i-clip"/></svg><span x-t>Add context files</span>
               <input type="file" multiple :accept="contextAccept" @change="addFormContext($event)"></label>
             <span class="small muted" x-show="!form.context.length"><span x-t>Optional: articles, notes, product docs or transcripts for Claude to base the script on.</span></span>
+          </div>
+          <div class="notice info" style="margin-top:10px" x-show="topicDomain() && !form.brand_id && !(ws()?.brand_id)">
+            <svg class="i" style="margin-top:2px"><use href="#i-link"/></svg>
+            <div x-text="brandForDomain(topicDomain()) ? t('Uses the {name} brand kit for {site}.', {name: brandForDomain(topicDomain()).name, site: topicDomain()}) : t('Claude will read {site} and build its brand kit (colors, fonts, logo, product images) before designing the video.', {site: topicDomain()})"></div>
           </div>
           <div class="field" style="margin-top:12px">
             <label><span x-t>Engine</span></label>
@@ -416,12 +492,12 @@
         </fieldset>
       </div>
 
-      <div class="page-head" style="margin:28px 0 12px"><h2 x-text="t('Projects') + ' · ' + projects.length"></h2></div>
-      <template x-if="!projects.length">
+      <div class="page-head" style="margin:28px 0 12px"><h2 x-text="t('Videos') + ' · ' + visibleProjects().length"></h2></div>
+      <template x-if="!visibleProjects().length">
         <div class="card empty"><h2><span x-t>No videos yet</span></h2><p><span x-t>Your first video will appear here while it renders.</span></p></div>
       </template>
       <div class="projects">
-        <template x-for="p in projects" :key="p.id">
+        <template x-for="p in visibleProjects()" :key="p.id">
           <a class="pcard" :href="`/projects/${p.id}`" @click.prevent="nav(`/projects/${p.id}`)">
             <div class="pthumb">
               <template x-if="projThumb(p)"><img :src="projThumb(p)" alt="" loading="lazy"></template>
@@ -465,7 +541,28 @@
             </div>
           </div>
 
-          <div class="notice" x-show="isBusy(cur)" style="margin-bottom:16px">
+          <div class="card" x-show="isBusy(cur)" style="margin-bottom:16px;padding:14px">
+            <div class="live">
+              <div class="shot">
+                <template x-if="live.preview"><img :src="`/media/${cur.id}/${live.preview}`" alt=""></template>
+                <template x-if="!live.preview"><div style="padding:12px"><span class="spin"></span><div style="margin-top:8px"><span x-t>The first preview appears as soon as Claude looks at a frame.</span></div></div></template>
+              </div>
+              <div style="min-width:0">
+                <div class="actions" style="justify-content:space-between;margin-bottom:8px">
+                  <strong x-text="cur.stage ? t(cur.stage.replace(/\d+ of \d+/, '{k} of {n}').replace(/^Reading (.+)$/, 'Reading {site}'), {...stageVars(cur.stage), site: (cur.stage.match(/^Reading (.+)$/)||[])[1]}) : busyText(cur)"></strong>
+                  <span class="chip warn" x-text="statusText(cur)"></span>
+                </div>
+                <div class="bar" style="margin-bottom:10px"><i :style="`width:${Math.max(4,cur.progress)}%`"></i></div>
+                <div class="feed">
+                  <template x-for="(e, i) in [...(live.events||[])].reverse().slice(0, 14)" :key="e.at + ':' + i">
+                    <div class="ev" :class="e.kind"><span class="t" x-text="clock(e.at)"></span><span class="x" x-text="e.kind==='say' ? '“' + e.text.replace(/^“|”$/g, '') + '”' : t(e.text)"></span></div>
+                  </template>
+                  <div class="small muted" x-show="!(live.events||[]).length"><span x-t>Waiting for Claude…</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notice" x-show="false" style="margin-bottom:16px">
             <span class="spin" style="margin-top:3px"></span>
             <div style="flex:1"><div x-text="busyText(cur) + (cur.stage ? ' — ' + t(cur.stage.replace(/\d+ of \d+/, '{k} of {n}'), stageVars(cur.stage)) : '')"></div><div class="bar" style="margin-top:6px"><i :style="`width:${Math.max(4,cur.progress)}%`"></i></div></div>
           </div>
@@ -766,6 +863,7 @@
       <div class="page-head">
         <div><h1><span x-t>Brand kits</span></h1><p class="sub"><span x-t>A design system for your videos: logo, colors, font, intro/outro, music, b-roll and tone of voice.</span></p></div>
         <div class="actions">
+          <button class="btn" @click="siteImport={open:true, url:'', busy:false}"><svg class="i"><use href="#i-link"/></svg><span x-t>Import from website</span></button>
           <button class="btn" @click="openImport()"><svg class="i"><use href="#i-github"/></svg><span x-t>Import from GitHub</span></button>
           <button class="btn primary" @click="newBrand.open=true; newBrand.name=''"><svg class="i"><use href="#i-plus"/></svg><span x-t>New brand kit</span></button>
         </div>
@@ -792,6 +890,7 @@
                 <div class="swatches"><template x-for="c in [b.colors.primary, b.colors.accent, b.colors.text]"><span class="swatch" :style="`background:${c}`"></span></template></div></div>
               <div class="small muted" x-text="brandSummary(b)"></div>
               <div class="small muted" x-show="b.source?.type==='github'"><svg class="i" style="width:12px;height:12px;vertical-align:-1px"><use href="#i-github"/></svg> <span x-text="b.source.repo"></span></div>
+              <div class="small muted" x-show="b.source?.type==='website'"><svg class="i" style="width:12px;height:12px;vertical-align:-1px"><use href="#i-link"/></svg> <span x-text="b.source.domain"></span></div>
             </div>
           </a>
         </template>
@@ -810,11 +909,13 @@
                 <template x-if="brand.source?.type==='github'"><span><svg class="i" style="width:12px;height:12px;vertical-align:-1px"><use href="#i-github"/></svg>
                   <a :href="`https://github.com/${brand.source.repo}`" target="_blank" rel="noopener" x-text="brand.source.repo + '@' + brand.source.ref"></a>
                   <span x-t>· imported</span> <span x-text="ago(brand.source.imported_at)"></span> · <span x-text="{manifest:t('from autoclip.brand.json'), claude:t('analyzed by Claude'), heuristic:t('guessed from file names')}[brand.source.mode]"></span></span></template>
-                <template x-if="brand.source?.type!=='github'"><span><span x-t>Built by hand</span></span></template>
+                <template x-if="brand.source?.type==='website'"><span><svg class="i" style="width:12px;height:12px;vertical-align:-1px"><use href="#i-link"/></svg>
+                  <a :href="brand.source.url" target="_blank" rel="noopener" x-text="brand.source.domain"></a> · <span x-text="t('imported {ago}', {ago: ago(brand.source.imported_at)})"></span></span></template>
+                <template x-if="!['github','website'].includes(brand.source?.type)"><span><span x-t>Built by hand</span></span></template>
               </div>
             </div>
             <div class="actions">
-              <button class="btn" x-show="brand.source?.type==='github'" @click="syncBrand()" :disabled="syncing"><span class="spin" x-show="syncing"></span><svg class="i" x-show="!syncing"><use href="#i-retry"/></svg><span x-t>Sync from GitHub</span></button>
+              <button class="btn" x-show="['github','website'].includes(brand.source?.type)" @click="syncBrand()" :disabled="syncing"><span class="spin" x-show="syncing"></span><svg class="i" x-show="!syncing"><use href="#i-retry"/></svg><span x-text="brand.source?.type==='website' ? t('Re-read website') : t('Sync from GitHub')"></span></button>
               <button class="btn" @click="useBrand()"><svg class="i"><use href="#i-film"/></svg><span x-t>Create a video</span></button>
               <button class="btn ghost danger" :title="t('Delete brand kit')" @click="askDeleteBrand()"><svg class="i"><use href="#i-trash"/></svg></button>
             </div>
@@ -919,6 +1020,15 @@
                   </div>
                 </template>
               </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:16px" x-show="brand.site?.images?.length">
+            <div class="card-head"><div class="grow"><h2><span x-t>Website visuals</span></h2><p x-text="t('Captured from {site}. Claude Motion features them where the video talks about the product.', {site: brand.site?.domain})"></p></div></div>
+            <div class="cliplib">
+              <template x-for="im in (brand.site?.images||[])" :key="im.file">
+                <div class="c"><img :src="brandUrl(brand, im.file)" alt="" style="object-fit:contain"><div class="b small muted" x-text="im.description"></div></div>
+              </template>
             </div>
           </div>
 
@@ -1261,7 +1371,11 @@
               <div class="grow"><h2><span x-t>FrameJam</span> <span class="small muted"><span x-t>optional</span></span></h2><p><span x-t>Review renders frame by frame; Claude applies your comments.</span></p></div>
               <span class="chip" :class="status.framejam?.ok?'ok':''" x-text="status.framejam?.ok?t('Running'):t('Not running')"></span>
             </div>
-            <p class="small muted" x-show="!status.framejam?.ok"><span x-t>Start it with</span> <code>npx -y framejam start</code> <span x-t>(Node 22+), then</span> <a href="#" @click.prevent="refreshStatus()"><span x-t>check again</span></a>.</p>
+            <label class="toggle small"><input type="checkbox" :checked="cfg.framejam?.auto !== false" @change="cfg.framejam.auto = $event.target.checked; saveSection('framejam')"> <span x-t>Send every render to FrameJam and start it automatically</span></label>
+            <div class="actions" style="margin-top:10px" x-show="!status.framejam?.ok">
+              <button class="btn" @click="startFramejam()" :disabled="startingFj"><span class="spin" x-show="startingFj"></span><span x-t>Start FrameJam</span></button>
+              <span class="small muted"><span x-t>Needs Node 22+.</span></span>
+            </div>
             <details style="margin-top:10px"><summary><span x-t>Address</span></summary>
               <div class="actions" style="margin-top:8px;flex-wrap:nowrap"><input x-model="cfg.framejam.url"><button class="btn" @click="saveSection('framejam')"><span x-t>Save</span></button></div>
             </details>
@@ -1344,6 +1458,45 @@
         </div>
       </div>
     </section>
+  </div>
+
+  <!-- ======================================================= background jobs -->
+  <div class="dock" x-show="dockJobs().length" x-transition>
+    <div class="hd" @click="dockOpen=!dockOpen"><span class="spin" style="color:var(--accent)"></span><span class="grow" x-text="t(dockJobs().length > 1 ? '{n} videos in progress' : '{n} video in progress', {n: dockJobs().length})"></span><span x-text="dockOpen ? '▾' : '▸'"></span></div>
+    <template x-for="p in dockJobs()" :key="p.id">
+      <a class="job" x-show="dockOpen" :href="`/projects/${p.id}`" @click.prevent="nav(`/projects/${p.id}`)">
+        <span class="th"><img x-show="projThumb(p)" :src="projThumb(p)" alt=""><svg class="i" x-show="!projThumb(p)"><use href="#i-film"/></svg></span>
+        <span style="min-width:0"><div class="ti" x-text="p.script?.title || p.request.topic"></div>
+          <div class="st" x-text="statusText(p) + (p.stage ? ' · ' + t(p.stage.replace(/\d+ of \d+/, '{k} of {n}'), stageVars(p.stage)) : '')"></div>
+          <div class="bar" style="margin-top:6px"><i :style="`width:${Math.max(4,p.progress)}%`"></i></div></span>
+      </a>
+    </template>
+  </div>
+
+  <div class="modal" x-show="newWs.open" x-transition.opacity @click.self="newWs.open=false">
+    <div class="card">
+      <h2><span x-t>New project</span></h2>
+      <p class="muted small" style="margin-top:4px"><span x-t>A project groups videos that share a brand kit, a website, instructions and context files — e.g. one per product or channel.</span></p>
+      <div class="field" style="margin-top:12px"><label><span x-t>Name</span></label><input x-model="newWs.name" @keydown.enter="createWs()"></div>
+      <div class="field" style="margin-top:10px"><label><span x-t>Website</span> <span class="muted"><span x-t>(optional)</span></span></label><input x-model="newWs.website" placeholder="example.com" @keydown.enter="createWs()"></div>
+      <div class="actions" style="margin-top:16px;justify-content:flex-end">
+        <button class="btn" @click="newWs.open=false"><span x-t>Cancel</span></button>
+        <button class="btn primary" @click="createWs()" :disabled="!newWs.name.trim()"><span x-t>Create</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" x-show="siteImport.open" x-transition.opacity @click.self="!siteImport.busy && (siteImport.open=false)">
+    <div class="card">
+      <h2><span x-t>Import a brand kit from a website</span></h2>
+      <p class="muted small" style="margin-top:4px"><span x-t>Claude opens the site in a headless browser and takes its colors, fonts, logo, copy and product images.</span></p>
+      <div class="field" style="margin-top:12px"><label><span x-t>Website</span></label><input x-model="siteImport.url" placeholder="example.com" @keydown.enter="runSiteImport()" :disabled="siteImport.busy"></div>
+      <div class="notice info" x-show="siteImport.busy" style="margin-top:12px"><span class="spin" style="margin-top:3px"></span><div><span x-t>Reading the website and building the kit… about 2 minutes.</span></div></div>
+      <div class="actions" style="margin-top:16px;justify-content:flex-end">
+        <button class="btn" @click="siteImport.open=false" :disabled="siteImport.busy"><span x-t>Cancel</span></button>
+        <button class="btn primary" @click="runSiteImport()" :disabled="siteImport.busy || !siteImport.url.trim()"><span x-t>Import</span></button>
+      </div>
+    </div>
   </div>
 
   <!-- ======================================================= overlays -->
@@ -1448,6 +1601,7 @@ function parseRoute(pathname) {
   const p = pathname.split('/').filter(Boolean);
   if (p[0] === 'projects' && p[1]) return { page:'project', id:p[1], sub: EDITOR_TABS.includes(p[2]) ? p[2] : 'scenes' };
   if (p[0] === 'brands' && p[1]) return { page:'brand', id:p[1], sub:null };
+  if (p[0] === 'w' && p[1]) return { page:'studio', id:p[1], sub:null };
   if (['ideas','autopilot','connections','brands','usage'].includes(p[0])) return { page:p[0], id:null, sub:null };
   return { page:'studio', id:null, sub:null };
 }
@@ -1461,6 +1615,8 @@ function app() {
     form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'' },
     models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, showTable: false, hoverDay: null,
     projUsage: {}, editModel: '', editEffort: '',
+    workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' }, siteImport: { open:false, url:'', busy:false },
+    live: {}, dockOpen: true, startingFj: false,
     uploadingContext: false, motionInfo: {}, voiceEdit: false, voiceKey: '', savingVoice: false, elevenVoices: [], previewing: false, contextAccept: '.txt,.md,.markdown,.pdf,.docx,.html,.htm,.csv,.json,.srt,.vtt,.yaml,.yml',
     brandList: [], brand: null, brandBase: '', brandMissing: false, syncing: false,
     importer: { open:false, url:'', ref:'', busy:false }, newBrand: { open:false, name:'' },
@@ -1499,8 +1655,8 @@ function app() {
       try { localStorage.setItem('autoclip.theme', theme); } catch {}
     },
     setTitle() {
-      const name = { studio:'Studio', project:'Editor', ideas:'Ideas', autopilot:'Autopilot', connections:'Connections', brands:'Brand kits', brand:'Brand kit', usage:'Usage' }[this.route.page];
-      document.title = this.t(name) + ' · AutoClip Studio';
+      const name = this.ws() ? null : { studio:'Studio', project:'Editor', ideas:'Ideas', autopilot:'Autopilot', connections:'Connections', brands:'Brand kits', brand:'Brand kit', usage:'Usage' }[this.route.page];
+      document.title = (name ? this.t(name) : this.ws().name) + ' · AutoClip Studio';
     },
 
     // ------------------------------------------------ helpers
@@ -1590,6 +1746,7 @@ function app() {
       this.setTitle();
       if (r.page === 'brands') this.loadBrands();
       if (r.page === 'usage') this.loadUsage();
+      if (r.page === 'studio' && r.id !== prev.id) { this.wsOpen = false; this.syncWsForm(); }
       if (r.page === 'brand' && (prev.page !== 'brand' || prev.id !== r.id || !this.brand)) this.loadBrand(r.id);
       if (r.page === 'project' && (prev.page !== 'project' || prev.id !== r.id || !this.cur)) await this.openProject(r.id);
       if (r.page === 'connections') this.loadConnections();
@@ -1618,12 +1775,12 @@ function app() {
       });
       window.addEventListener('beforeunload', e => { if (this.dirty || this.brandDirty) { e.preventDefault(); e.returnValue = ''; } });
       try { this.form.brand_id = localStorage.getItem('autoclip.brand') || null; } catch {}
-      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage()]);
+      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces()]);
       if (['node','ffmpeg'].includes(this.motionInfo.code)) this.form.engine = 'classic';
       if (this.form.brand_id && !this.brandById(this.form.brand_id)) this.form.brand_id = null;
       this.ready = true;
       await this.onRoute();
-      setInterval(() => this.loadProjects(), 2500);
+      setInterval(() => { this.loadProjects(); this.loadLive(); }, 2500);
       setInterval(() => this.refreshStatus(), 30000);
     },
     async refreshStatus() { this.status = await this.api('/api/status').catch(() => this.status); },
@@ -1653,7 +1810,7 @@ function app() {
       const { channelIds, ...f } = this.form;
       try { this.form.brand_id ? localStorage.setItem('autoclip.brand', this.form.brand_id) : localStorage.removeItem('autoclip.brand'); } catch {}
       const { context, ...rest } = f;
-      const p = await this.run(() => this.api('/api/projects', { method:'POST', body:{ ...rest, model: rest.model || null, effort: rest.effort || null, context_ids: context.map(c => c.id), auto_publish: f.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }));
+      const p = await this.run(() => this.api('/api/projects', { method:'POST', body:{ ...rest, workspace_id: this.ws()?.id || null, model: rest.model || null, effort: rest.effort || null, context_ids: context.map(c => c.id), auto_publish: f.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }));
       this.creating = false;
       if (p) { this.form.topic = ''; this.form.context = []; await this.loadProjects(); this.nav(`/projects/${p.id}`); }
     },
@@ -1671,6 +1828,7 @@ function app() {
       const p = this.projects.find(x => x.id === id) || await this.api(`/api/projects/${id}`).catch(() => null);
       if (!p) { this.curMissing = true; return; }
       this.cur = p;
+      this.live = {}; this.loadLive();
       this.projUsage = {}; this.loadProjectUsage();
       this.loadTimeline();
       this.pubIds = (p.request.integrations || []).map(i => i.id).filter(i => this.channels.some(c => c.id === i));
@@ -1836,6 +1994,54 @@ function app() {
       if (r?.connected) { this.github = r; this.githubToken = ''; this.githubRepos = []; this.say(this.t('GitHub connected as {name}', {name: r.login})); }
     },
     async githubDisconnect() { this.github = await this.api('/api/github', { method:'DELETE' }); this.githubRepos = []; this.say('GitHub disconnected'); },
+
+    // ------------------------------------------------ projects (workspaces)
+    ws() { return this.route.page === 'studio' && this.route.id ? this.workspaces.find(w => w.id === this.route.id) : null; },
+    get wsDirty() { return JSON.stringify(this.wsForm) !== this.wsBase; },
+    visibleProjects() { const w = this.ws(); return w ? this.projects.filter(p => p.workspace_id === w.id) : this.projects; },
+    async loadWorkspaces() { this.workspaces = await this.api('/api/workspaces').catch(() => this.workspaces); this.syncWsForm(); },
+    syncWsForm() {
+      const w = this.ws(); if (!w) return;
+      this.wsForm = { name:w.name, website:w.website||'', brand_id:w.brand_id||'', language:w.language||'', format:w.format||'', notes:w.notes||'' };
+      this.wsBase = JSON.stringify(this.wsForm);
+      if (w.language) this.form.language = w.language;
+      if (w.format) this.form.format = w.format;
+    },
+    async createWs() {
+      if (!this.newWs.name.trim()) return;
+      const w = await this.run(() => this.api('/api/workspaces', { method:'POST', body:{ name:this.newWs.name.trim(), website:this.newWs.website.trim() } }));
+      if (w?.id) { this.newWs.open = false; await this.loadWorkspaces(); this.nav(`/w/${w.id}`); this.wsOpen = true; }
+    },
+    async saveWs() {
+      const w = await this.run(() => this.api(`/api/workspaces/${this.route.id}`, { method:'PUT', body:{ ...this.wsForm, brand_id: this.wsForm.brand_id || null } }), 'Project saved');
+      if (w?.id) await this.loadWorkspaces();
+    },
+    askDeleteWs() {
+      this.confirm(this.t('Delete {name}?', {name: this.ws().name}), 'Its videos are kept and move to All videos. The project settings and its context files are removed.', 'Delete', async () => {
+        if (await this.run(() => this.api(`/api/workspaces/${this.route.id}`, { method:'DELETE' }), 'Project deleted')) { await this.loadWorkspaces(); this.nav('/'); }
+      });
+    },
+    addWsContext(ev) { return this.uploadEach(ev, async fd => { const w = await this.run(() => this.api(`/api/workspaces/${this.route.id}/context`, { method:'POST', body:fd })); if (w?.id) this.loadWorkspaces(); }); },
+    removeWsContext(m) {
+      this.confirm(this.t('Remove {what}?', {what: m.name}), 'New videos in this project will no longer use it.', 'Remove', async () => {
+        if (await this.run(() => this.api(`/api/workspaces/${this.route.id}/context/${m.id}`, { method:'DELETE' }))) this.loadWorkspaces();
+      });
+    },
+    topicDomain() { const m = (this.form.topic || '').match(/(?<![@\w.-])(?:https?:\/\/)?((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:com\.vn|com|net|org|io|ai|app|co|dev|vn|edu|gov|xyz|me|tv|store|shop|tech|so|gg|studio|design|cloud|site|online|info|biz|us|uk|de|fr|jp|sg|id|in))\b/i); return m ? m[1].toLowerCase().replace(/^www\./, '') : ((this.ws()?.website || '').replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0] || null); },
+    brandForDomain(d) { return this.brandList.find(b => b.site?.domain === d); },
+    async runSiteImport() {
+      if (!this.siteImport.url.trim() || this.siteImport.busy) return;
+      this.siteImport.busy = true;
+      const b = await this.run(() => this.api('/api/brands/import-website', { method:'POST', body:{ url:this.siteImport.url.trim() } }));
+      this.siteImport.busy = false;
+      if (b?.id) { this.siteImport.open = false; this.say(this.t('Imported {name}', {name: b.name})); await this.loadBrands(); this.nav(`/brands/${b.id}`); }
+    },
+
+    // ------------------------------------------------ live activity & background jobs
+    async loadLive() { if (this.route.page === 'project' && this.cur && this.isBusy(this.cur)) this.live = await this.api(`/api/projects/${this.cur.id}/activity`).catch(() => this.live); },
+    dockJobs() { return this.projects.filter(p => this.isBusy(p) && !(this.route.page === 'project' && this.route.id === p.id)); },
+    clock(ts) { const d = new Date(ts * 1000); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; },
+    async startFramejam() { this.startingFj = true; const r = await this.run(() => this.api('/api/framejam/start', { method:'POST' })); this.startingFj = false; await this.refreshStatus(); if (r && !r.ok) this.say(r.detail || 'FrameJam did not start', true); },
 
     // ------------------------------------------------ models & usage
     async loadModels() { this.models = await this.api('/api/models').catch(() => this.models); },
