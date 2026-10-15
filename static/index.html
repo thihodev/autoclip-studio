@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoClip Studio</title>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+<style>
+  :root { --bg:#0f1115; --panel:#181b22; --line:#2a2f3a; --text:#e7e9ee; --muted:#8b93a3; --accent:#ff4d6d; --ok:#2ecc71; --warn:#f5a623; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.5 system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); }
+  header { display:flex; align-items:center; gap:16px; padding:14px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; } header h1 span { color:var(--accent); }
+  nav button { background:none; border:0; color:var(--muted); padding:6px 10px; cursor:pointer; font:inherit; border-radius:6px; }
+  nav button.on { color:var(--text); background:var(--panel); }
+  .pills { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
+  .pill { font-size:12px; padding:3px 9px; border-radius:99px; border:1px solid var(--line); color:var(--muted); }
+  .pill.ok::before, .pill.bad::before { content:"●"; margin-right:5px; }
+  .pill.ok::before { color:var(--ok); } .pill.bad::before { color:var(--accent); }
+  main { max-width:1100px; margin:0 auto; padding:20px 16px; }
+  .grid { display:grid; grid-template-columns:380px 1fr; gap:20px; }
+  @media (max-width:860px){ .grid { grid-template-columns:1fr; } }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  label { display:block; font-size:12px; color:var(--muted); margin:10px 0 4px; }
+  input, select, textarea { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:8px; font:inherit; }
+  textarea { min-height:70px; resize:vertical; }
+  .row { display:flex; gap:8px; } .row > * { flex:1; }
+  button.primary { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:9px 14px; font:inherit; font-weight:600; cursor:pointer; }
+  button.ghost { background:none; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 10px; font:inherit; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  .chk { display:flex; align-items:center; gap:6px; margin:4px 0; color:var(--text); font-size:13px; } .chk input { width:auto; }
+  .proj { display:grid; grid-template-columns:120px 1fr; gap:14px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .proj:last-child { border:0; }
+  .thumb { width:120px; aspect-ratio:9/16; background:#000; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px; }
+  .thumb video { width:100%; height:100%; object-fit:cover; }
+  .bar { height:4px; background:var(--line); border-radius:2px; overflow:hidden; margin:6px 0; } .bar i { display:block; height:100%; background:var(--accent); }
+  .st { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  .st.published, .st.ready { color:var(--ok); } .st.failed { color:var(--accent); }
+  .err { color:var(--accent); font-size:12px; white-space:pre-wrap; }
+  .muted { color:var(--muted); font-size:12px; }
+  .idea { padding:10px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; cursor:pointer; } .idea:hover { border-color:var(--accent); }
+  details summary { cursor:pointer; color:var(--muted); font-size:12px; margin-top:6px; }
+  pre { white-space:pre-wrap; font-size:12px; background:var(--bg); padding:8px; border-radius:6px; }
+</style>
+</head>
+<body x-data="app()" x-init="init()">
+<header>
+  <h1>Auto<span>Clip</span> Studio</h1>
+  <nav>
+    <button :class="tab==='create'&&'on'" @click="tab='create'">Tạo video</button>
+    <button :class="tab==='ideas'&&'on'" @click="tab='ideas'">Ý tưởng</button>
+    <button :class="tab==='autopilot'&&'on'" @click="tab='autopilot'">Autopilot</button>
+  </nav>
+  <div class="pills">
+    <span class="pill" :class="status.claude?.ok?'ok':'bad'" :title="status.claude?.detail">Claude</span>
+    <span class="pill" :class="status.mpt?.ok?'ok':'bad'" :title="status.mpt?.detail">MoneyPrinterTurbo</span>
+    <span class="pill" :class="status.postiz?.ok?'ok':'bad'" :title="status.postiz?.detail">Postiz</span>
+  </div>
+</header>
+
+<main>
+  <!-- CREATE -->
+  <div class="grid" x-show="tab==='create'">
+    <div class="card">
+      <strong>Video mới</strong>
+      <label>Chủ đề</label>
+      <textarea x-model="form.topic" placeholder="VD: 5 sự thật thú vị về não bộ con người"></textarea>
+      <div class="row">
+        <div><label>Ngôn ngữ</label>
+          <select x-model="form.language"><option>Vietnamese</option><option>English</option></select></div>
+        <div><label>Định dạng</label>
+          <select x-model="form.format">
+            <option value="shorts">Dọc 9:16 (Shorts/TikTok/Reels)</option>
+            <option value="youtube">Ngang 16:9 (YouTube)</option>
+            <option value="square">Vuông 1:1</option>
+          </select></div>
+      </div>
+      <div class="row">
+        <div><label>Độ dài (giây)</label><input type="number" x-model.number="form.duration" min="10" max="600"></div>
+        <div><label>Nguồn footage</label>
+          <select x-model="form.video_source"><option value="pexels">Pexels</option><option value="pixabay">Pixabay</option></select></div>
+      </div>
+      <label>Phong cách / giọng điệu</label>
+      <input x-model="form.style" placeholder="hài hước, kể chuyện, giáo dục...">
+      <label>Giọng đọc (edge-tts, để trống = mặc định)</label>
+      <input x-model="form.voice" placeholder="vi-VN-NamMinhNeural-Male">
+      <label>Kênh đăng</label>
+      <template x-if="!channels.length"><div class="muted">Chưa có kênh — kết nối TikTok/YouTube/Facebook trong Postiz.</div></template>
+      <template x-for="c in channels" :key="c.id">
+        <label class="chk"><input type="checkbox" :value="c.id" x-model="form.channelIds"><span x-text="`${c.provider} · ${c.name}`"></span></label>
+      </template>
+      <label class="chk"><input type="checkbox" x-model="form.auto_publish"> Tự động đăng khi render xong</label>
+      <div style="margin-top:12px"><button class="primary" @click="create()" :disabled="busy || !form.topic">Tạo video</button></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong>Dự án</strong><span class="muted" x-text="projects.length + ' video'"></span>
+      </div>
+      <template x-if="!projects.length"><p class="muted">Chưa có video nào.</p></template>
+      <template x-for="p in projects" :key="p.id">
+        <div class="proj">
+          <div class="thumb">
+            <template x-if="p.video_path"><video :src="`/videos/${p.id}.mp4`" controls preload="metadata"></video></template>
+            <template x-if="!p.video_path"><span x-text="p.status"></span></template>
+          </div>
+          <div>
+            <div class="st" :class="p.status" x-text="p.status"></div>
+            <div><strong x-text="p.script?.title || p.request.topic"></strong></div>
+            <div class="bar" x-show="['queued','scripting','rendering'].includes(p.status)"><i :style="`width:${p.progress}%`"></i></div>
+            <div class="err" x-show="p.error" x-text="p.error"></div>
+            <div class="row" style="margin-top:8px;flex-wrap:wrap;gap:6px">
+              <template x-if="p.video_path">
+                <button class="ghost" @click="publish(p)" :disabled="!form.channelIds.length">Đăng lên kênh đã chọn</button>
+              </template>
+              <template x-if="p.video_path"><a class="ghost" :href="`/videos/${p.id}.mp4`" download style="text-decoration:none;color:inherit;border:1px solid var(--line);border-radius:6px;padding:6px 10px">Tải về</a></template>
+              <template x-if="p.status==='failed'"><button class="ghost" @click="retry(p)">Thử lại</button></template>
+              <button class="ghost" @click="remove(p)">Xoá</button>
+            </div>
+            <details x-show="p.script"><summary>Kịch bản & caption</summary>
+              <pre x-text="p.script?.script"></pre>
+              <pre x-text="(p.script?.description||'') + '\n\n' + (p.script?.hashtags||[]).map(h=>'#'+h).join(' ')"></pre>
+            </details>
+            <details x-show="p.publish_result"><summary>Kết quả đăng</summary><pre x-text="JSON.stringify(p.publish_result?.response, null, 2)"></pre></details>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- IDEAS -->
+  <div class="grid" x-show="tab==='ideas'">
+    <div class="card">
+      <strong>Claude gợi ý ý tưởng</strong>
+      <label>Ngách / chủ đề kênh</label>
+      <input x-model="ideaForm.niche" placeholder="tài chính cá nhân, lịch sử Việt Nam, mẹo công nghệ...">
+      <label>Ngôn ngữ</label>
+      <select x-model="ideaForm.language"><option>Vietnamese</option><option>English</option></select>
+      <div style="margin-top:12px"><button class="primary" @click="getIdeas()" :disabled="busy || !ideaForm.niche" x-text="busy?'Đang nghĩ...':'Gợi ý'"></button></div>
+    </div>
+    <div class="card">
+      <template x-if="!ideas.length"><p class="muted">Bấm vào một ý tưởng để chuyển sang tạo video.</p></template>
+      <template x-for="i in ideas"><div class="idea" @click="useIdea(i)">
+        <strong x-text="i.topic"></strong><div x-text="'“'+i.hook+'”'"></div><div class="muted" x-text="i.why"></div>
+      </div></template>
+    </div>
+  </div>
+
+  <!-- AUTOPILOT -->
+  <div class="card" x-show="tab==='autopilot'" style="max-width:560px">
+    <strong>Autopilot</strong>
+    <p class="muted">Định kỳ Claude nghĩ ý tưởng theo ngách → render → (tuỳ chọn) tự đăng.</p>
+    <label class="chk"><input type="checkbox" x-model="auto.enabled"> Bật autopilot</label>
+    <label>Ngách</label><input x-model="auto.niche">
+    <div class="row">
+      <div><label>Mỗi (giờ)</label><input type="number" x-model.number="auto.every_hours" min="1"></div>
+      <div><label>Số video / lượt</label><input type="number" x-model.number="auto.videos_per_run" min="1" max="10"></div>
+      <div><label>Độ dài (giây)</label><input type="number" x-model.number="auto.duration"></div>
+    </div>
+    <div class="row">
+      <div><label>Ngôn ngữ</label><select x-model="auto.language"><option>Vietnamese</option><option>English</option></select></div>
+      <div><label>Định dạng</label><select x-model="auto.format"><option value="shorts">9:16</option><option value="youtube">16:9</option></select></div>
+    </div>
+    <label>Phong cách</label><input x-model="auto.style">
+    <label>Kênh đăng</label>
+    <template x-for="c in channels" :key="c.id">
+      <label class="chk"><input type="checkbox" :value="c.id" x-model="auto.channelIds"><span x-text="`${c.provider} · ${c.name}`"></span></label>
+    </template>
+    <label class="chk"><input type="checkbox" x-model="auto.auto_publish"> Tự động đăng</label>
+    <div style="margin-top:12px"><button class="primary" @click="saveAuto()">Lưu</button> <span class="muted" x-text="saved"></span></div>
+  </div>
+</main>
+
+<script>
+function app() {
+  return {
+    tab: 'create', busy: false, saved: '',
+    status: {}, channels: [], projects: [], ideas: [],
+    form: { topic:'', language:'Vietnamese', format:'shorts', duration:45, video_source:'pexels', style:'', voice:'', channelIds:[], auto_publish:false },
+    ideaForm: { niche:'', language:'Vietnamese' },
+    auto: { channelIds: [] },
+    async api(path, opts={}) {
+      const r = await fetch(path, { headers:{'Content-Type':'application/json'}, ...opts, body: opts.body && JSON.stringify(opts.body) });
+      if (!r.ok) { const t = await r.text(); let m=t; try { m = JSON.parse(t).detail } catch {} ; alert(m); throw new Error(m); }
+      return r.json();
+    },
+    pick(ids) { return this.channels.filter(c => ids.includes(c.id)).map(({id,provider,name}) => ({id,provider,name})); },
+    async init() {
+      this.api('/api/status').then(s => this.status = s);
+      this.api('/api/integrations').then(c => this.channels = c.filter(x => !x.disabled)).catch(()=>{});
+      this.api('/api/autopilot').then(a => this.auto = { ...a, channelIds: (a.integrations||[]).map(i=>i.id) });
+      await this.load();
+      setInterval(() => this.load(), 4000);
+    },
+    async load() { this.projects = await this.api('/api/projects'); },
+    async create() {
+      this.busy = true;
+      try {
+        const { channelIds, ...f } = this.form;
+        await this.api('/api/projects', { method:'POST', body:{ ...f, integrations: this.pick(channelIds) } });
+        this.form.topic = ''; await this.load();
+      } finally { this.busy = false; }
+    },
+    async publish(p) { await this.api(`/api/projects/${p.id}/publish`, { method:'POST', body:{ integrations: this.pick(this.form.channelIds) } }); this.load(); },
+    async retry(p) { await this.api(`/api/projects/${p.id}/retry`, { method:'POST' }); this.load(); },
+    async remove(p) { await this.api(`/api/projects/${p.id}`, { method:'DELETE' }); this.load(); },
+    async getIdeas() { this.busy = true; try { this.ideas = await this.api('/api/ideas', { method:'POST', body:this.ideaForm }); } finally { this.busy = false; } },
+    useIdea(i) { this.form.topic = `${i.topic}\nHook: ${i.hook}`; this.form.language = this.ideaForm.language; this.tab = 'create'; },
+    async saveAuto() {
+      const { channelIds, ...a } = this.auto;
+      await this.api('/api/autopilot', { method:'PUT', body:{ ...a, integrations: this.pick(channelIds) } });
+      this.saved = 'Đã lưu'; setTimeout(() => this.saved = '', 2000);
+    },
+  };
+}
+</script>
+</body>
+</html>
