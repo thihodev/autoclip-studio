@@ -906,7 +906,7 @@
                 <div class="field"><label><span x-t>Background music</span></label>
                   <div class="actions" style="flex-wrap:nowrap"><div style="flex:1;min-width:0">
                     <select x-select x-model="form.music">
-                      <option value="" x-t>Automatic (brand kit music, else the library)</option>
+                      <option value="" x-t>Automatic: music that fits the video</option>
                       <option value="none" x-t>No music</option>
                       <template x-for="m in musicList" :key="m.file"><option :value="m.file" x-text="m.name + (m.mood && m.mood !== m.name ? ' · ' + m.mood : '')"></option></template>
                     </select></div>
@@ -2628,13 +2628,19 @@
             <p class="hint" x-show="['node','ffmpeg'].includes(motionInfo.code)"><span x-t>Install it, then reload this page. Videos use the Quick engine until then.</span></p>
       </div>
       <div x-show="conn==='audio'">
-        <h3 class="chead" style="margin-top:0"><span x-t>Music library</span></h3>
+        <h3 class="chead" style="margin-top:0"><span x-t>Automatic music</span></h3>
+        <p class="small muted" style="margin:0 0 8px"><span x-t>Claude names the music each video needs. AutoClip uses the brand kit's music, else a library track with that mood. When none fits:</span></p>
+        <div class="seg full" role="radiogroup" :aria-label="t('Automatic music')">
+          <template x-for="o in ['free','elevenlabs','off']" :key="o"><button type="button" role="radio" :aria-checked="String((cfg.music?.auto || 'free')===o)" :class="(cfg.music?.auto || 'free')===o && 'on'" @click="setMusicAuto(o)" x-text="t({free:'Find free music', elevenlabs:'Generate with ElevenLabs', off:'No music'}[o])"></button></template></div>
+        <p class="hint" x-text="t({free:'Looks up an instrumental track on Openverse (CC0 or CC BY, from Jamendo), adds it to the library and puts its credit in the caption. No key needed.', elevenlabs:'Makes a track of the right length (uses ElevenLabs credits); without a key it looks up a free one instead.', off:'Videos get music only from the brand kit or a track you pick.'}[cfg.music?.auto || 'free'])"></p>
+        <h3 class="chead"><span x-t>Music library</span></h3>
         <template x-if="!musicList.length"><p class="small muted"><span x-t>No tracks yet. Add music you have the rights to, or generate it with ElevenLabs.</span></p></template>
         <div class="stack">
           <template x-for="m in musicList" :key="m.file">
             <div class="acct-row">
               <button type="button" class="btn icon" @click="playTrack(m.file)" :aria-label="t('Listen')"><svg class="i"><use :href="playing===m.file ? '#i-pause' : '#i-play'"/></svg></button>
-              <div class="grow"><div x-text="m.name"></div><div class="small muted" x-text="[m.mood, fmtDur(m.duration), m.source==='elevenlabs' ? 'ElevenLabs' : ''].filter(Boolean).join(' · ')"></div></div>
+              <div class="grow"><div x-text="m.name"></div><div class="small muted"><span x-text="[m.mood, fmtDur(m.duration), m.source==='elevenlabs' ? 'ElevenLabs' : m.source==='openverse' ? 'Openverse · ' + (m.license || '') : ''].filter(Boolean).join(' · ')"></span>
+                <a x-show="m.link" :href="m.link" target="_blank" rel="noopener" x-t>Source</a></div></div>
               <button class="btn ghost icon danger" @click="removeTrack(m)" :aria-label="t('Remove')"><svg class="i"><use href="#i-trash"/></svg></button>
             </div>
           </template>
@@ -3571,7 +3577,7 @@ function app() {
       if (a.voice === 'none') out.push(this.form.voice === 'none' ? this.t('No voice-over, like this video: music and on-screen text') : this.t('This video has no voice-over; yours will have one'));
       if (a.music && a.music !== 'none' && this.form.music !== 'none') { const m = a.music.split(/(?<=\.)\s/)[0]; out.push(this.t('Music like: {m}', {m: m.length > 90 ? m.slice(0, 89) + '…' : m})); }
       const brand = this.brandList.find(b => b.id === this.form.brand_id);
-      if (this.form.voice === 'none' && !this.form.music && !this.musicList.length && !brand?.music?.length) out.push(this.t('Add a track under Background music → Library, or the video will be silent'));
+      if (this.form.voice === 'none' && !this.form.music && !this.musicList.length && !brand?.music?.length && this.cfg.music?.auto === 'off') out.push(this.t('Add a track under Background music → Library, or the video will be silent'));
       if (this.form.engine !== 'motion') out.push(this.t('Quick follows only its structure and pacing; Claude Motion also follows its look and motion'));
       return out.join(' · ');
     },
@@ -4584,6 +4590,9 @@ function app() {
 
     // ------------------------------------------------ connections
     signingIn() { return ['waiting_code','verifying'].includes(this.cl.login?.state); },
+    async setMusicAuto(auto) {
+      if (await this.run(() => this.api('/api/settings/music', { method:'PUT', body:{ auto } }), 'Saved')) this.cfg.music = { auto };
+    },
     async loadConnections() {
       const [s, c] = await Promise.all([this.api('/api/settings').catch(() => null), this.api('/api/claude').catch(() => null)]);
       if (s) { this.cfg = s; if (!this.footageEdit) this.footageProvider = s.footage.provider; }

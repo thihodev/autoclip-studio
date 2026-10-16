@@ -78,7 +78,7 @@ Connections is a short list; click a row for its settings.
 | **Claude** | yes | Sign in with Claude here (a separate login stored in `data/claude/`), use this computer's Claude Code login, or an Anthropic API key. Several can be saved and switched without signing in again. The app never picks an account by itself. |
 | Claude Motion | | One-click install of [HyperFrames](https://github.com/heygen-com/hyperframes) for the motion engine. |
 | Voice-over | | An [ElevenLabs](https://elevenlabs.io) key for natural voices in 70+ languages (incl. Vietnamese). Without it, free Microsoft voices (edge-tts). The key needs *Text to Speech* and *Voices → Read*. |
-| Music & sound effects | | A music library (upload tracks with a mood, or generate them with ElevenLabs Music) and AutoClip's built-in sound effects. |
+| Music & sound effects | | A music library (upload tracks with a mood, generate them with ElevenLabs Music, or let AutoClip find free ones), what *Automatic* music does when no track fits, and AutoClip's built-in sound effects. |
 | Stock footage | | A free [Pixabay](https://pixabay.com/api/docs/) key (or an existing Pexels key) for real clips in Quick videos. Without it, animated backgrounds in your brand colors. |
 | GitHub | | A fine-grained token with read-only *Contents* to use private repositories. Public repos work without it. |
 
@@ -94,7 +94,7 @@ In **Studio**, describe the video and choose:
 - **Like this video** — a reference video you've had Claude study (see below): same format, your content.
 - **Visual style** (Claude Motion) — the look, from a gallery of 43: 30 FrameJam styles (palette, fonts, easing, transitions, text animations, pacing, with posters) and the 13 HyperFrames frame presets.
 - **Hook**: *Suggest hooks* gives 3 opening lines from different angles; pick one, and optionally make a **B version** with another hook to compare.
-- **Brand kit**, language, format (9:16, 16:9, 1:1), length, tone, voice (with ▶ preview — ElevenLabs voices when connected — or *no voice-over*: captions timed to reading speed, music turned up), **background music** and **sound effects**.
+- **Brand kit**, language, format (9:16, 16:9, 1:1), length, tone, voice (with ▶ preview — ElevenLabs voices when connected — or *no voice-over*: captions timed to reading speed, music turned up), **background music** and **sound effects**. *Automatic* music fits the video: Claude names the mood it needs (genre, energy, tempo), and AutoClip uses the brand kit's music, else a library track with that mood, else finds an instrumental CC0 / CC BY track on [Openverse](https://openverse.org) (no key; its credit goes into the caption) or — if you choose so in Connections → Music — generates one with ElevenLabs. New tracks join the library.
 - **Model & effort** for this video (a Claude-style menu next to *Create video*).
 
 The composer remembers its choices for the next video.

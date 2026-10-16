@@ -9,7 +9,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import activity, brands, claude, context, db, design, editor, motion, references, playbooks, render, settings, tts, usage
+from . import activity, audio, brands, claude, context, db, design, editor, motion, references, playbooks, render, settings, tts, usage
 from .config import DATA_DIR, VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
@@ -229,7 +229,16 @@ async def run_project(pid: str):
                 brand_context=brands.prompt_context(brand),
                 source=source_material(req), project_id=pid, model=req.get("model"), effort=req.get("effort"),
             )
-            db.update_project(pid, script=meta, timeline=render.new_timeline(meta, req, brand))
+            tl = render.new_timeline(meta, req, brand)
+            mood = str(meta.get("music") or "") or tl.get("music_mood") or req.get("style", "")
+            if not tl["music"] and (m := await audio.pick_auto("", brand, pid, mood, float(req.get("duration", 45)))) \
+                    and m.get("file"):  # a new track for this video: the timeline names it, so edits keep it
+                tl["music"] = m["file"]
+                if (c := audio.credit(m["file"])):
+                    meta["description"] = f"{meta.get('description', '')}\n\n{c}".strip()
+                activity.add(pid, f"Music: {next((x['name'] for x in audio.music_list() if x['file'] == m['file']), '')}"
+                             " — added to the library", "done")
+            db.update_project(pid, script=meta, timeline=tl)
             activity.add(pid, f"Script ready: “{meta['title']}” — {len(meta['scenes'])} scenes", "say")
         await _render_version(pid, "First cut")
     except Exception as e:

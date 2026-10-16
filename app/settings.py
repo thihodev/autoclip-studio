@@ -8,6 +8,9 @@ DEFAULTS = {
     "footage": {"provider": "pixabay", "pexels_api_key": "", "pixabay_api_key": ""},
     "voice": {"elevenlabs_api_key": "", "elevenlabs_voice_id": "", "elevenlabs_voice_name": "", "elevenlabs_model": ""},
     "github": {"token": "", "login": ""},
+    # When "Automatic" music finds no brand or library track for the video's mood: "free" looks one up on Openverse
+    # (CC0 / CC BY, no key), "elevenlabs" generates one (uses ElevenLabs credits), "off" leaves the video without music.
+    "music": {"auto": "free"},
 }
 
 SECRET_KEYS = {"api_key", "pexels_api_key", "pixabay_api_key", "token", "elevenlabs_api_key"}

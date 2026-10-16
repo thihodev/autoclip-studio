@@ -3,10 +3,13 @@
 - Sound effects are synthesized with ffmpeg on first use (no downloads, no licenses to track): whoosh, pop,
   click, tick, riser, impact, ding. The Quick engine puts a whoosh on every cut; Claude Motion gets the pack in
   its project and places cues itself.
-- Music: the brand kit's tracks, a library of tracks you upload (with a mood), or tracks generated with
-  ElevenLabs Music. A video uses "auto" (brand music, else a library track), "none", or a chosen library track.
+- Music: the brand kit's tracks, a library of tracks you upload (with a mood), tracks generated with ElevenLabs
+  Music, or free tracks looked up on Openverse (CC0 / CC BY, credited in the caption). A video uses "auto", "none" or
+  a chosen library track. "auto" takes the brand's music, else a library track with the video's mood, else (when
+  none fits) looks one up or generates one — Connections → Music decides — and adds it to the library.
 """
 import asyncio
+import logging
 import json
 import re
 import shutil
@@ -16,8 +19,10 @@ from pathlib import Path
 
 import httpx
 
-from . import brands, db, render, tts
+from . import brands, db, render, settings, tts
 from .config import DATA_DIR
+
+log = logging.getLogger("audio")
 
 SFX_DIR = DATA_DIR / "sfx"
 MUSIC_DIR = DATA_DIR / "music"
@@ -76,7 +81,7 @@ def _save_list(items: list[dict]):
     db.set_setting("music_library", items)
 
 
-async def music_add(src: Path, name: str, mood: str = "", source: str = "upload") -> dict:
+async def music_add(src: Path, name: str, mood: str = "", source: str = "upload", **extra) -> dict:
     ext = src.suffix.lower()
     if ext not in MUSIC_EXT:
         raise ValueError("Use an MP3, WAV, M4A, AAC, OGG or FLAC file")
@@ -89,7 +94,7 @@ async def music_add(src: Path, name: str, mood: str = "", source: str = "upload"
         (MUSIC_DIR / file).unlink(missing_ok=True)
         raise ValueError("That file doesn't look like audio")
     item = {"file": file, "name": (name or Path(src).stem)[:80], "mood": mood[:60], "duration": round(dur, 1),
-            "source": source, "at": time.time()}
+            "source": source, "at": time.time(), **extra}
     _save_list(music_list() + [item])
     return item
 
@@ -99,7 +104,7 @@ def music_remove(file: str):
     (MUSIC_DIR / Path(file).name).unlink(missing_ok=True)
 
 
-async def music_generate(prompt: str, seconds: int) -> dict:
+async def music_generate(prompt: str, seconds: int, mood: str = "") -> dict:
     """A track from ElevenLabs Music (uses the ElevenLabs key from Connections)."""
     key = tts.cfg()["elevenlabs_api_key"]
     if not key:
@@ -114,7 +119,7 @@ async def music_generate(prompt: str, seconds: int) -> dict:
     tmp.write_bytes(r.content)
     try:
         name = re.sub(r"\s+", " ", prompt).strip()[:60]
-        return await music_add(tmp, name, mood=name, source="elevenlabs")
+        return await music_add(tmp, name, mood=(mood or name)[:60], source="elevenlabs")
     finally:
         tmp.unlink(missing_ok=True)
 
@@ -134,15 +139,116 @@ def pick(choice: str | None, brand: dict | None, pid: str, mood: str = "") -> di
             m = tracks[int(render._hash(pid), 16) % len(tracks)]
             return {"path": brands.asset_path(brand["id"], m["file"]), "volume": float(m.get("volume", 0.12))}
     lib = music_list()
-    if lib and (words := set(re.findall(r"[a-z]{4,}", mood.lower())) - {"music", "with", "that", "each", "none"}):
-        score = {m["file"]: len(words & set(re.findall(r"[a-z]{4,}", f"{m['name']} {m['mood']}".lower()))) for m in lib}
-        best = max(score.values())
-        if best:
-            lib = [m for m in lib if score[m["file"]] == best]
+    if lib and mood and (best := _matching(lib, mood)):
+        lib = best
     if lib:
         m = lib[int(render._hash(pid), 16) % len(lib)]
         return {"path": MUSIC_DIR / m["file"], "volume": 0.12}
     return None
+
+
+def _words(text: str) -> set[str]:
+    text = text.lower().replace("hip hop", "hiphop").replace("lo-fi", "lofi").replace("lo fi", "lofi")
+    return set(re.findall(r"[a-z]{4,}", text)) - {"music", "with", "that", "each", "none", "background", "track",
+                                                  "under", "video", "short", "light", "steady", "loop"}
+
+
+def _matching(lib: list[dict], mood: str) -> list[dict]:
+    """The library tracks sharing the most words with the mood ([] when none shares any)."""
+    words = _words(mood)
+    score = {m["file"]: len(words & _words(f"{m['name']} {m.get('mood', '')}")) for m in lib}
+    best = max(score.values(), default=0)
+    return [m for m in lib if score[m["file"]] == best] if best else []
+
+
+# Words Openverse (Jamendo) tags and genres use, in the order they best describe a bed.
+VOCAB = ["epic", "cinematic", "dramatic", "orchestral", "trailer", "action", "suspense", "tense", "dark", "mysterious",
+         "inspiring", "motivational", "uplifting", "corporate", "upbeat", "energetic", "happy", "cheerful", "playful",
+         "funny", "quirky", "groovy", "funk", "electronic", "edm", "house", "dance", "synthwave", "retro", "hiphop",
+         "lofi", "chill", "calm", "relaxing", "peaceful", "ambient", "soft", "minimal", "emotional", "sad", "romantic",
+         "piano", "acoustic", "guitar", "folk", "jazz", "rock", "pop", "tech", "documentary", "adventure"]
+FAST = {"energetic", "epic", "action", "fast", "intense", "driving", "dance", "edm", "upbeat", "trailer"}
+SLOW = {"calm", "slow", "soft", "gentle", "ambient", "peaceful", "relaxing", "sad", "emotional"}
+OPENVERSE = "https://api.openverse.org/v1/audio/"
+
+
+async def auto_track(mood: str, seconds: float, pid: str) -> dict | None:
+    """No brand or library track fits: look one up (Openverse) or generate one (ElevenLabs), as Connections → Music
+    says, and add it to the library. Returns the library item, or None."""
+    mode = settings.get("music")["auto"]
+    if mode == "off" or not mood.strip():
+        return None
+    if mode == "elevenlabs" and tts.cfg()["elevenlabs_api_key"]:
+        try:
+            return await music_generate(f"Instrumental background music for a short video, no vocals: {mood}",
+                                        int(seconds) + 3, mood=mood)
+        except Exception as e:
+            log.warning("ElevenLabs music failed (%s); looking one up instead", e)
+    try:
+        return await find_free(mood, seconds, pid)
+    except Exception as e:
+        log.warning("free music lookup failed: %s", e)
+        return None
+
+
+async def find_free(mood: str, seconds: float, pid: str) -> dict | None:
+    """An instrumental CC0 / CC BY track for the mood from Openverse (Jamendo), at least as long as the video."""
+    words = _words(mood)
+    terms = [w for w in VOCAB if w in words] or ["upbeat"]
+    speed = "speed_high" if words & FAST else "speed_low" if words & SLOW else ""
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True, headers={"User-Agent": "AutoClipStudio (+https://github.com/thihodev/autoclip-studio)"}) as c:
+        for q in [" ".join(terms[:2]), *terms[:3]]:
+            results = []
+            for page in (1, 2):  # anonymous requests get at most 20 a page
+                r = await c.get(OPENVERSE, params={"q": q, "category": "music", "license": "cc0,by,pdm", "page_size": 20,
+                                                   "page": page})
+                if r.status_code >= 400:
+                    break
+                results += r.json().get("results") or []
+            if not results and r.status_code >= 400:
+                raise ValueError(f"Openverse: HTTP {r.status_code}")
+            scored = []
+            for t in results:
+                tags = {x.get("name", "").lower() for x in t.get("tags") or []} | {g.lower() for g in t.get("genres") or []}
+                dur = (t.get("duration") or 0) / 1000
+                if "vocal" in tags or not t.get("url") or dur < max(20.0, seconds) or dur > 900:
+                    continue
+                score = 3 * ("instrumental" in tags) + len(words & tags) + (speed in tags) * 2
+                scored.append((score, t))
+            if scored:
+                break
+        if not scored:
+            return None
+        scored.sort(key=lambda x: -x[0])
+        top = [t for _, t in scored[:5]]
+        t = top[int(render._hash(pid), 16) % len(top)]
+        tmp = DATA_DIR / "work" / f"music_{uuid.uuid4().hex[:8]}.mp3"
+        tmp.parent.mkdir(parents=True, exist_ok=True)
+        r = await c.get(t["url"], timeout=120)
+        if r.status_code >= 400 or len(r.content) < 50_000:
+            raise ValueError(f"couldn't download “{t.get('title')}”")
+        tmp.write_bytes(r.content)
+    try:
+        lic = f"CC {t['license'].upper()} {t.get('license_version') or ''}".strip() if t["license"] != "pdm" else "Public domain"
+        return await music_add(tmp, f"{t.get('title') or 'Track'} — {t.get('creator') or ''}".strip(" —"),
+                               mood=" ".join(terms[:3]), source="openverse", license=lic,
+                               credit=f"Music: “{t.get('title')}” by {t.get('creator')} ({lic}) via {t.get('source', 'Jamendo').title()}",
+                               link=t.get("foreign_landing_url") or "")
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+async def pick_auto(choice: str | None, brand: dict | None, pid: str, mood: str, seconds: float) -> dict | None:
+    """pick(), and for "auto" with no brand music and no library track for the mood: a new track from auto_track()."""
+    if choice in ("", None, "auto") and not (brand and brand.get("music")) and not _matching(music_list(), mood):
+        if (item := await auto_track(mood, seconds, pid)):
+            return {"path": MUSIC_DIR / item["file"], "volume": 0.12, "file": item["file"]}
+    return pick(choice, brand, pid, mood)
+
+
+def credit(file: str | None) -> str:
+    """The credit line a library track needs (CC BY), or ""."""
+    return next((m.get("credit") or "" for m in music_list() if file and m["file"] == Path(file).name), "")
 
 
 async def sfx_track(cues: list[float], total: float, dest: Path, name: str = "whoosh", volume: float = 0.35) -> Path | None:

@@ -1009,6 +1009,17 @@ def _narration(p: dict) -> str:
     return " ".join(s.get("text", "") for s in (p.get("timeline") or {}).get("scenes") or []).strip()
 
 
+def _music_file(p: dict) -> str | None:
+    """The library track the latest version plays: Claude Motion's audio_meta.json bed, or the Quick timeline's."""
+    if (p.get("timeline") or {}).get("engine") == "classic":
+        return (p.get("timeline") or {}).get("music") or None
+    meta = motion.project_root(p["id"]) / "audio_meta.json"
+    try:
+        return Path((json.loads(meta.read_text()).get("bgm") or {}).get("path") or "").name or None
+    except (OSError, ValueError):
+        return None
+
+
 @app.post("/api/projects/{pid}/post-copy")
 async def write_post_copy(pid: str):
     """Title, caption, hashtags, tags and cover text, written by Claude from what the video says."""
@@ -1023,6 +1034,8 @@ async def write_post_copy(pid: str):
     except Exception as e:
         raise HTTPException(500, str(e)[:300])
     keep = {k: post[k] for k in ("title", "description", "hashtags", "youtube_tags", "thumbnail_text") if post.get(k)}
+    if (c := audio.credit(_music_file(p))) and c not in keep.get("description", ""):
+        keep["description"] = f"{keep.get('description', '')}\n\n{c}".strip()  # CC BY music must be credited
     db.update_project(pid, script={**(p.get("script") or {}), **keep})
     return db.get_project(pid)["script"]
 

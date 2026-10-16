@@ -151,6 +151,13 @@ def _brief(req: dict, brand: dict | None, resolution: str, root: Path | None = N
               "- Narration comes from the host's `voiceover` tool (see the run instructions), not audio.mjs."]
     if req.get("sfx", True) is False:
         lines.append("- No sound effects in this video.")
+    if req.get("music") == "none":
+        lines.append("- No background music in this video.")
+    else:
+        lines.append("- Music: write STORYBOARD.md (with its top-block `music:` line) before calling the `voiceover` "
+                     "tool. Make `music:` a concrete mood for this video's bed — genre, energy, tempo, instruments, e.g. "
+                     "`music: upbeat electronic, energetic, 120 bpm, bright synths` or `music: dramatic cinematic build, "
+                     "low strings and hits` — AutoClip picks an instrumental track for it.")
     if req.get("voice") == tts.NO_VOICE:
         lines.append("- No voice-over: viewers watch with music and sound effects only. Still pass every SCRIPT.md "
                      "line to the `voiceover` tool — it records silence timed to reading speed and the captions show "
@@ -282,7 +289,11 @@ async def record_voice(pid: str, root: Path, req: dict, brand: dict | None, line
         done.append(f"frame {frame}: {dur:.2f}s, {len(words)} words")
         activity.add(pid, f"Scene {frame}: “{text[:140]}”", "say")
     bgm = meta.get("bgm")
-    if not bgm and (m := audio.pick(req.get("music") or "", brand, pid, references.music_mood(req.get("reference_id")))):
+    seconds = max(float(req.get("duration", 45)), sum(v["duration_s"] for v in voices.values()))
+    if not bgm and (m := await audio.pick_auto(req.get("music") or "", brand, pid, music_mood(root, req), seconds)):
+        if m.get("file"):
+            activity.add(pid, f"Music: {next((x['name'] for x in audio.music_list() if x['file'] == m['file']), '')}"
+                         " — added to the library", "done")
         (root / "assets" / "music").mkdir(parents=True, exist_ok=True)
         dest = root / "assets" / "music" / Path(m["path"]).name
         shutil.copyfile(m["path"], dest)
@@ -293,6 +304,17 @@ async def record_voice(pid: str, root: Path, req: dict, brand: dict | None, line
             "sfx": meta.get("sfx", [])}
     meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
     return done
+
+
+def music_mood(root: Path, req: dict) -> str:
+    """The bed's mood: the storyboard's `music:` (Claude writes it for this video), else the reference video's music,
+    else the brief's tone."""
+    sb = root / "STORYBOARD.md"
+    head = sb.read_text(errors="replace")[:3000] if sb.exists() else ""
+    m = re.search(r"^music:\s*[\"']?(.+?)[\"']?\s*$", head, re.M)
+    if m and m.group(1).strip().lower() not in ("none", "null", ""):
+        return m.group(1).strip()
+    return references.music_mood(req.get("reference_id")) or req.get("style") or ""
 
 
 def _voiceover_server(pid: str, root: Path, req: dict, brand: dict | None):
@@ -309,7 +331,8 @@ def _voiceover_server(pid: str, root: Path, req: dict, brand: dict | None):
         done = await record_voice(pid, root, req, brand, args.get("lines") or [])
         bgm = json.loads((root / "audio_meta.json").read_text()).get("bgm")
         summary = "\n".join(done) or "nothing to record"
-        music = f"music bed: {bgm['path']} (host)" if bgm else "no music bed (set `music: none` in STORYBOARD.md)"
+        music = (f"music bed: {bgm['path']} (host); set `music: none` in STORYBOARD.md so no other bed is looked up"
+                 if bgm else "no music bed (set `music: none` in STORYBOARD.md)")
         return {"content": [{"type": "text", "text": f"✓ voiceover → audio_meta.json\n{summary}\n{music}"}]}
 
     return create_sdk_mcp_server("autoclip", tools=[voiceover])

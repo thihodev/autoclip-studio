@@ -7,7 +7,7 @@ The web UI uses this JSON API; you can script it too. Everything runs on the loc
 | Method | Path | |
 |---|---|---|
 | GET | `/api/status` | Claude / footage / voice / Claude Motion status |
-| GET, PUT | `/api/settings`, `/api/settings/{section}` | Connections settings (secrets are masked on read) |
+| GET, PUT | `/api/settings`, `/api/settings/{section}` | Connections settings (secrets are masked on read); `music.auto` is what *Automatic* music does when no track fits: `free` (Openverse), `elevenlabs` or `off` |
 | GET, POST | `/api/claude`, `/api/claude/login/{start,code,cancel}`, `/api/claude/{source,logout}` | Claude connection |
 | POST, DELETE | `/api/claude/api-key` | Check and save an Anthropic API key `{key, use}` / remove it |
 | GET | `/api/claude/plan-usage?refresh=` | Plan limits: 5-hour session and weekly windows with reset times (cached 60 s) |

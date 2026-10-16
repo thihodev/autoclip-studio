@@ -47,7 +47,8 @@ Return JSON with exactly these keys:
   "scenes": [{{"text": "voice-over for this scene, plain sentences, no emojis, in {language}", "search": "english stock footage phrase", "asset": "brand footage id or null"}}],
   "description": "2-3 sentence post caption in {language}",
   "hashtags": ["6-10 hashtags without #"],
-  "youtube_tags": ["5-10 SEO keywords"]
+  "youtube_tags": ["5-10 SEO keywords"],
+  "music": "background music that fits this video, in English: genre, energy, tempo (e.g. 'upbeat electronic, energetic, 120 bpm')"
 }}"""
 
 EDIT_SYSTEM = """You are a video editor working on a short vertical video made of scenes.
