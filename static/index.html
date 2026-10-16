@@ -1621,6 +1621,13 @@
           <h3 class="chead"><span x-t>Publish videos</span></h3>
           <p class="small muted" style="margin:-4px 0 10px"><span x-t>Optional. Without any connection, each video's Publish tab gives you the file and a ready caption to post yourself.</span></p>
           <div class="clist">
+            <template x-for="pl in (cfg.platforms||[]).filter(p => p.connect)" :key="pl.key">
+              <button type="button" class="crow" @click="openConn('pl:' + pl.key)">
+                <span class="ctile" x-text="pl.label[0]"></span>
+                <span class="grow"><span class="t" x-text="t(pl.label)"></span><span class="d" x-text="accountsFor(pl.key).length ? accountsFor(pl.key).map(a => a.name).join(', ') : t('One click — no developer app')"></span></span>
+                <span class="dot" :class="{ok: accountsFor(pl.key).length}"></span><svg class="i chev"><use href="#i-right"/></svg>
+              </button>
+            </template>
             <button type="button" class="crow" @click="openConn('postiz')">
               <span class="ctile"><svg class="i"><use href="#i-send"/></svg></span>
               <span class="grow"><span class="t">Postiz <span class="chip ok" style="margin-left:4px" x-show="!status.postiz?.ok"><span x-t>Easiest</span></span></span><span class="d" x-text="status.postiz?.ok ? status.postiz.detail : t('TikTok, YouTube, Instagram, Facebook, LinkedIn, X… — no developer app')"></span></span>
@@ -1629,7 +1636,7 @@
           </div>
           <h3 class="chead"><span x-t>Advanced: your own developer app</span></h3>
           <div class="clist">
-            <template x-for="pl in (cfg.platforms||[])" :key="pl.key">
+            <template x-for="pl in (cfg.platforms||[]).filter(p => !p.connect)" :key="pl.key">
               <button type="button" class="crow" @click="openConn('pl:' + pl.key)">
                 <span class="ctile" x-text="pl.label[0]"></span>
                 <span class="grow"><span class="t" x-text="t(pl.label)"></span><span class="d" x-text="accountsFor(pl.key).length ? accountsFor(pl.key).map(a => a.name).join(', ') : (pl.configured ? t('Ready to connect') : t('Needs a developer app (one-time setup)'))"></span></span>
@@ -2036,18 +2043,19 @@
                   <button class="btn ghost sm danger" @click="askDisconnect(a)"><span x-t>Disconnect</span></button>
                 </div>
               </template>
-              <div class="actions" style="margin-top:10px" x-show="pl.configured">
+              <p class="small muted" style="margin-top:10px" x-show="pl.connect" x-text="t('Sign in to {name} and approve AutoClip — that\'s all. AutoClip Connect completes the sign-in and keeps nothing; your videos upload from this computer.', {name: pl.label})"></p>
+              <div class="actions" style="margin-top:10px" x-show="pl.configured || pl.connect">
                 <a class="btn" :class="!accountsFor(pl.key).length && 'primary'" :href="`/oauth/${pl.key}/start`"
                    x-text="accountsFor(pl.key).length ? t('Connect another') : t('Connect {name}', {name: pl.label})"></a>
               </div>
-              <h3 class="chead" style="margin-top:20px"><span x-t>Developer app</span></h3>
+              <details :open="!pl.connect" style="margin-top:20px"><summary class="chead" style="cursor:pointer" x-text="pl.connect ? t('Use my own developer app instead') : t('Developer app')"></summary>
                 <div class="stack" style="margin-top:10px">
                   <p class="small muted" x-text="t(pl.notes)"></p>
                   <div class="field"><label><span x-t>Redirect URI to register</span></label>
                     <div class="copy"><code x-text="pl.redirect_uri"></code><button class="btn sm" :title="t('Copy')" @click="copy(pl.redirect_uri)"><svg class="i"><use href="#i-copy"/></svg></button></div></div>
                   <template x-for="f in pl.fields"><div class="field"><label x-text="t(f.label)"></label><input x-model="cfg.apps[pl.key][f.key]" autocomplete="off"></div></template>
                   <div class="actions"><button class="btn" @click="saveSection('apps')"><span x-t>Save</span></button><a class="btn ghost sm" :href="pl.docs" target="_blank" rel="noopener"><span x-t>Docs</span> <svg class="i"><use href="#i-ext"/></svg></a></div>
-                </div>
+                </div></details>
         </div>
       </template>
       <div x-show="conn==='postiz'">

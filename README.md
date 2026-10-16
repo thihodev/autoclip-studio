@@ -52,6 +52,7 @@ Connections is a short list; click a row for its settings.
 | Voice-over | | An [ElevenLabs](https://elevenlabs.io) key for natural voices in 70+ languages (incl. Vietnamese). Without it, free Microsoft voices (edge-tts). The key needs *Text to Speech* and *Voices → Read*. |
 | Music & sound effects | | A music library (upload tracks with a mood, or generate them with ElevenLabs Music) and AutoClip's built-in sound effects. |
 | Stock footage | | A free [Pixabay](https://pixabay.com/api/docs/) key (or an existing Pexels key) for real clips in Quick videos. Without it, animated backgrounds in your brand colors. |
+| TikTok (one click) | | Through [AutoClip Connect](services/connect/) — sign in to TikTok and approve, no developer app. It only completes the sign-in and renews access; nothing is stored there and videos upload from your computer. (Shown once the hosted Connect is live.) |
 | Postiz | | The easiest way to post automatically: paste your [Postiz Cloud](https://postiz.com) API key and publish to TikTok, YouTube, Instagram, Facebook, LinkedIn, X, Threads… with no developer app (a self-hosted Postiz takes its URL too). |
 | YouTube · TikTok · Facebook | | Advanced: your own developer app per platform; the dialog shows the redirect URI to register. |
 | GitHub | | A fine-grained token with read-only *Contents* to use private repositories. Public repos work without it. |
@@ -145,6 +146,7 @@ Everything lives in `data/` (`autoclip.db` for settings and projects, renders, b
 | `app/brands.py` · `app/styles.py` · `app/playbooks.py` | Brand kits and imports · visual styles · video types |
 | `app/platforms.py` · `app/postiz.py` | YouTube, TikTok, Facebook OAuth and publishing · Postiz |
 | `static/index.html` · `static/locales/` | The whole UI (Alpine.js) · translations |
+| `services/connect/` | AutoClip Connect: a tiny Cloudflare Worker holding the TikTok app for one-click sign-in |
 | `app/assets/` | Bundled font, FrameJam styles and playbooks, GSAP skills (with their licenses), AutoClip playbooks |
 
 ## Contributing

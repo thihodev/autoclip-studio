@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 
 import httpx
 
-from . import db, settings
+from . import connect, db, settings
 
 GRAPH = "https://graph.facebook.com/v25.0"
 
@@ -32,12 +32,19 @@ class Platform:
     async def exchange(self, code: str, redirect_uri: str) -> list[dict]: ...
     async def publish(self, account: dict, video: Path, meta: dict, opts: dict) -> dict: ...
 
+    def via_connect(self) -> bool:
+        """Connect through AutoClip Connect (no developer app) — when it supports this platform and no own app is set."""
+        return self.key in CONNECT_PLATFORMS and connect.available() and not self.configured()
+
     def info(self, redirect_uri: str) -> dict:
         return {
             "key": self.key, "label": self.label, "docs": self.docs, "notes": self.notes,
             "fields": [{"key": k, "label": label} for k, label in self.cred_fields],
-            "configured": self.configured(), "redirect_uri": redirect_uri,
+            "configured": self.configured(), "redirect_uri": redirect_uri, "connect": self.via_connect(),
         }
+
+
+CONNECT_PLATFORMS = {"tiktok"}  # what AutoClip Connect can sign in to
 
 
 def _caption(meta: dict) -> str:
@@ -166,6 +173,11 @@ class TikTok(Platform):
 
     async def exchange(self, code, redirect_uri):
         tok = await self._token({"code": code, "grant_type": "authorization_code", "redirect_uri": redirect_uri})
+        return await self.accounts_for(tok)
+
+    async def accounts_for(self, tok: dict) -> list[dict]:
+        """The account a token belongs to (also for tokens that came through AutoClip Connect)."""
+        tok.setdefault("expires_at", time.time() + tok.get("expires_in", 86400) - 60)
         async with httpx.AsyncClient(timeout=30) as h:
             r = await h.get(f"{self.API}/user/info/", params={"fields": "open_id,display_name,avatar_url"},
                             headers={"Authorization": f"Bearer {tok['access_token']}"})
@@ -176,7 +188,11 @@ class TikTok(Platform):
     async def _access_token(self, account) -> str:
         data = account["data"]
         if time.time() >= data.get("expires_at", 0):
-            fresh = await self._token({"refresh_token": data["refresh_token"], "grant_type": "refresh_token"})
+            if data.get("via") == "connect":  # signed in through AutoClip Connect: it holds the client secret
+                fresh = await connect.refresh("tiktok", data["refresh_token"])
+                fresh["expires_at"] = time.time() + fresh.get("expires_in", 86400) - 60
+            else:
+                fresh = await self._token({"refresh_token": data["refresh_token"], "grant_type": "refresh_token"})
             data = {**data, **fresh}
             db.update_account_data(account["id"], data)
         return data["access_token"]

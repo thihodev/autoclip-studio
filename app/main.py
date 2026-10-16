@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import activity, audio, brands, claude, context, covers, db, leftovers, playbooks, styles, motion, pipeline, platforms, postiz, render, settings, tts, usage
+from . import activity, audio, brands, claude, connect, context, covers, db, leftovers, playbooks, styles, motion, pipeline, platforms, postiz, render, settings, tts, usage
 from .config import DATA_DIR, ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -297,10 +297,14 @@ def oauth_start(platform: str, request: Request):
     p = platforms.PLATFORMS.get(platform)
     if not p:
         raise HTTPException(404)
-    if not p.configured():
-        return RedirectResponse("/connections?" + urlencode({"error": f"Add the {p.label} app credentials first"}))
     state = secrets.token_urlsafe(24)
     redirect_uri = f"{_public_base(request)}/oauth/{platform}/callback"
+    if p.via_connect():  # no developer app: sign in through AutoClip Connect with a one-time key
+        key, public = connect.new_key()
+        _oauth_states[state] = {"platform": platform, "redirect_uri": redirect_uri, "at": time.time(), "key": key}
+        return RedirectResponse(connect.start_url(platform, redirect_uri, public, state))
+    if not p.configured():
+        return RedirectResponse("/connections?" + urlencode({"error": f"Add the {p.label} app credentials first"}))
     _oauth_states[state] = {"platform": platform, "redirect_uri": redirect_uri, "at": time.time()}
     return RedirectResponse(p.auth_url(redirect_uri, state))
 
@@ -314,7 +318,11 @@ async def oauth_callback(platform: str, request: Request):
     if q.get("error"):
         return RedirectResponse("/connections?" + urlencode({"error": q.get("error_description") or q.get("error")}))
     try:
-        accounts = await platforms.PLATFORMS[platform].exchange(q.get("code", ""), st["redirect_uri"])
+        if st.get("key"):  # AutoClip Connect sends the tokens sealed for this sign-in's key
+            tok = {**connect.open_sealed(q.get("sealed", ""), st["key"]), "via": "connect"}
+            accounts = await platforms.PLATFORMS[platform].accounts_for(tok)
+        else:
+            accounts = await platforms.PLATFORMS[platform].exchange(q.get("code", ""), st["redirect_uri"])
         for a in accounts:
             db.upsert_account(platform, a["external_id"], a["name"], a.get("avatar"), a["data"])
     except Exception as e:

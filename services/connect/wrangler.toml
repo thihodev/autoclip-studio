@@ -1,0 +1,11 @@
+name = "autoclip-connect"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+OPERATOR_NAME = "Ho Van Thi (@thihodev)"
+# CONTACT_EMAIL = "you@example.com"   # shown on the privacy and terms pages
+
+# Secrets (never in this file):
+#   npx wrangler secret put TIKTOK_CLIENT_KEY
+#   npx wrangler secret put TIKTOK_CLIENT_SECRET

@@ -21,3 +21,7 @@ for d in (VIDEOS_DIR, WORK_DIR, CLAUDE_CONFIG_DIR):
 
 HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", "8000"))
+
+# AutoClip Connect (services/connect): one-click TikTok without a developer app. Empty until it's deployed;
+# AUTOCLIP_CONNECT_URL overrides it (e.g. a self-hosted Worker or `wrangler dev` while testing).
+CONNECT_URL = os.getenv("AUTOCLIP_CONNECT_URL", "").rstrip("/")
