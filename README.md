@@ -124,10 +124,10 @@ To finish a video in another editor, **Export → Layers for editing** makes a Z
 
 ## Export
 
-The **Export** tab:
+The **Export** tab works on the version you pick at its top (the one the player shows; the latest by default):
 
-- **Download** the video (and the chosen cover); on a phone, *Share* hands the file to any app.
-- **Layers for editing** — the ZIP described above, for CapCut, Premiere, DaVinci Resolve and Final Cut.
+- **Download** that version (and the chosen cover); on a phone, *Share* hands the file to any app.
+- **Layers for editing** — the ZIP described above, for CapCut, Premiere, DaVinci Resolve and Final Cut. Layers are always made from the latest version made by Claude or the Design tab (the project's sources describe that one), and the tab says which.
 - **Caption & hashtags** — Claude writes the title, caption, hashtags and keywords from what the video actually says; edit, save and copy them when you post.
 - **Cover image** — three covers from different moments with big text in the brand's font and accent color; pick one to download.
 

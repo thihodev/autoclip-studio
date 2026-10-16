@@ -68,7 +68,7 @@ The web UI uses this JSON API; you can script it too. Everything runs on the loc
 | GET | `/api/projects/{id}/activity` | Live steps and latest preview while a video is made |
 | GET | `/api/projects/{id}/usage` | Claude usage of this video |
 | POST, PUT | `/api/projects/{id}/post-copy` | Write (Claude) / save the title, caption, hashtags and keywords |
-| POST, PUT | `/api/projects/{id}/covers`, `/api/projects/{id}/covers/{i}` | Make 3 covers `{text?}` / choose one |
+| POST, PUT | `/api/projects/{id}/covers`, `/api/projects/{id}/covers/{i}` | Make 3 covers `{text?, version?}` (default: the latest version) / choose one |
 
 `voice`: an edge-tts voice name, `eleven:<voice_id>`, `none` (no voice-over: captions timed to reading speed, music turned up) or empty for the default.
 

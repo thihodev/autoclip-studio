@@ -331,8 +331,10 @@ async def export_layers(pid: str):
     p = _project(pid)
     if p["status"] in BUSY:
         raise HTTPException(409, "This video is busy")
-    if not pipeline.edit_base(p):
+    if not pipeline.layers_base(p):
         raise HTTPException(400, "Render the video first")
+    if pipeline.is_motion(p) and design.dirty(motion.project_root(pid)):
+        raise HTTPException(409, "Render or discard your Design changes first — layers are made from the rendered video")
 
     async def job():
         try:
@@ -633,22 +635,25 @@ def save_post_copy(pid: str, body: PostCopyIn):
 
 class CoversIn(BaseModel):
     text: str = Field("", max_length=80)
+    version: int | None = None  # default: the latest
 
 
 @app.post("/api/projects/{pid}/covers")
 async def make_covers(pid: str, body: CoversIn):
     p = _project(pid)
-    if not p.get("video_path") or not Path(p["video_path"]).exists():
+    v = next((v for v in pipeline._extra(p)["versions"] if v["version"] == body.version), None) if body.version else None
+    video = VIDEOS_DIR / v["file"] if v else Path(p.get("video_path") or "")
+    if not p.get("video_path") or not video.is_file():
         raise HTTPException(400, "Render the video first")
     script = p.get("script") or {}
     text = body.text.strip() or script.get("thumbnail_text") or script.get("title") or p["request"]["topic"][:40]
     brand = brands.get((p.get("timeline") or {}).get("brand_id") or p["request"].get("brand_id"))
     try:
-        items = await covers.make(Path(p["video_path"]), text, brand)
+        items = await covers.make(video, text, brand)
     except Exception as e:
         raise HTTPException(500, f"Could not make covers: {str(e)[:300]}")
     extra = pipeline._extra(p)
-    extra["covers"] = {"version": p.get("version"), "text": text, "items": items, "chosen": 0, "at": int(time.time())}
+    extra["covers"] = {"version": v["version"] if v else p.get("version"), "text": text, "items": items, "chosen": 0, "at": int(time.time())}
     db.update_project(pid, extra=extra)
     return extra["covers"]
 

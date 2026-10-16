@@ -404,11 +404,20 @@ async def export_edit(pid: str):
     return _save_version(pid, out, p["timeline"], f"Edited (from v{base['version']})", edited=True)
 
 
+def layers_base(p: dict) -> dict | None:
+    """The version layers are made from: the latest one made by Claude or the Design tab (not an Edit-tab export),
+    since the project's sources describe that one."""
+    for v in reversed(_extra(p)["versions"]):
+        if not v.get("edited") and (VIDEOS_DIR / v["file"]).exists():
+            return {"version": v["version"], "file": v["file"]}
+    return None
+
+
 async def export_layers(pid: str):
     """The latest (non-edited) version as separate layers for other editors → extra["layers"]."""
     from . import layers
     p = db.get_project(pid)
-    base = edit_base(p)
+    base = layers_base(p)
     if not base:
         raise ValueError("Render the video first")
     activity.start(pid)

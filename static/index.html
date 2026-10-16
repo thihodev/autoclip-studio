@@ -843,7 +843,7 @@
               </div>
             </div>
             <div class="actions">
-              <a class="btn" x-show="cur.video_path" :href="videoUrl(cur)" download><svg class="i"><use href="#i-download"/></svg><span x-t>Download</span></a>
+              <a class="btn" x-show="cur.video_path" :href="expUrl()" :download="expName()" :title="t('Version {v}', {v: expVer()?.version || cur.version})"><svg class="i"><use href="#i-download"/></svg><span x-text="versions().length > 1 ? t('Download v{n}', {n: expVer()?.version || cur.version}) : t('Download')"></span></a>
               <button class="btn" x-show="cur.status==='failed'" @click="retry(cur)" :disabled="missingSetup().length > 0"><svg class="i"><use href="#i-retry"/></svg><span x-t>Retry</span></button>
               <button class="btn ghost danger" :title="t('Delete video')" @click="askDelete(cur)"><svg class="i"><use href="#i-trash"/></svg></button>
             </div>
@@ -913,12 +913,12 @@
                   <div class="lbl" style="margin:4px 0"><span x-t>Versions</span></div>
                   <template x-for="v in versions()" :key="v.file">
                     <div class="ver" :class="(preview||latestFile())===v.file && 'on'" @click="preview = v.file===latestFile() ? null : v.file">
-                      <span class="n" x-text="'v'+v.version"></span><span class="note" x-text="v.note" :title="v.note + (v.model ? ' — ' + modelLabel(v.model) + (v.effort ? ' · ' + effortLabel(v.effort) : '') : '')"></span>
+                      <span class="n" x-text="'v'+v.version"></span><span class="note" x-text="verNote(v)" :title="verNote(v) + (v.model ? ' — ' + modelLabel(v.model) + (v.effort ? ' · ' + effortLabel(v.effort) : '') : '')"></span>
                       <span class="small muted" x-show="v.model" x-text="modelShort(v.model)"></span>
                       <span class="small muted" x-show="v.file===latestFile()"><span x-t>latest</span></span>
                     </div>
                   </template>
-                  <p class="hint" x-show="preview"><span x-t>Previewing an older version. Downloads and exports use the latest.</span></p>
+                  <p class="hint" x-show="preview"><span x-t>Viewing an older version: Download, Share and covers use this version.</span> <a href="#" @click.prevent="preview=null" x-t>Back to the latest</a></p>
                 </div>
               </div>
             </div>
@@ -1339,9 +1339,19 @@
               <!-- Export: the video, and everything to finish it in another editor or post it by hand -->
               <div x-show="cur.timeline && route.sub==='export'" class="pubcol">
                 <div class="card">
-                  <div class="card-head"><div class="grow"><h2><span x-t>Export</span></h2><p x-text="cur.video_path ? t('Version {v}', {v: cur.version}) : t('Render the video first')"></p></div></div>
+                  <div class="card-head"><div class="grow"><h2><span x-t>Export</span></h2>
+                    <p x-show="!cur.video_path" x-t>Render the video first</p>
+                    <p x-show="cur.video_path && versions().length < 2" x-text="t('Version {v}', {v: cur.version})"></p></div></div>
+                  <div class="field" style="margin-bottom:12px" x-show="cur.video_path && versions().length > 1">
+                    <label><span x-t>Version to export</span></label>
+                    <select x-select @change="preview = $event.target.value === latestFile() ? null : $event.target.value" :aria-label="t('Version to export')">
+                      <template x-for="v in versions()" :key="v.file"><option :value="v.file" :selected="v.file === (preview || latestFile())" x-text="verLabel(v)"></option></template>
+                    </select>
+                    <p class="small muted" style="margin:4px 0 0" x-text="t(preview ? 'An older version — the player on the left shows it.' : 'The latest version — the player on the left shows it.')"></p>
+                  </div>
                   <div class="actions">
-                    <a class="btn primary" :href="cur.video_path ? videoUrl(cur) : null" :aria-disabled="String(!cur.video_path)" download><svg class="i"><use href="#i-download"/></svg><span x-t>Download video</span></a>
+                    <a class="btn primary" :href="cur.video_path ? expUrl() : null" :aria-disabled="String(!cur.video_path)" :download="expName()"><svg class="i"><use href="#i-download"/></svg>
+                      <span x-text="versions().length > 1 ? t('Download v{n}', {n: expVer()?.version}) : t('Download video')"></span></a>
                     <a class="btn" x-show="curCovers()" :href="curCovers() ? `/videos/${curCovers().items[curCovers().chosen || 0].file}` : null" download><svg class="i"><use href="#i-download"/></svg><span x-t>Download cover</span></a>
                     <button class="btn" x-show="canShareFiles()" @click="shareVideo()" :disabled="!cur.video_path || sharing"><span class="spin" x-show="sharing"></span><svg class="i" x-show="!sharing"><use href="#i-send"/></svg><span x-t>Share…</span></button>
                   </div>
@@ -1349,7 +1359,9 @@
                     <div class="pubrow">
                       <span class="ctile"><svg class="i"><use href="#i-layers"/></svg></span>
                       <span class="grow"><span class="t" x-t>Layers for editing</span>
-                        <span class="d"><span x-t>Scenes as separate clips, captions on a transparent layer, voice / music / SFX tracks, SRT and a timeline — for CapCut, Premiere, DaVinci Resolve or Final Cut.</span></span></span>
+                        <span class="d"><span x-t>Scenes as separate clips, captions on a transparent layer, voice / music / SFX tracks, SRT and a timeline — for CapCut, Premiere, DaVinci Resolve or Final Cut.</span></span>
+                        <span class="d" x-show="layerVer()" style="margin-top:4px"><strong x-text="t('Made from version {n}', {n: layerVer()})"></strong>
+                          <span x-show="expVer() && layerVer() !== expVer().version" x-text="' — ' + t('layers come from the latest version made by Claude or the Design tab; older versions and Edit-tab exports can’t be split into layers.')"></span></span></span>
                       <template x-if="layersReady()">
                         <span class="actions" style="gap:6px"><a class="btn sm primary" :href="`/videos/${cur.extra.layers.file}`" download><svg class="i"><use href="#i-download"/></svg><span x-text="t('ZIP · {size}', {size: fmtBytes(cur.extra.layers.size)})"></span></a>
                           <button class="btn sm ghost" @click="exportLayers()" :disabled="isBusy(cur)" :title="t('Make them again')"><svg class="i"><use href="#i-retry"/></svg></button></span>
@@ -1376,10 +1388,11 @@
                   </div>
                 </div>
                 <div class="card">
-                  <div class="card-head"><div class="grow"><h2><span x-t>Cover image</span></h2><p><span x-t>Three thumbnails from different moments, with big text in your brand's font. Pick one to download.</span></p></div></div>
+                  <div class="card-head"><div class="grow"><h2><span x-t>Cover image</span></h2><p><span x-t>Three thumbnails from different moments, with big text in your brand's font. Pick one to download.</span>
+                    <span x-show="versions().length > 1" x-text="' ' + t('From version {v}.', {v: expVer()?.version || cur.version})"></span></p></div></div>
                   <div class="actions" style="flex-wrap:nowrap">
                     <input x-model="coverText" :placeholder="t('Text on the cover (2–5 words)')" maxlength="80" style="flex:1">
-                    <button class="btn" @click="makeCovers()" :disabled="coverBusy || !cur.video_path"><span class="spin" x-show="coverBusy"></span><span x-text="curCovers() ? t('Remake') : t('Make covers')"></span></button>
+                    <button class="btn" @click="makeCovers()" :disabled="coverBusy || !cur.video_path" :title="t('From version {v}', {v: expVer()?.version || cur.version})"><span class="spin" x-show="coverBusy"></span><span x-text="curCovers() ? t('Remake') : t('Make covers')"></span></button>
                   </div>
                   <div class="covers" x-show="curCovers()">
                     <template x-for="(c, i) in (curCovers()?.items || [])" :key="c.file">
@@ -2596,6 +2609,14 @@ function app() {
     versions() { return (this.cur?.extra?.versions || []).slice().reverse(); },
     latestFile() { return this.base(this.cur?.video_path); },
     previewSrc() { return '/videos/' + (this.preview || this.latestFile()); },
+    // Export follows the version on screen: the one previewed on the left, else the latest.
+    expVer() { const f = this.preview || this.latestFile(); return this.versions().find(v => v.file === f) || null; },
+    expUrl() { return '/videos/' + (this.expVer()?.file || this.latestFile()); },
+    expName() { const n = this.expVer()?.version || this.cur?.version; return `${(this.post.title || this.projTitle(this.cur) || 'video').replace(/[\\/:*?"<>|]+/g, '').slice(0, 60)} - v${n}.mp4`; },
+    // Notes the app writes are translated ("Edited (from v2)"); Claude's summaries of an edit stay as written.
+    verNote(v) { const m = /v(\d+)/.exec(v.note || ''); return this.t((v.note || '').replace(/v\d+/, 'v{n}'), { n: m?.[1] }); },
+    verLabel(v) { return `v${v.version} · ${this.verNote(v)}` + (v.file === this.latestFile() ? ` · ${this.t('latest')}` : '') + ` · ${this.ago(v.at)}`; },
+    layerVer() { const vs = (this.cur?.extra?.versions || []).filter(v => !v.edited); return vs.length ? vs[vs.length - 1].version : null; },
     sceneThumb(s) { const c = s.clip; if (!c) return ''; if (c.thumb_url) return c.thumb_url; return c.thumb_local ? `/media/${this.cur.id}/${this.base(c.thumb_local)}` : (c.thumb || ''); },
     projThumb(p) { if (p.video_path && this.isMotion(p)) return '/videos/' + this.base(p.video_path).replace(/\.mp4$/, '.jpg'); const c = p.timeline?.scenes?.[0]?.clip; if (!c) return ''; if (c.thumb_url) return c.thumb_url; return c.thumb_local ? `/media/${p.id}/${this.base(c.thumb_local)}` : (c.thumb || ''); },
     // brand helpers
@@ -2647,12 +2668,12 @@ function app() {
     canShareFiles() { try { return !!navigator.canShare && navigator.canShare({ files: [new File([''], 'v.mp4', { type: 'video/mp4' })] }); } catch { return false; } },
     async shareVideo() {
       // The share sheet needs the click's activation, so a first tap may only download the file; the second shares it.
-      if (!this._share || this._share.id !== this.cur.id + ':' + this.cur.version) {
+      const url = this.expUrl();
+      if (!this._share || this._share.id !== url) {
         this.sharing = true;
         try {
-          const blob = await fetch(this.videoUrl(this.cur)).then(r => r.blob());
-          const name = (this.post.title || this.cur.title || 'video').replace(/[\\/:*?"<>|]+/g, '').slice(0, 60) + '.mp4';
-          this._share = { id: this.cur.id + ':' + this.cur.version, file: new File([blob], name, { type: 'video/mp4' }) };
+          const blob = await fetch(url).then(r => r.blob());
+          this._share = { id: url, file: new File([blob], this.expName(), { type: 'video/mp4' }) };
         } finally { this.sharing = false; }
       }
       try { await navigator.share({ files: [this._share.file], text: this.captionText() }); }
@@ -2788,12 +2809,12 @@ function app() {
     },
     async makeCovers() {
       this.coverBusy = true;
-      const cv = await this.run(() => this.api(`/api/projects/${this.cur.id}/covers`, { method:'POST', body:{ text: this.coverText } }));
+      const cv = await this.run(() => this.api(`/api/projects/${this.cur.id}/covers`, { method:'POST', body:{ text: this.coverText, version: this.expVer()?.version || null } }));
       this.coverBusy = false;
       if (cv) this.cur = { ...this.cur, extra: { ...(this.cur.extra || {}), covers: cv } };
     },
     async chooseCover(i) { const cv = await this.run(() => this.api(`/api/projects/${this.cur.id}/covers/${i}`, { method:'PUT' })); if (cv) this.cur = { ...this.cur, extra: { ...(this.cur.extra || {}), covers: cv } }; },
-    curCovers() { const cv = this.cur?.extra?.covers; return cv && cv.version === this.cur.version ? cv : null; },
+    curCovers() { const cv = this.cur?.extra?.covers; return cv && cv.version === (this.expVer()?.version || this.cur.version) ? cv : null; },
     async loadMusic() { this.musicList = await this.api('/api/music').catch(() => this.musicList); },
     async loadSfx() { if (!this.sfxList.length) this.sfxList = await this.api('/api/sfx').catch(() => []); },
     playTrack(file) {
