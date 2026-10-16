@@ -52,8 +52,8 @@ Connections is a short list; click a row for its settings.
 | Voice-over | | An [ElevenLabs](https://elevenlabs.io) key for natural voices in 70+ languages (incl. Vietnamese). Without it, free Microsoft voices (edge-tts). The key needs *Text to Speech* and *Voices → Read*. |
 | Music & sound effects | | A music library (upload tracks with a mood, or generate them with ElevenLabs Music) and AutoClip's built-in sound effects. |
 | Stock footage | | A free [Pixabay](https://pixabay.com/api/docs/) key (or an existing Pexels key) for real clips in Quick videos. Without it, animated backgrounds in your brand colors. |
-| YouTube · TikTok · Facebook | | Your own developer app per platform; the dialog shows the redirect URI to register. |
-| Postiz | | Instagram, LinkedIn, X, Threads and more through a [Postiz](https://github.com/gitroomhq/postiz-app) instance. |
+| Postiz | | The easiest way to post automatically: paste your [Postiz Cloud](https://postiz.com) API key and publish to TikTok, YouTube, Instagram, Facebook, LinkedIn, X, Threads… with no developer app (a self-hosted Postiz takes its URL too). |
+| YouTube · TikTok · Facebook | | Advanced: your own developer app per platform; the dialog shows the redirect URI to register. |
 | GitHub | | A fine-grained token with read-only *Contents* to use private repositories. Public repos work without it. |
 | Public URL | | A tunnel URL (e.g. `cloudflared tunnel --url http://localhost:8000`) — TikTok needs HTTPS redirects. |
 
@@ -100,9 +100,10 @@ The **Scenes** and **Style** tabs (Quick engine) edit text, footage, captions, v
 
 The **Publish** tab:
 
+- **Post it yourself** — no connection needed: download the video and cover, copy a caption made for TikTok, YouTube Shorts (title + description), Instagram Reels or Facebook Reels, and open each app's upload page. On a phone, *Share to an app* sends the file straight to the TikTok, Instagram or YouTube app.
 - **Post copy** — Claude writes the title, caption, hashtags and YouTube tags from what the video actually says; edit and save.
 - **Cover image** — three covers from different moments with big text in the brand's font and accent color. The chosen one becomes the YouTube thumbnail (landscape videos; needs a verified channel) and its moment the TikTok cover.
-- Publish to YouTube, TikTok (direct or as a draft), Facebook Pages (vertical videos as Reels) and Postiz channels. AI-generated content is labeled where supported (`containsSyntheticMedia`, `is_aigc`).
+- **Publish automatically** through Postiz Cloud (just its API key, no developer app) or, with your own developer apps, straight to YouTube, TikTok (direct or as a draft), Facebook Pages (vertical videos as Reels) and Postiz channels. AI-generated content is labeled where supported (`containsSyntheticMedia`, `is_aigc`).
 
 | Platform | Developer app | Notes |
 |---|---|---|

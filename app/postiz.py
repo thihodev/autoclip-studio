@@ -1,7 +1,8 @@
 """Optional: publish through Postiz (https://docs.postiz.com/public-api).
 
 Useful for networks AutoClip doesn't support directly (Instagram, LinkedIn,
-X, Threads, Pinterest...). Configure its URL + API key in Connections.
+X, Threads, Pinterest...) and, with Postiz Cloud, the easiest way to post without creating developer apps:
+the user pastes their Postiz API key in Connections (a URL only for a self-hosted Postiz).
 """
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,8 +12,11 @@ import httpx
 from . import settings
 
 
+CLOUD = "https://api.postiz.com"  # Postiz Cloud: its own approved apps, so users need no developer app
+
+
 def _base() -> str:
-    return f"{settings.get('postiz')['url'].rstrip('/')}/public/v1"
+    return f"{(settings.get('postiz')['url'] or CLOUD).rstrip('/')}/public/v1"
 
 
 def _headers():
@@ -20,8 +24,7 @@ def _headers():
 
 
 def configured() -> bool:
-    cfg = settings.get("postiz")
-    return bool(cfg["url"] and cfg["api_key"])
+    return bool(settings.get("postiz")["api_key"])
 
 
 async def list_integrations() -> list[dict]:
