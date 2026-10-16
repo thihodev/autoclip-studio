@@ -27,3 +27,4 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) first; everything there applies. These r
 - Test with an isolated data folder (`DATA_DIR=/tmp/autoclip-dev PORT=8765 ./start.sh --no-browser`), never the user's real `data/`.
 - Check UI changes in the browser (light/dark, English/Vietnamese, narrow window) and include screenshots in the PR.
 - Update `README.md` / `docs/API.md` when behavior or endpoints change.
+- A new or changed user-facing feature also updates the website, `website/public/index.html`, in the same pull request. That covers the copy (hero, steps, features), the screenshots in `website/public/shots/` (WebP, taken from an isolated data folder), and the FAQ together with its FAQPage JSON-LD and the meta/JSON-LD descriptions. It also updates the README intro and screenshots. Don't leave the README and the website for later. The maintainer deploys the website after merge (`cd website && npx -y wrangler@4 deploy`).

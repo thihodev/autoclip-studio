@@ -13,9 +13,9 @@
   <a href="LICENSE">MIT</a>
 </p>
 
-**Open-source studio that turns a topic, a website or a GitHub repo into a finished short video — written, voiced, designed and animated by Claude, then edited by you — and turns the videos you like into templates for a whole series. A web UI for everything.**
+**Open-source studio that turns a topic, a website or a GitHub repo into a finished short video — planned with you, then written, voiced, designed and animated by Claude and edited by you. Paste a TikTok or YouTube link and it makes yours in the same format; turn the videos you like into templates for a whole series. A web UI for everything.**
 
-Make YouTube Shorts, TikToks, Facebook Reels or 16:9 YouTube videos; review them frame by frame; let Claude apply your comments; change any text, image, caption, font or color yourself, checked for layout and readability before each render; save a video as a template and make the next episodes from a list, in minutes and without designing again; export the video — or its layers for CapCut, Premiere and DaVinci — with a caption, hashtags and a cover. It runs on your own computer and uses your own Claude account (subscription or API key). No `.env`, no Docker: every connection is made from the UI.
+Make YouTube Shorts, TikToks, Facebook Reels or 16:9 YouTube videos; approve the idea — title, hook and scene list — before anything is made; learn the format of a video you like from its link; review them frame by frame; let Claude apply your comments; change any text, image, caption, font or color yourself, checked for layout and readability before each render; save a video as a template and make the next episodes from a list, in minutes and without designing again; export the video — or its layers for CapCut, Premiere and DaVinci — with a caption, hashtags and a cover. It runs on your own computer and uses your own Claude account (subscription or API key). No `.env`, no Docker: every connection is made from the UI.
 
 <p align="center">
   <img src="website/public/shots/composer.webp" alt="Describe the video: topic, engine, format, video type, style and sound" width="49%">
@@ -25,10 +25,17 @@ Make YouTube Shorts, TikToks, Facebook Reels or 16:9 YouTube videos; review them
   <img src="website/public/shots/design.webp" alt="The Design tab: the animated video plays live; click a text, an image or a caption to change it" width="49%">
   <img src="website/public/shots/templates.webp" alt="A template: what changes in each episode, new episodes typed one per line" width="49%">
 </p>
-<p align="center"><sub>Describe it · review it frame by frame · change it yourself · make the series — see the <a href="https://autoclip-connect.thihodev.workers.dev">website</a> for a tour.</sub></p>
+<p align="center">
+  <img src="website/public/shots/plan.webp" alt="The idea to approve: title, what it's about, opening line and scenes, all editable" width="49%">
+  <img src="website/public/shots/reference.webp" alt="Learned from a video: the format Claude wrote down from a TikTok, beat by beat" width="49%">
+</p>
+<p align="center"><sub>Describe it · approve the idea · review it frame by frame · change it yourself · make the series — see the <a href="https://autoclip-connect.thihodev.workers.dev">website</a> for a tour.</sub></p>
 
 ```
- topic · website · GitHub repo · your files
+ topic · website · GitHub repo · your files · a video you like (TikTok/YouTube link or file)
+        │
+        ▼
+ plan first (optional): title · hook · scenes ─► you edit and approve
         │
         ▼
  Claude (Agent SDK) ── video type (structure) + visual style (look) + brand kit + hook
