@@ -86,6 +86,18 @@ The web UI uses this JSON API; you can script it too. Everything runs on the loc
 
 An episode is a normal project whose `request` has `template_id` and `template_mode`; its quality check result is in `extra.quality` (`{issues, version}`).
 
+## Reference videos
+
+| Method | Path | What it does |
+|---|---|---|
+| GET | `/api/references` | Videos studied for their format, newest first |
+| POST | `/api/references` | Multipart `url` or `file`: download (yt-dlp) or store it, measure cuts and colors, take frames, Claude describes the format (`status`: queued → working → ready, or failed; `step` says what's happening) |
+| GET, DELETE | `/api/references/{id}` | One reference (`stats`, `palette`, `frames`, `analysis`) / delete it |
+| POST | `/api/references/{id}/retry` | Study a failed one again |
+| GET | `/api/references/{id}/video.mp4`, `/sheet.jpg`, `/frames/{t}s.jpg` | Its video, contact sheet and frames |
+
+`POST /api/projects` takes `reference_id` (follow its format) and `make_template` (Claude Motion: save the first version as a template).
+
 ## Planning and project ideas
 
 | Method | Path | What it does |

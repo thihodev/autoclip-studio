@@ -157,7 +157,7 @@
   .cbar .grow { flex:1; } .cbar .mpchip { margin-right:4px; }
   .csec { display:grid; grid-template-columns:140px minmax(0, 1fr); gap:8px 24px; margin-top:18px; padding-top:18px; border-top:1px solid var(--border); }
   .csec h3 { margin:2px 0 0; font-size:13px; font-weight:600; }
-  .cstack { display:grid; gap:14px; }
+  .cstack { display:grid; gap:14px; min-width:0; } .csec > div, .cstack > .field { min-width:0; }
   .crow3 { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr); gap:12px; }
   .crow2 { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; align-items:start; } .crow2.one { grid-template-columns:minmax(0, 1fr); }
   .engines { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
@@ -504,6 +504,14 @@
   .planchip { margin-left:4px; }
   .eponly .csec { display:none; }
   .pthumb .pmove { right:44px; color:var(--text-2); }
+  /* reference videos */
+  .refv { width:min(920px, 100%); max-height:90vh; overflow:auto; }
+  .refv-grid { display:grid; grid-template-columns:minmax(200px, 280px) minmax(0, 1fr); gap:20px; align-items:start; }
+  .refv-grid video { width:100%; max-height:60vh; background:#000; border-radius:10px; object-fit:contain; }
+  @media (max-width: 760px) { .refv-grid { grid-template-columns:minmax(0, 1fr); } }
+  .beats { display:grid; gap:6px; } .beat { display:flex; gap:10px; font-size:13px; line-height:1.4; }
+  .beat .tm { flex:none; width:44px; color:var(--text-3); font-variant-numeric:tabular-nums; }
+  .tcard.on { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); } .tcard:disabled { opacity:.6; cursor:default; }
   /* templates */
   .tstrip { margin-bottom:16px; }
   .tstrip-head { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; flex-wrap:wrap; } .tstrip-head .t { font-weight:600; } .tstrip-head .grow { flex:1; }
@@ -846,6 +854,18 @@
                     <svg class="i chev"><use href="#i-right"/></svg>
                   </button></div>
               </div>
+              <div class="field"><label><span x-t>Like this video</span> <span class="muted small" x-t>(optional)</span></label>
+                <div style="display:flex;gap:8px;align-items:stretch;min-width:0">
+                  <button type="button" class="stylepick" style="flex:1;min-width:0" @click="refPick = true">
+                    <span class="sthumb"><template x-if="curRef()?.frames?.length"><img :src="`/api/references/${curRef().id}/frames/${curRef().frames[0]}`" alt=""></template>
+                      <template x-if="!curRef()?.frames?.length"><svg class="i"><use href="#i-link"/></svg></template></span>
+                    <span class="grow"><span class="t" x-text="curRef()?.name || t('Follow a video you like')"></span>
+                      <span class="d" x-text="curRef() ? (curRef().analysis?.summary || '') : t('Paste a TikTok, YouTube, Instagram or Facebook link, or upload a video: same format, your content')"></span></span>
+                    <svg class="i chev"><use href="#i-right"/></svg></button>
+                  <button type="button" class="btn ghost icon" x-show="form.reference_id" @click="form.reference_id = ''" :title="t('Remove')" :aria-label="t('Remove')"><svg class="i"><use href="#i-x"/></svg></button>
+                </div></div>
+              <label class="toggle small" x-show="form.engine==='motion'"><input type="checkbox" x-model="form.make_template">
+                <span x-t>Save it as a template when it's ready, to make the next episodes in minutes</span></label>
               <div class="field"><label><span x-t>Style / tone</span></label><input x-model="form.style" :placeholder="t('funny, storytelling, educational…')"></div>
             </div>
           </section>
@@ -1631,6 +1651,7 @@
     <section class="page" x-show="route.page==='templates'">
       <div class="page-head">
         <div><h1><span x-t>Templates</span></h1><p class="sub"><span x-t>Claude designs a video once; every episode after it reuses that design. Only the words change, so each one takes a few minutes and no design run.</span></p></div>
+        <div class="actions"><button class="btn" @click="refAdd = { open: true, url: '', busy: false, then: null }"><svg class="i"><use href="#i-link"/></svg><span x-t>Learn from a video</span></button></div>
       </div>
       <template x-if="!templatesLoaded"><div class="tgrid"><template x-for="i in 4" :key="i"><div class="tcard skel"><div class="tthumb"></div><div class="tbody"><span class="sk" style="width:70%"></span><span class="sk" style="width:45%"></span></div></div></template></div></template>
       <template x-if="templatesLoaded && !templateList.length">
@@ -1657,6 +1678,26 @@
               <div class="small muted" x-text="[t('{n} scenes', {n: tm.scenes.length || '…'}), fmtT(tm.duration), t(tm.episodes === 1 ? '{n} episode' : '{n} episodes', {n: tm.episodes})].join(' · ')"></div>
             </div>
           </a>
+        </template>
+      </div>
+    </section>
+
+    <section class="page" x-show="route.page==='templates' && refList.length" style="padding-top:0">
+      <div class="page-head" style="margin-top:8px"><div><h2 style="margin:0"><span x-t>Learned from other videos</span></h2>
+        <p class="sub"><span x-t>Their format (structure, hook, pacing and look), ready to follow with your own content. Nothing of theirs is copied.</span></p></div></div>
+      <div class="tgrid">
+        <template x-for="r in refList" :key="r.id">
+          <button type="button" class="tcard" style="text-align:left;font:inherit;cursor:pointer" @click="refView = r"
+                  @mouseenter="$el.querySelector('video')?.play().catch(() => {})" @mouseleave="const v = $el.querySelector('video'); if (v) { v.pause(); v.currentTime = 0; }">
+            <div class="tthumb" :style="`aspect-ratio:${fmtAspect(r.stats?.format)}`">
+              <img x-show="r.frames?.length" :src="r.frames?.length ? `/api/references/${r.id}/frames/${r.frames[0]}` : ''" alt="" loading="lazy">
+              <video x-show="r.status==='ready'" :src="r.status==='ready' ? `/api/references/${r.id}/video.mp4` : ''" muted loop playsinline preload="none"></video>
+              <span class="chip" x-show="r.status!=='ready'" :class="r.status==='failed' ? 'err' : 'warn'" x-text="r.status==='failed' ? t('Needs a retry') : t(r.step || 'Waiting…')"></span>
+            </div>
+            <div class="tbody"><strong x-text="r.name"></strong>
+              <div class="small muted tsum" x-text="r.analysis?.summary || r.source.site || r.source.url || r.source.file"></div>
+              <div class="small muted" x-show="r.stats" x-text="refStats(r)"></div></div>
+          </button>
         </template>
       </div>
     </section>
@@ -2286,6 +2327,84 @@
     </div>
   </div>
 
+  <!-- learn from someone else's video: a link or a file -->
+  <div class="modal" x-show="refAdd.open" x-transition.opacity @click.self="refAdd.open=false" @keydown.escape.window="refAdd.open && (refAdd.open=false)">
+    <div class="card" style="width:min(560px, 100%)">
+      <h2><span x-t>Learn from a video</span></h2>
+      <p class="muted" style="margin-top:6px"><span x-t>Claude studies its structure, hook, pacing and look so your next video can follow the same format, with your own content. Its footage, characters, logos, words and music are never copied.</span></p>
+      <div class="field" style="margin-top:12px"><label><span x-t>Link</span></label>
+        <input x-model="refAdd.url" placeholder="https://www.tiktok.com/@…/video/…" @keydown.enter="addRef()" :disabled="refAdd.busy"></div>
+      <div class="small muted" style="margin:6px 0" x-t>or</div>
+      <label class="btn" :aria-disabled="refAdd.busy"><svg class="i"><use href="#i-upload"/></svg><span x-t>Upload a video file</span>
+        <input type="file" hidden accept="video/*" @change="addRef($event.target.files[0]); $event.target.value=''"></label>
+      <p class="small muted" style="margin:10px 0 0"><span x-t>Some sites block downloads; if a link fails, save the video and upload it. Only the first 3 minutes are studied.</span></p>
+      <div class="actions" style="margin-top:16px;justify-content:flex-end">
+        <button class="btn" @click="refAdd.open=false"><span x-t>Cancel</span></button>
+        <button class="btn primary" @click="addRef()" :disabled="refAdd.busy || !refAdd.url.trim()"><span class="spin" x-show="refAdd.busy"></span><span x-t>Study it</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" x-show="refView" x-transition.opacity @click.self="refView=null" @keydown.escape.window="refView && (refView=null)">
+    <template x-if="refView">
+      <div class="card refv">
+        <div class="refv-grid">
+          <div class="stack">
+            <video :src="refView.status==='ready' ? `/api/references/${refView.id}/video.mp4` : ''" controls playsinline :style="`aspect-ratio:${fmtAspect(refView.stats?.format)}`"></video>
+            <div class="small muted" x-show="refView.stats" x-text="refStats(refView)"></div>
+            <div class="dsg-colors" x-show="refView.palette?.length"><template x-for="c in refView.palette" :key="c"><span class="dsg-sw" :style="`background:${c};cursor:default`" :title="c"></span></template></div>
+            <a class="small" x-show="refView.source.webpage_url || refView.source.url" :href="refView.source.webpage_url || refView.source.url" target="_blank" rel="noopener" x-text="(refView.source.uploader ? refView.source.uploader + ' · ' : '') + (refView.source.site || t('Original'))"></a>
+          </div>
+          <div class="stack" style="min-width:0">
+            <h2 style="margin:0" x-text="refView.name"></h2>
+            <template x-if="refView.status!=='ready'">
+              <div class="notice" :class="refView.status==='failed' ? 'err' : 'info'"><span class="spin" x-show="refView.status!=='failed'"></span>
+                <div style="flex:1" x-text="refView.status==='failed' ? refView.error : t(refView.step || 'Waiting…')"></div>
+                <button class="btn sm" x-show="refView.status==='failed'" @click="retryRef(refView)"><span x-t>Retry</span></button></div>
+            </template>
+            <template x-if="refView.analysis">
+              <div class="stack">
+                <p style="margin:0" x-text="refView.analysis.summary"></p>
+                <div class="field"><label><span x-t>Structure</span></label>
+                  <div class="beats"><template x-for="(b, n) in refView.analysis.structure" :key="n">
+                    <div class="beat"><span class="tm" x-text="fmtT(+b.start || 0)"></span><div><b x-text="b.beat"></b> <span x-text="b.what"></span></div></div></template></div></div>
+                <div class="field"><label><span x-t>Hook</span></label><p class="small" style="margin:0" x-text="refView.analysis.hook"></p></div>
+                <div class="field"><label><span x-t>Pacing</span></label><p class="small" style="margin:0" x-text="refView.analysis.pacing"></p></div>
+                <div class="field"><label><span x-t>Look</span></label>
+                  <ul class="dlist small" style="margin:0"><template x-for="k in ['palette','type','layout','motion','captions','imagery']" :key="k"><li x-show="refView.analysis.look?.[k]"><b x-text="t(LOOK_KEYS[k]) + ': '"></b><span x-text="refView.analysis.look[k]"></span></li></template></ul></div>
+                <div class="field"><label><span x-t>How to make one</span></label><ul class="dlist small" style="margin:0"><template x-for="x in refView.analysis.recipe" :key="x"><li x-text="x"></li></template></ul></div>
+                <div class="field" x-show="refView.analysis.avoid?.length"><label><span x-t>Not copied</span></label><ul class="dlist small muted" style="margin:0"><template x-for="x in refView.analysis.avoid" :key="x"><li x-text="x"></li></template></ul></div>
+              </div>
+            </template>
+          </div>
+        </div>
+        <div class="actions" style="margin-top:16px">
+          <button class="btn ghost danger" @click="deleteRef(refView)"><svg class="i"><use href="#i-trash"/></svg><span x-t>Delete</span></button>
+          <span class="grow" style="flex:1"></span>
+          <button class="btn" @click="refView=null"><span x-t>Close</span></button>
+          <button class="btn primary" :disabled="refView.status!=='ready'" @click="useRef(refView)"><svg class="i"><use href="#i-film"/></svg><span x-t>Make a video like this</span></button>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <div class="modal" x-show="refPick" x-transition.opacity @click.self="refPick=false" @keydown.escape.window="refPick && (refPick=false)">
+    <div class="card" style="width:min(720px, 100%)">
+      <div class="actions" style="justify-content:space-between"><h2 style="margin:0"><span x-t>Like this video</span></h2>
+        <button class="btn" @click="refPick=false; refAdd = { open: true, url: '', busy: false, then: 'pick' }"><svg class="i"><use href="#i-plus"/></svg><span x-t>Learn from a video</span></button></div>
+      <p class="muted" style="margin:6px 0 12px" x-show="!refList.length"><span x-t>No reference videos yet. Paste a link or upload a video and Claude studies its format.</span></p>
+      <div class="tgrid" style="grid-template-columns:repeat(auto-fill, minmax(140px, 1fr))">
+        <template x-for="r in refList" :key="r.id">
+          <button type="button" class="tcard" style="text-align:left;font:inherit;cursor:pointer" :disabled="r.status!=='ready'" :class="form.reference_id===r.id && 'on'" @click="form.reference_id = r.id; refPick = false">
+            <div class="tthumb" :style="`aspect-ratio:${fmtAspect(r.stats?.format)}`"><img x-show="r.frames?.length" :src="r.frames?.length ? `/api/references/${r.id}/frames/${r.frames[0]}` : ''" alt="" loading="lazy">
+              <span class="chip" x-show="r.status!=='ready'" :class="r.status==='failed' ? 'err' : 'warn'" x-text="r.status==='failed' ? t('Needs a retry') : t(r.step || 'Waiting…')"></span></div>
+            <div class="tbody"><strong class="small" x-text="r.name"></strong><span class="small muted" x-show="r.stats" x-text="refStats(r)"></span></div>
+          </button>
+        </template>
+      </div>
+    </div>
+  </div>
+
   <!-- move a video into a project -->
   <div class="modal" x-show="moveDlg.open" x-transition.opacity @click.self="moveDlg.open=false" @keydown.escape.window="moveDlg.open && (moveDlg.open=false)">
     <div class="card">
@@ -2789,6 +2908,7 @@ function tr(key, vars) {
 const EDITOR_TABS = ['scenes', 'style', 'design', 'edit', 'review', 'export'];
 const ED_PAD = 44;  // timeline: left gutter for the track icons
 const KIND_NAMES = { fixed:'Fixed', fill:'Fill in', redraw:'Redraw' };
+const LOOK_KEYS = { palette:'Colors', type:'Fonts', layout:'Layout', motion:'Motion', captions:'Captions', imagery:'Imagery' };
 // An approved plan as the brief Claude works from (the same shape as app/main.py _idea_brief).
 function planBrief(d) {
   const outline = (d.outline || []).map(o => o.trim()).filter(Boolean);
@@ -2828,7 +2948,7 @@ function app() {
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
     status: {}, cl: {}, cfg: { claude:{}, footage:{} },
     projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'' },
-    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', brand_id:null, context:[], engine:'motion', model:'', effort:'', github_repo:'', style_id:'', playbook_id:'', hook:'', music:'', sfx:true, plan:true },
+    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', brand_id:null, context:[], engine:'motion', model:'', effort:'', github_repo:'', style_id:'', playbook_id:'', hook:'', music:'', sfx:true, plan:true, reference_id:'', make_template:false },
     models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, plan: {}, planLoading: false, showTable: false, hoverDay: null,
     projUsage: {}, editModel: '', editEffort: '',
     mp: { open:false, key:'form', sub:false, pos:{}, up:false, left:false, narrow:false },
@@ -2854,6 +2974,7 @@ function app() {
     tp: { rows: [''], mode: 'redraw', busy: false, for: null },
     ideaAsk: { hint: '', busy: false }, plan: { open: false, source: 'composer', loading: false, busy: false, data: null, avoid: [], iid: null, mode: 'redraw' },
     moveDlg: { open: false, pid: null, to: '', title: '' },
+    refList: [], refAdd: { open: false, url: '', busy: false, then: null }, refView: null, refPick: false,
     LOOK_NAMES: { none:'Original', vivid:'Vivid', warm:'Warm', fade:'Faded', film:'Film', mono:'Mono', noir:'Noir' },
     presets: [
       {key:'bold', label:'Bold', cls:'b', demo:'This is <em>huge</em>'},
@@ -3073,7 +3194,7 @@ function app() {
       });
       window.addEventListener('beforeunload', e => { if (this.dirty || this.brandDirty) { e.preventDefault(); e.returnValue = ''; } });
       await this.loadComposer();
-      await Promise.all([this.refreshStatus(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadTemplates(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers(), this.loadGithub(), this.loadStyles(), this.loadPlaybooks(), this.loadMusic(),
+      await Promise.all([this.refreshStatus(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadTemplates(), this.loadRefs(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers(), this.loadGithub(), this.loadStyles(), this.loadPlaybooks(), this.loadMusic(),
         this.api('/api/settings').then(s => { if (s) this.cfg = s; }).catch(() => {})]);
       // Plan limits move while videos render: keep the Usage page current.
       setInterval(() => { if (this.route.page === 'usage' && !document.hidden && !this.planLoading) this.loadPlan(); }, 60000);
@@ -3251,7 +3372,7 @@ function app() {
       this.creating = true;
       const { context, plan, ...rest } = this.form;
       const topic = approved ? `${rest.topic.trim()}\n\n${planBrief(approved)}` : rest.topic.trim();
-      const body = { ...rest, topic: topic || `A short video introducing the GitHub project ${rest.github_repo}`, hook: (approved?.hook || '').trim() || rest.hook || null, github_repo: rest.github_repo || null, workspace_id: this.ws()?.id || null, model: rest.model || null, effort: rest.effort || null, context_ids: context.map(c => c.id) };
+      const body = { ...rest, topic: topic || `A short video introducing the GitHub project ${rest.github_repo}`, hook: (approved?.hook || '').trim() || rest.hook || null, github_repo: rest.github_repo || null, workspace_id: this.ws()?.id || null, model: rest.model || null, effort: rest.effort || null, context_ids: context.map(c => c.id), reference_id: rest.reference_id || null, make_template: rest.engine === 'motion' && !!rest.make_template };
       const p = await this.run(() => this.api('/api/projects', { method:'POST', body }));
       this.creating = false;
       if (p && this.hooks.ab && this.form.hook) {  // B version: same settings, the next hook
@@ -3261,7 +3382,7 @@ function app() {
           if (b) this.say(this.t('Made 2 versions to compare: A and B'));
         }
       }
-      if (p) { Object.assign(this.form, { topic:'', context:[], github_repo:'', hook:'' }); this.hooks = { list:[], loading:false, ab:false, topic:'' }; await this.loadProjects(); this.nav(`/projects/${p.id}`); }
+      if (p) { Object.assign(this.form, { topic:'', context:[], github_repo:'', hook:'', reference_id:'', make_template:false }); this.hooks = { list:[], loading:false, ab:false, topic:'' }; await this.loadProjects(); this.nav(`/projects/${p.id}`); }
     },
     async loadLeftovers() { this.leftovers = await this.api('/api/leftovers').catch(() => this.leftovers); if (!this.leftovers.length) this.leftoverOpen = false; },
     leftoverParts(l) {
@@ -3302,7 +3423,7 @@ function app() {
       this.plan.loading = true;
       const { context } = this.form, tm = this.wsTemplate();
       const d = await this.run(() => this.api('/api/plan', { method: 'POST', body: { topic: this.form.topic.trim(), language: tm?.language || this.form.language, duration: tm ? Math.round(tm.duration) : this.form.duration,
-        format: tm?.format || this.form.format, playbook_id: this.form.playbook_id || null, brand_id: this.form.brand_id || null, workspace_id: this.ws()?.id || null, context_ids: context.map(c => c.id), avoid: this.plan.avoid } }));
+        format: tm?.format || this.form.format, playbook_id: this.form.playbook_id || null, brand_id: this.form.brand_id || null, workspace_id: this.ws()?.id || null, context_ids: context.map(c => c.id), avoid: this.plan.avoid, reference_id: this.form.reference_id || null } }));
       this.plan.loading = false;
       if (d) this.plan.data = d; else if (!this.plan.data) this.plan.open = false;
     },
@@ -3388,6 +3509,41 @@ function app() {
     // ------------------------------------------------ editor (Edit tab): a CapCut-style timeline on a version
     // The preview plays the base video clip by clip (speed, look as CSS filters) with titles and music on top,
     // timed exactly like the ffmpeg export in app/editor.py.
+    // ---- reference videos: someone else's video studied for its format (app/references.py)
+    async loadRefs() { this.refList = await this.api('/api/references').catch(() => this.refList); if (this.refView) this.refView = this.refList.find(r => r.id === this.refView.id) || null; },
+    curRef() { return this.refList.find(r => r.id === this.form.reference_id) || null; },
+    refStats(r) {
+      const s = r.stats;
+      if (!s) return '';
+      const cuts = s.shots - 1;  // hard cuts only; fades and slides aren't counted
+      return [this.t('{n}s', {n: Math.round(s.duration)}), cuts > 0 ? this.t('{n} cuts · {s}s per shot', {n: cuts, s: s.avg_shot}) : this.t('no hard cuts')].join(' · ');
+    },
+    async addRef(file) {
+      const body = new FormData();
+      if (file) body.append('file', file); else body.append('url', this.refAdd.url.trim());
+      this.refAdd.busy = true;
+      const r = await this.run(() => this.api('/api/references', { method: 'POST', body }));
+      this.refAdd.busy = false;
+      if (!r) return;
+      this.refAdd.open = false;
+      this.refList = [r, ...this.refList];
+      if (this.refAdd.then === 'pick') this.refPick = true; else this.refView = r;
+    },
+    async retryRef(r) { const x = await this.run(() => this.api(`/api/references/${r.id}/retry`, { method: 'POST' })); if (x) { this.refView = x; this.loadRefs(); } },
+    deleteRef(r) {
+      this.confirm('Delete this reference?', this.t('“{name}” and its frames are removed from this computer. Videos made from it stay.', {name: r.name}), 'Delete', async () => {
+        if (await this.run(() => this.api(`/api/references/${r.id}`, { method: 'DELETE' }))) { this.refView = null; if (this.form.reference_id === r.id) this.form.reference_id = ''; this.loadRefs(); }
+      }, { danger: true });
+    },
+    useRef(r) {
+      this.form.reference_id = r.id;
+      if (r.stats?.format) this.form.format = r.stats.format;
+      this.refView = null;
+      this.nav('/');
+      this.$nextTick(() => document.getElementById('topic')?.focus());
+      this.say(this.t('Now say what your video is about: it follows the format of “{name}”', {name: r.name}));
+    },
+
     // ---- templates: a Motion video as a series format (app/templates.py)
     async loadTemplates() { this.templateList = await this.api('/api/templates').catch(() => this.templateList); this.templatesLoaded = true; },
     templateById(id) { return this.templateList.find(t => t.id === id); },
@@ -3409,6 +3565,7 @@ function app() {
     async tplTick() {
       if (document.hidden) return;
       if (this.route.page === 'templates' && this.templateList.some(t => t.status === 'analyzing' || t.status === 'checking')) this.loadTemplates();
+      if (this.refList.some(r => r.status === 'queued' || r.status === 'working')) this.loadRefs();
       if (this.route.page === 'template' && this.tpl && (['analyzing', 'checking'].includes(this.tpl.status) || this.tpl.list.some(e => this.isBusy(e)))) {
         const was = this.tpl.status;
         const t = await this.api(`/api/templates/${this.tpl.id}`).catch(() => null);

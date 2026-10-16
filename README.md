@@ -84,6 +84,7 @@ In **Studio**, describe the video and choose:
 - **Source** (optional): context files (articles, notes, docs, transcripts — TXT, MD, PDF, DOCX, HTML, CSV, JSON, SRT/VTT), a **GitHub repository** (Claude reads its description, README and latest release; the topic can stay empty), or a **website** named in the topic (Claude reads the site and builds a brand kit from it).
 - **Engine**: Claude Motion (default) or Quick — see below.
 - **Video type** — the structure (hook, beats, pacing, ending), from 11 playbooks: AutoClip's *Top N list*, *Myth vs fact*, *Story / case study*, and [FrameJam](https://github.com/moritzkremb/framejam)'s faceless ones (*Explainer, How-to, Math animation, Motion showreel, Product launch, Launch teaser, Timeline, YouTube intro*).
+- **Like this video** — a reference video you've had Claude study (see below): same format, your content.
 - **Visual style** (Claude Motion) — the look, from a gallery of 43: 30 FrameJam styles (palette, fonts, easing, transitions, text animations, pacing, with posters) and the 13 HyperFrames frame presets.
 - **Hook**: *Suggest hooks* gives 3 opening lines from different angles; pick one, and optionally make a **B version** with another hook to compare.
 - **Brand kit**, language, format (9:16, 16:9, 1:1), length, tone, voice (with ▶ preview — ElevenLabs voices when connected — or *no voice-over*: captions timed to reading speed, music turned up), **background music** and **sound effects**.
@@ -138,6 +139,12 @@ The **Export** tab works on the version you pick at its top (the one the player 
 - **Cover image** — three covers from different moments with big text in the brand's font and accent color; pick one to download.
 
 AutoClip doesn't connect to social networks or post for you: it focuses on making and editing the video, and you post it wherever you like.
+
+## Learn from someone else's video
+
+**Templates → Learn from a video**: paste a link (TikTok, YouTube, Instagram, Facebook… via [yt-dlp](https://github.com/yt-dlp/yt-dlp)) or upload a file. AutoClip measures it — length, every hard cut, the main colors — takes a frame per shot (and every few seconds when it has few cuts), and Claude reads the frames once to describe its format: structure beat by beat, hook, pacing, colors, type, layout, motion and captions, a recipe, and what belongs to the creator and must not be copied. Its captions are used when the site has them; speech isn't transcribed.
+
+Pick it in the composer under **Like this video**: the new video follows the same structure, rhythm and look with your own content (Claude Motion also sees the frames; Quick gets the structure). Its footage, characters, logos, words and music are never copied, and a brand kit or chosen style wins over its look. Tick **Save it as a template when it's ready** to turn the result into a template for the series. Some sites block downloads; upload the file then.
 
 ## Plan first, then make
 
@@ -212,4 +219,4 @@ Contributions are welcome — through pull requests; `main` is protected. Read [
 
 ## License and credits
 
-[MIT](LICENSE). Bundled: [Be Vietnam Pro](app/assets/fonts/OFL.txt) (SIL OFL); [FrameJam](https://github.com/moritzkremb/framejam) styles and playbooks (MIT, `app/assets/*/framejam/LICENSE`), whose review page also inspired AutoClip's; GreenSock's [GSAP skills](https://github.com/greensock/gsap-skills) (MIT, `app/assets/skills/gsap/LICENSE`). Used from their own installs: [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0), the [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python), [edge-tts](https://github.com/rany2/edge-tts), FFmpeg via [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg).
+[MIT](LICENSE). Bundled: [Be Vietnam Pro](app/assets/fonts/OFL.txt) (SIL OFL); [FrameJam](https://github.com/moritzkremb/framejam) styles and playbooks (MIT, `app/assets/*/framejam/LICENSE`), whose review page also inspired AutoClip's; GreenSock's [GSAP skills](https://github.com/greensock/gsap-skills) (MIT, `app/assets/skills/gsap/LICENSE`). Used from their own installs: [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0), the [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python), [edge-tts](https://github.com/rany2/edge-tts), [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense), FFmpeg via [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg).

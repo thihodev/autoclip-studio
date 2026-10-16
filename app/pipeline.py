@@ -9,7 +9,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import activity, brands, claude, context, db, design, editor, motion, playbooks, render, settings, tts, usage
+from . import activity, brands, claude, context, db, design, editor, motion, references, playbooks, render, settings, tts, usage
 from .config import DATA_DIR, VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
@@ -208,6 +208,9 @@ async def run_project(pid: str):
             await _motion_version(pid, "First cut")
         except Exception as e:
             _fail(pid, e, status="ready" if db.get_project(pid).get("video_path") else "failed")
+            return
+        if req.get("make_template"):
+            await _save_as_template(pid)
         return
     try:
         if not p.get("timeline"):
@@ -219,6 +222,7 @@ async def run_project(pid: str):
                 duration=int(req.get("duration", 45)), style=req.get("style", ""),
                 notes="\n\n".join(filter(None, [
                     req.get("notes", ""), playbooks.script_notes(req.get("playbook_id")),
+                    references.script_notes(req.get("reference_id"), float(req.get("duration", 45))),
                     f'Open the voice-over with exactly this hook (first scene): "{req["hook"]}"' if req.get("hook") else "",
                     "No voice-over: viewers read each scene's text as on-screen captions, so write short, punchy "
                     "lines (at most 10 words each)." if req.get("voice") == tts.NO_VOICE else ""])),
@@ -358,6 +362,26 @@ async def manual_edit(pid: str, timeline: dict, title: str | None = None):
 
 
 # ---------- templates: new episodes of a Claude Motion format (templates.py) ----------
+
+async def _save_as_template(pid: str):
+    """"Save it as a template when it's ready": the first version becomes a template (and its project's series
+    template when the project has none)."""
+    from . import templates
+    p = db.get_project(pid)
+    ref = references.get(p["request"].get("reference_id")) if p["request"].get("reference_id") else None
+    try:
+        t = templates.start(p, (ref or {}).get("name") or "")
+        activity.add(pid, f"Saved as the template “{t['name']}”; Claude is reading its scenes", "done")
+        if p.get("workspace_id") and (ws := db.get_workspace(p["workspace_id"])) and not ws["data"].get("template_id"):
+            db.save_workspace(ws["id"], ws["name"], {**ws["data"], "template_id": t["id"]}, ws["created_at"])
+        await templates.analyze(t["id"])
+    except Exception as e:
+        log.warning("saving %s as a template failed", pid, exc_info=True)
+        activity.add(pid, f"Couldn't save it as a template: {e}", "warn")
+        if "t" in locals() and (cur := templates.get(t["id"])):
+            cur.update(status="failed", error=f"{e.__class__.__name__}: {e}"[:500])
+            templates._save(cur)
+
 
 _episode_writers = asyncio.Semaphore(2)  # Claude writes two episodes at a time; renders take turns (_motion_lock)
 

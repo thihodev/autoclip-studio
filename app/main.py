@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import activity, audio, brands, claude, context, covers, db, design, editor, leftovers, playbooks, styles, motion, pipeline, render, settings, templates, tts, usage
+from . import activity, audio, brands, claude, context, covers, db, design, editor, leftovers, playbooks, styles, motion, pipeline, references, render, settings, templates, tts, usage
 from .config import DATA_DIR, ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -82,6 +82,8 @@ class ProjectIn(BaseModel):
     playbook_id: str | None = None  # video type: structure, beats, pacing ("framejam:<id>" or "autoclip:<id>")
     style_id: str | None = None  # visual style for Claude Motion ("framejam:<id>" or "hyperframes:<id>")
     github_repo: str | None = None  # owner/repo: Claude bases the video on it (README, description, latest release)
+    reference_id: str | None = None  # a video studied for its format (references.py): same structure and look, own content
+    make_template: bool = False  # Claude Motion: save the first version as a template when it's ready
 
 
 class IdeasIn(BaseModel):
@@ -568,6 +570,7 @@ class PlanIn(BaseModel):
     workspace_id: str | None = None
     context_ids: list[str] = []
     avoid: list[str] = Field([], max_length=5)
+    reference_id: str | None = None
 
 
 class MoveIn(BaseModel):
@@ -721,6 +724,65 @@ async def episode_ideas(tid: str, body: EpisodeIdeasIn):
         raise HTTPException(500, str(e)[:300])
 
 
+# ------------------------------------------------------------------ references: other videos studied for their format
+
+@app.get("/api/references")
+def list_references():
+    return references.list_all()
+
+
+@app.post("/api/references")
+async def add_reference(url: str = Form(""), file: UploadFile | None = File(None)):
+    """Study a video from a link (TikTok, YouTube, Instagram, Facebook…) or a file; Claude reads it in the background."""
+    _require_setup()
+    try:
+        if file is not None and file.filename:
+            data = await file.read(references.MAX_BYTES + 1)
+            if len(data) > references.MAX_BYTES:
+                raise HTTPException(413, "That file is too big (500 MB at most)")
+            r = references.from_file(data, file.filename)
+        else:
+            r = references.from_url(url)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    _bg(references.run(r["id"]))
+    return r
+
+
+@app.get("/api/references/{rid}")
+def get_reference(rid: str):
+    r = references.get(rid)
+    if not r:
+        raise HTTPException(404, "Reference not found")
+    return r
+
+
+@app.post("/api/references/{rid}/retry")
+def retry_reference(rid: str):
+    r = references.get(rid)
+    if not r:
+        raise HTTPException(404, "Reference not found")
+    if r["status"] != "failed":
+        raise HTTPException(409, "This reference isn't stuck")
+    references._set(rid, status="queued", error=None)
+    _bg(references.run(rid))
+    return references.get(rid)
+
+
+@app.delete("/api/references/{rid}")
+def delete_reference(rid: str):
+    references.delete(rid)
+    return {"ok": True}
+
+
+@app.get("/api/references/{rid}/{name:path}")
+def reference_file(rid: str, name: str):
+    f = references.file(rid, name) if references.get(rid) else None
+    if not f:
+        raise HTTPException(404)
+    return FileResponse(f)
+
+
 # ------------------------------------------------------------------ planning: the idea before the video
 
 class WsIdeasIn(BaseModel):
@@ -846,6 +908,8 @@ async def plan(body: PlanIn):
     ids = [*body.context_ids, *[m["id"] for m in ((ws or {}).get("data") or {}).get("context") or []]]
     if ids:
         extra.append(context.prompt_block(ids, "Source material", budget=12_000))
+    if body.reference_id and (notes := references.script_notes(body.reference_id, body.duration)):
+        extra.append(notes)
     try:
         return await claude.plan_video(body.topic.strip(), body.language, body.duration, body.format, "\n".join(extra),
                                        body.avoid)
@@ -1094,6 +1158,8 @@ async def create_project(body: ProjectIn):
             req["github_repo"] = brands.parse_repo(body.github_repo)
         except ValueError as e:
             raise HTTPException(400, str(e))
+    if body.reference_id and (references.get(body.reference_id) or {}).get("status") != "ready":
+        raise HTTPException(400, "That reference video isn't ready")
     req["context"] = [m for cid in body.context_ids if (m := context.get(cid))]
     req["engine"] = body.engine or pipeline.default_engine()
     if req["engine"] == "motion" and (st := motion.status())["code"] in ("node", "ffmpeg"):
