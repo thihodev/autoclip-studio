@@ -34,7 +34,7 @@ class Platform:
 
     def via_connect(self) -> bool:
         """Connect through AutoClip Connect (no developer app) — when it supports this platform and no own app is set."""
-        return self.key in CONNECT_PLATFORMS and connect.available() and not self.configured()
+        return self.key in CONNECT_PLATFORMS and not self.configured() and connect.available(self.key)
 
     def info(self, redirect_uri: str) -> dict:
         return {

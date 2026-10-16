@@ -6,6 +6,7 @@ last 24 hours and are renewed through the Worker (it has the client secret); pos
 """
 import base64
 import json
+import time
 from urllib.parse import urlencode
 
 import httpx
@@ -19,8 +20,20 @@ from .config import CONNECT_URL
 SEAL_INFO = b"autoclip-connect v1"
 
 
-def available() -> bool:
-    return bool(CONNECT_URL)
+_health: dict = {"at": 0.0, "data": {}}
+
+
+def available(platform: str = "tiktok") -> bool:
+    """Connect is set and its server has this platform's app (checked at most every 10 minutes, 2 on failure)."""
+    if not CONNECT_URL:
+        return False
+    if time.time() - _health["at"] > (600 if _health["data"] else 120):
+        try:
+            _health["data"] = httpx.get(f"{CONNECT_URL}/health", timeout=3).json()
+        except Exception:
+            _health["data"] = {}
+        _health["at"] = time.time()
+    return bool(_health["data"].get(platform))
 
 
 def _b64u(b: bytes) -> str:
