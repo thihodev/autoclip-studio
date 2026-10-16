@@ -244,6 +244,27 @@
   @media (max-width: 700px) { .live { grid-template-columns:1fr; } }
   .live .shot { border-radius:10px; overflow:hidden; background:var(--surface-2); aspect-ratio:9/12; display:flex; align-items:center; justify-content:center; color:var(--text-3); font-size:12px; text-align:center; }
   .live .shot img { width:100%; height:100%; object-fit:contain; background:#000; }
+  .live .shot { position:relative; }
+  .live .shot.empty { background:linear-gradient(110deg, var(--surface-2) 30%, var(--border) 50%, var(--surface-2) 70%) 0 0 / 250% 100%; animation:shimmer 1.8s linear infinite; }
+  .livebadge { position:absolute; top:8px; left:8px; display:inline-flex; align-items:center; gap:5px; padding:2px 8px 2px 6px; border-radius:99px; background:rgba(0,0,0,.6); color:#fff; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+  .livebadge i { width:6px; height:6px; border-radius:50%; background:#ff4d6d; animation:blink 1.4s ease-in-out infinite; }
+  .livehead { display:flex; align-items:center; gap:10px; margin-bottom:12px; } .livehead strong { flex:1; min-width:0; }
+  .elapsed { display:inline-flex; align-items:center; gap:4px; font-size:12px; color:var(--text-2); font-variant-numeric:tabular-nums; } .elapsed .i { width:13px; height:13px; }
+  .steps { display:flex; list-style:none; margin:0 0 12px; padding:0; }
+  .steps li { flex:1; min-width:0; position:relative; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; font-size:11px; line-height:1.25; color:var(--text-3); }
+  .steps li + li::before { content:""; position:absolute; top:8px; left:-50%; right:50%; margin:0 11px; height:2px; border-radius:2px; background:var(--border-strong); }
+  .steps li.done::before, .steps li.now::before { background:var(--accent); }
+  .steps .dot { position:relative; z-index:1; width:18px; height:18px; border-radius:50%; border:2px solid var(--border-strong); background:var(--surface); display:flex; align-items:center; justify-content:center; }
+  .steps .dot .i { width:11px; height:11px; color:var(--on-accent); stroke-width:3; }
+  .steps li.done { color:var(--text-2); } .steps li.done .dot { background:var(--accent); border-color:var(--accent); }
+  .steps li.now { color:var(--text); font-weight:600; } .steps li.now .dot { border-color:var(--accent); animation:pulse 1.6s ease-out infinite; }
+  .steps li.now .dot::after { content:""; width:6px; height:6px; border-radius:50%; background:var(--accent); }
+  .bar.run i { background-image:linear-gradient(110deg, transparent 30%, rgba(255,255,255,.45) 50%, transparent 70%); background-size:250% 100%; animation:shimmer 1.6s linear infinite; }
+  @keyframes shimmer { from { background-position:125% 0; } to { background-position:-125% 0; } }
+  @keyframes pulse { 0% { box-shadow:0 0 0 0 var(--accent-soft); } 70% { box-shadow:0 0 0 7px transparent; } 100% { box-shadow:0 0 0 0 transparent; } }
+  @keyframes blink { 50% { opacity:.25; } }
+  @media (prefers-reduced-motion: reduce) { .bar.run i, .live .shot.empty, .steps li.now .dot, .livebadge i { animation:none; } }
+  @media (max-width: 560px) { .steps .l { display:none; } .steps li.now .l { display:block; position:absolute; top:24px; white-space:nowrap; } .steps { margin-bottom:28px; } }
   .feed { display:flex; flex-direction:column; gap:6px; max-height:260px; overflow:auto; }
   .feed .ev { display:flex; gap:8px; font-size:13px; line-height:1.4; }
   .feed .ev .t { color:var(--text-3); font-size:11px; width:44px; flex:none; padding-top:2px; font-variant-numeric:tabular-nums; }
@@ -442,6 +463,7 @@
   <symbol id="i-down" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
   <symbol id="i-right" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></symbol>
   <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
@@ -724,7 +746,7 @@
             </div>
             <div class="pbody">
               <div class="ptitle" x-text="p.script?.title || p.request.topic"></div>
-              <div class="bar" x-show="isBusy(p)"><i :style="`width:${Math.max(4,p.progress)}%`"></i></div>
+              <div class="bar run" x-show="isBusy(p)"><i :style="`width:${Math.max(4,p.progress)}%`"></i></div>
               <div class="perr" x-show="p.status==='failed' && p.error" x-text="p.error"></div>
               <div class="small muted" x-text="ago(p.created_at) + (p.version ? ` · v${p.version}` : '')"></div>
             </div>
@@ -761,16 +783,25 @@
 
           <div class="card" x-show="isBusy(cur)" style="margin-bottom:16px;padding:14px">
             <div class="live">
-              <div class="shot">
+              <div class="shot" :class="!live.preview && 'empty'">
                 <template x-if="live.preview"><img :src="`/media/${cur.id}/${live.preview}`" alt=""></template>
-                <template x-if="!live.preview"><div style="padding:12px"><span class="spin"></span><div style="margin-top:8px"><span x-t>The first preview appears as soon as Claude looks at a frame.</span></div></div></template>
+                <span class="livebadge" x-show="live.preview"><i></i><span x-t>Live</span></span>
+                <template x-if="!live.preview"><div style="padding:14px"><svg class="i" style="width:22px;height:22px;opacity:.6"><use href="#i-film"/></svg><div style="margin-top:8px"><span x-t>The first preview appears as soon as Claude looks at a frame.</span></div></div></template>
               </div>
               <div style="min-width:0">
-                <div class="actions" style="justify-content:space-between;margin-bottom:8px">
+                <div class="livehead">
                   <strong x-text="cur.stage ? t(cur.stage.replace(/\d+ of \d+/, '{k} of {n}').replace(/^Reading (.+)$/, 'Reading {site}'), {...stageVars(cur.stage), site: (cur.stage.match(/^Reading (.+)$/)||[])[1]}) : busyText(cur)"></strong>
+                  <span class="elapsed" x-show="live.started" :title="t('Time so far')"><svg class="i"><use href="#i-clock"/></svg><span x-text="elapsed(live.started)"></span></span>
                   <span class="chip warn" x-text="statusText(cur)"></span>
                 </div>
-                <div class="bar" style="margin-bottom:10px"><i :style="`width:${Math.max(4,cur.progress)}%`"></i></div>
+                <ol class="steps" :aria-label="t('Steps')">
+                  <template x-for="(st, i) in liveSteps(cur).list" :key="st">
+                    <li :class="i < liveSteps(cur).at ? 'done' : i === liveSteps(cur).at ? 'now' : ''" :aria-current="i === liveSteps(cur).at ? 'step' : null">
+                      <span class="dot"><svg class="i" x-show="i < liveSteps(cur).at"><use href="#i-check"/></svg></span><span class="l" x-text="t(st)"></span></li>
+                  </template>
+                </ol>
+                <div class="bar run" style="margin-bottom:6px"><i :style="`width:${Math.max(4,cur.progress)}%`"></i></div>
+                <p class="hint" style="margin:0 0 10px" x-text="t(isMotion(cur) ? 'Usually 10–20 minutes. You can leave this page — the video keeps going.' : 'Usually about a minute. You can leave this page — the video keeps going.')"></p>
                 <div class="feed">
                   <template x-for="(e, i) in [...(live.events||[])].reverse().slice(0, 14)" :key="e.at + ':' + i">
                     <div class="ev" :class="e.kind"><span class="t" x-text="clock(e.at)"></span><span class="x" x-text="e.kind==='say' ? '“' + e.text.replace(/^“|”$/g, '') + '”' : t(e.text)"></span></div>
@@ -1572,7 +1603,7 @@
         <span class="th"><img x-show="projThumb(p)" :src="projThumb(p)" alt=""><svg class="i" x-show="!projThumb(p)"><use href="#i-film"/></svg></span>
         <span style="min-width:0"><div class="ti" x-text="p.script?.title || p.request.topic"></div>
           <div class="st" x-text="statusText(p) + (p.stage ? ' · ' + t(p.stage.replace(/\d+ of \d+/, '{k} of {n}'), stageVars(p.stage)) : '')"></div>
-          <div class="bar" style="margin-top:6px"><i :style="`width:${Math.max(4,p.progress)}%`"></i></div></span>
+          <div class="bar run" style="margin-top:6px"><i :style="`width:${Math.max(4,p.progress)}%`"></i></div></span>
       </a>
     </template>
   </div>
@@ -2213,7 +2244,7 @@ function app() {
     styleList: [], styleOpen: false, styleQ: '', styleSrc: '', pbList: [], pbOpen: false,
     rv: { time:0, dur:0, playing:false, sel:null, pin:null, mode:'time', text:'', comments:[], film:null, sending:false, dragging:null },
     workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' }, siteImport: { open:false, url:'', busy:false },
-    live: {}, dockOpen: true,
+    live: {}, now: 0, dockOpen: true,
     uploadingContext: false, motionInfo: {}, voiceEdit: false, voiceKey: '', savingVoice: false, elevenVoices: [], previewing: false, contextAccept: '.txt,.md,.markdown,.pdf,.docx,.html,.htm,.csv,.json,.srt,.vtt,.yaml,.yml',
     brandList: [], brand: null, brandBase: '', brandMissing: false, syncing: false,
     importer: { open:false, url:'', ref:'', busy:false, refs:null, refsLoading:false, refsError:'' }, newBrand: { open:false, name:'' },
@@ -2279,6 +2310,18 @@ function app() {
     voiceLabel(v) { if (v.provider === 'elevenlabs') return [v.label, v.gender, v.accent].filter(Boolean).join(' · '); const n = v.name.split('-').slice(2).join('-').replace(/Neural$/, '').replace(/Multilingual$/, ' (multilingual)'); return `${n} · ${v.gender || ''} · ${v.locale}`; },
     isBusy(p) { return ['queued','scripting','designing','editing','rendering','publishing'].includes(p?.status); },
     isMotion(p) { return (p?.timeline?.engine || p?.request?.engine) === 'motion'; },
+    // The steps of a running job and the current one, from the engine's progress scale (see motion.Progress / render).
+    liveSteps(p) {
+      const v = p?.progress || 0;
+      if (this.isMotion(p)) {
+        const list = ['Script', 'Voice-over', 'Scene building', 'Captions & transitions', 'Visual check', 'Render'];
+        return { list, at: [32, 40, 72, 83, 88, 101].findIndex(end => v < end) };
+      }
+      const list = ['Script', 'Voice-over', 'Footage', 'Scene building', 'Final mix'];
+      if (['queued', 'scripting'].includes(p?.status)) return { list, at: 0 };
+      return { list, at: 1 + [15, 35, 90, 101].findIndex(end => v < end) };
+    },
+    elapsed(since) { const s = Math.max(0, Math.round((this.now || Date.now() / 1000) - since)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; },
     stageVars(stage) { const m = (stage || '').match(/(\d+) of (\d+)/); return m ? { k: m[1], n: m[2] } : {}; },
     askScene(s) { this.instruction = this.t('Scene {n}: ', {n: s.frame}); this.nav(`/projects/${this.cur.id}/review`); this.$nextTick(() => document.querySelector('textarea[x-model="instruction"]')?.focus()); },
     statusText(p) { if (p.status === 'rendering') return this.t('Rendering {n}%', {n: p.progress || 0}); if (p.status === 'designing') return this.t('Claude Motion {n}%', {n: p.progress || 0}); return this.t({ queued:'Queued', scripting:'Writing script', editing:'Claude is editing', publishing:'Publishing', ready:'Ready', published:'Published', failed:'Failed' }[p.status] || p.status); },
@@ -2398,6 +2441,7 @@ function app() {
       this.ready = true;
       await this.onRoute();
       setInterval(() => { this.loadProjects(); this.loadLive(); }, 2500);
+      setInterval(() => { if (this.live.started && this.cur && this.isBusy(this.cur) && !document.hidden) this.now = Date.now() / 1000; }, 1000);
       setInterval(() => this.refreshStatus(), 30000);
     },
     // The repository picker serves the composer and the brand-kit importer: onPick receives "owner/repo".

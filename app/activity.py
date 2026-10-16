@@ -11,6 +11,7 @@ from pathlib import Path
 
 _events: dict[str, deque] = {}
 _preview: dict[str, str] = {}
+_started: dict[str, float] = {}
 
 
 def add(pid: str, text: str, kind: str = "step"):
@@ -38,13 +39,44 @@ def preview(pid: str, image: Path):
         (render.project_dir(pid) / "media" / old).unlink(missing_ok=True)
 
 
+def start(pid: str):
+    """A job begins working on this video (for the elapsed time in the UI)."""
+    _started[pid] = time.time()
+
+
 def get(pid: str) -> dict:
-    return {"events": list(_events.get(pid, [])), "preview": _preview.get(pid)}
+    return {"events": list(_events.get(pid, [])), "preview": _preview.get(pid), "started": _started.get(pid)}
 
 
 def clear(pid: str):
     _events.pop(pid, None)
     _preview.pop(pid, None)
+    _started.pop(pid, None)
+
+
+# Commands that only look at files: a step counts when a script runs, not when Claude reads about it.
+READERS = {"cat", "sed", "head", "tail", "grep", "rg", "less", "more", "wc", "ls", "echo", "awk", "find", "nl", "diff",
+           "jq", "cd", "test", "["}
+
+
+def running(cmd: str) -> str:
+    """The parts of a shell command that run something (reads like `sed -n … captions.mjs` dropped)."""
+    parts = re.split(r"&&|\|\||;|\||\n", cmd or "")
+    return " ; ".join(p.strip() for p in parts
+                      if p.strip() and p.split()[0].rsplit("/", 1)[-1] not in READERS and "--help" not in p)
+
+
+def action(name: str, inp: dict) -> str:
+    """What a tool call does, as text to match workflow steps on: `run <commands>`, `write <file>` or the tool name.
+    Reads, searches and skill lookups return "" — reading about a step isn't doing it."""
+    if name == "Bash":
+        cmd = running(inp.get("command", ""))
+        return f"run {cmd}" if cmd else ""
+    if name in ("Write", "Edit", "MultiEdit"):
+        return f"write {inp.get('file_path', '')}"
+    if name in ("Read", "Grep", "Glob", "Skill", "TodoWrite", "LS"):
+        return ""
+    return name
 
 
 def describe_tool(name: str, inp: dict) -> str | None:
@@ -60,7 +92,7 @@ def describe_tool(name: str, inp: dict) -> str | None:
         what = labels.get(f) or (f"scene file {f}" if f.endswith(".html") else f)
         return f"{'Writing' if name == 'Write' else 'Editing'} {what}"
     if name == "Bash":
-        cmd = inp.get("command", "")
+        cmd = running(inp.get("command", ""))
         for pat, text in [
             (r"build-frame\.mjs.*--preset\s+(\S+)", "Applying the “{0}” design preset"),
             (r"hyperframes(@[\d.]+)?\s+render", "Rendering the final video"),

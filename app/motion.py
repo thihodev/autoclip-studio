@@ -372,26 +372,28 @@ def _make_permission(root: Path):
 class Progress:
     """Turns the agent's tool calls into a stage + percentage for the UI."""
 
-    STAGES = [  # (pattern on tool/input, progress, label)
-        (r"build-frame\.mjs|frame\.md", 12, "Choosing the look"),
-        (r"STORYBOARD\.md", 20, "Writing the storyboard"),
-        (r"voiceover", 32, "Recording the voice-over"),
-        (r"sync-durations", 36, "Timing the scenes"),
-        (r"^(Task|Agent) |\"file_path\": \"[^\"]*compositions/frames/", 40, "Animating the scenes"),
-        (r"captions\.mjs", 72, "Adding captions"),
-        (r"assemble-index", 76, "Assembling the video"),
-        (r"transitions\.mjs", 79, "Adding transitions"),
-        (r"hyperframes(@[\d.]+)?\s+(lint|check|snapshot)", 83, "Checking every frame"),
-        (r"hyperframes(@[\d.]+)?\s+render", 88, "Rendering"),
+    # (pattern on activity.action(): "run <commands>", "write <file>" or a tool name; progress; label).
+    # Only steps the agent actually takes count — reading a script or a skill that mentions one doesn't.
+    STAGES = [
+        (r"^run .*build-frame\.mjs|^write .*/frame\.md$", 12, "Choosing the look"),
+        (r"^write .*STORYBOARD\.md$", 20, "Writing the storyboard"),
+        (r"^mcp__autoclip__voiceover$", 32, "Recording the voice-over"),
+        (r"^run .*sync-durations", 36, "Timing the scenes"),
+        (r"^(Task|Agent)$|^write .*compositions/frames/", 40, "Animating the scenes"),
+        (r"^run .*captions\.mjs", 72, "Adding captions"),
+        (r"^run .*assemble-index", 76, "Assembling the video"),
+        (r"^run .*transitions\.mjs", 79, "Adding transitions"),
+        (r"^run .*hyperframes(@[\d.]+)?\s+(lint|check|snapshot)", 83, "Checking every frame"),
+        (r"^run .*hyperframes(@[\d.]+)?\s+render", 88, "Rendering"),
     ]
 
     def __init__(self, root: Path, report):
         self.root, self.report, self.value, self.label = root, report, 3, "Reading the brief"
 
     def see(self, block: ToolUseBlock):
-        text = f"{block.name} {json.dumps(block.input, ensure_ascii=False)[:500]}"
+        text = activity.action(block.name, block.input or {})
         for pattern, value, label in self.STAGES:
-            if re.search(pattern, text) and value >= self.value:
+            if text and re.search(pattern, text) and value >= self.value:
                 self.value, self.label = value, label
         if self.label == "Animating the scenes":
             frames = len(list((self.root / "compositions" / "frames").glob("*.html")))

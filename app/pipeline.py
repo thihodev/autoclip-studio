@@ -51,6 +51,7 @@ async def _motion_version(pid: str, note: str, instruction: str | None = None, m
     out = VIDEOS_DIR / f"{pid}_v{(p.get('version') or 0) + 1}.mp4"
     db.update_project(pid, status="queued", progress=0)
     async with _motion_lock:
+        activity.start(pid)
         db.update_project(pid, status="designing", progress=1)
         try:
             report = _reporter(pid)
@@ -184,6 +185,7 @@ async def _render_version(pid: str, note: str) -> dict:
 
 async def run_project(pid: str):
     activity.clear(pid)
+    activity.start(pid)
     db.update_project(pid, status="designing" if db.get_project(pid)["request"].get("engine") == "motion" else "scripting",
                       progress=1)
     try:
@@ -295,6 +297,7 @@ def apply_edit(tl: dict, meta: dict, edit: dict) -> tuple[dict, dict]:
 async def ai_edit(pid: str, instruction: str, source: str = "prompt", model: str | None = None,
                   effort: str | None = None):
     p = db.get_project(pid)
+    activity.start(pid)
     if is_motion(p):
         try:
             extra = _extra(p)
@@ -327,6 +330,7 @@ async def ai_edit(pid: str, instruction: str, source: str = "prompt", model: str
 async def manual_edit(pid: str, timeline: dict, title: str | None = None):
     """Timeline edited by hand in the UI (scene text, clip swap, captions...)."""
     p = db.get_project(pid)
+    activity.start(pid)
     old = {s["id"]: s for s in p["timeline"]["scenes"]}
     for s in timeline["scenes"]:
         s.setdefault("id", f"s{uuid.uuid4().hex[:6]}")
