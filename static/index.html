@@ -862,8 +862,9 @@
                     <span class="grow"><span class="t" x-text="curRef()?.name || t('Follow a video you like')"></span>
                       <span class="d" x-text="curRef() ? (curRef().analysis?.summary || '') : t('Paste a TikTok, YouTube, Instagram or Facebook link, or upload a video: same format, your content')"></span></span>
                     <svg class="i chev"><use href="#i-right"/></svg></button>
-                  <button type="button" class="btn ghost icon" x-show="form.reference_id" @click="form.reference_id = ''" :title="t('Remove')" :aria-label="t('Remove')"><svg class="i"><use href="#i-x"/></svg></button>
+                  <button type="button" class="btn ghost icon" x-show="form.reference_id" @click="clearRef()" :title="t('Remove')" :aria-label="t('Remove')"><svg class="i"><use href="#i-x"/></svg></button>
                 </div></div>
+              <div class="small muted" x-show="curRef()" style="margin-top:-6px" x-text="refHint()"></div>
               <label class="toggle small" x-show="form.engine==='motion'"><input type="checkbox" x-model="form.make_template">
                 <span x-t>Save it as a template when it's ready, to make the next episodes in minutes</span></label>
               <div class="field"><label><span x-t>Style / tone</span></label><input x-model="form.style" :placeholder="t('funny, storytelling, educational…')"></div>
@@ -2372,6 +2373,17 @@
                 <div class="field"><label><span x-t>Pacing</span></label><p class="small" style="margin:0" x-text="refView.analysis.pacing"></p></div>
                 <div class="field"><label><span x-t>Look</span></label>
                   <ul class="dlist small" style="margin:0"><template x-for="k in ['palette','type','layout','motion','captions','imagery']" :key="k"><li x-show="refView.analysis.look?.[k]"><b x-text="t(LOOK_KEYS[k]) + ': '"></b><span x-text="refView.analysis.look[k]"></span></li></template></ul></div>
+                <div class="field"><label><span x-t>Sound</span> <span class="muted small" x-show="refView.stats?.moving != null" x-text="'· ' + t('moves {n}% of the time', {n: Math.round(refView.stats.moving * 100)})"></span></label>
+                  <template x-if="refView.analysis.voice">
+                    <div style="display:grid;gap:8px">
+                      <select x-select :value="refView.analysis.voice" @change="setRefSound(refView, { voice: $event.target.value })" :aria-label="t('Voice')">
+                        <option value="unknown" x-show="refView.analysis.voice==='unknown'" x-t>Not sure if anyone speaks</option>
+                        <option value="none" x-t>Nobody speaks (music only)</option>
+                        <option value="voice-over" x-t>Voice-over</option>
+                        <option value="on-camera" x-t>Someone talks to the camera</option></select>
+                      <textarea rows="2" :value="refView.analysis.music" @change="setRefSound(refView, { music: $event.target.value })" :placeholder="t('Music: mood and energy')" :aria-label="t('Music')"></textarea></div></template>
+                  <p class="small" style="margin:0" x-show="refView.analysis.sound" x-text="refView.analysis.sound"></p>
+                  <p class="small muted" style="margin:0" x-show="!refView.analysis.voice"><span x-t>Studied before AutoClip listened to the sound and measured the motion.</span> <a href="#" @click.prevent="retryRef(refView)" x-t>Study it again</a></p></div>
                 <div class="field"><label><span x-t>How to make one</span></label><ul class="dlist small" style="margin:0"><template x-for="x in refView.analysis.recipe" :key="x"><li x-text="x"></li></template></ul></div>
                 <div class="field" x-show="refView.analysis.avoid?.length"><label><span x-t>Not copied</span></label><ul class="dlist small muted" style="margin:0"><template x-for="x in refView.analysis.avoid" :key="x"><li x-text="x"></li></template></ul></div>
               </div>
@@ -2380,6 +2392,7 @@
         </div>
         <div class="actions" style="margin-top:16px">
           <button class="btn ghost danger" @click="deleteRef(refView)"><svg class="i"><use href="#i-trash"/></svg><span x-t>Delete</span></button>
+          <button class="btn ghost" x-show="refView.status==='ready'" @click="retryRef(refView)" :title="t('Claude watches it again (one call)')"><svg class="i"><use href="#i-retry"/></svg><span x-t>Study again</span></button>
           <span class="grow" style="flex:1"></span>
           <button class="btn" @click="refView=null"><span x-t>Close</span></button>
           <button class="btn primary" :disabled="refView.status!=='ready'" @click="useRef(refView)"><svg class="i"><use href="#i-film"/></svg><span x-t>Make a video like this</span></button>
@@ -2395,7 +2408,7 @@
       <p class="muted" style="margin:6px 0 12px" x-show="!refList.length"><span x-t>No reference videos yet. Paste a link or upload a video and Claude studies its format.</span></p>
       <div class="tgrid" style="grid-template-columns:repeat(auto-fill, minmax(140px, 1fr))">
         <template x-for="r in refList" :key="r.id">
-          <button type="button" class="tcard" style="text-align:left;font:inherit;cursor:pointer" :disabled="r.status!=='ready'" :class="form.reference_id===r.id && 'on'" @click="form.reference_id = r.id; refPick = false">
+          <button type="button" class="tcard" style="text-align:left;font:inherit;cursor:pointer" :disabled="r.status!=='ready'" :class="form.reference_id===r.id && 'on'" @click="applyRef(r); refPick = false">
             <div class="tthumb" :style="`aspect-ratio:${fmtAspect(r.stats?.format)}`"><img x-show="r.frames?.length" :src="r.frames?.length ? `/api/references/${r.id}/frames/${r.frames[0]}` : ''" alt="" loading="lazy">
               <span class="chip" x-show="r.status!=='ready'" :class="r.status==='failed' ? 'err' : 'warn'" x-text="r.status==='failed' ? t('Needs a retry') : t(r.step || 'Waiting…')"></span></div>
             <div class="tbody"><strong class="small" x-text="r.name"></strong><span class="small muted" x-show="r.stats" x-text="refStats(r)"></span></div>
@@ -2974,7 +2987,7 @@ function app() {
     tp: { rows: [''], mode: 'redraw', busy: false, for: null },
     ideaAsk: { hint: '', busy: false }, plan: { open: false, source: 'composer', loading: false, busy: false, data: null, avoid: [], iid: null, mode: 'redraw' },
     moveDlg: { open: false, pid: null, to: '', title: '' },
-    refList: [], refAdd: { open: false, url: '', busy: false, then: null }, refView: null, refPick: false,
+    refList: [], refAdd: { open: false, url: '', busy: false, then: null }, refView: null, refPick: false, refPrevVoice: null,
     LOOK_NAMES: { none:'Original', vivid:'Vivid', warm:'Warm', fade:'Faded', film:'Film', mono:'Mono', noir:'Noir' },
     presets: [
       {key:'bold', label:'Bold', cls:'b', demo:'This is <em>huge</em>'},
@@ -3382,7 +3395,7 @@ function app() {
           if (b) this.say(this.t('Made 2 versions to compare: A and B'));
         }
       }
-      if (p) { Object.assign(this.form, { topic:'', context:[], github_repo:'', hook:'', reference_id:'', make_template:false }); this.hooks = { list:[], loading:false, ab:false, topic:'' }; await this.loadProjects(); this.nav(`/projects/${p.id}`); }
+      if (p) { Object.assign(this.form, { topic:'', context:[], github_repo:'', hook:'', reference_id:'', make_template:false }); this.refPrevVoice = null; this.hooks = { list:[], loading:false, ab:false, topic:'' }; await this.loadProjects(); this.nav(`/projects/${p.id}`); }
     },
     async loadLeftovers() { this.leftovers = await this.api('/api/leftovers').catch(() => this.leftovers); if (!this.leftovers.length) this.leftoverOpen = false; },
     leftoverParts(l) {
@@ -3423,7 +3436,7 @@ function app() {
       this.plan.loading = true;
       const { context } = this.form, tm = this.wsTemplate();
       const d = await this.run(() => this.api('/api/plan', { method: 'POST', body: { topic: this.form.topic.trim(), language: tm?.language || this.form.language, duration: tm ? Math.round(tm.duration) : this.form.duration,
-        format: tm?.format || this.form.format, playbook_id: this.form.playbook_id || null, brand_id: this.form.brand_id || null, workspace_id: this.ws()?.id || null, context_ids: context.map(c => c.id), avoid: this.plan.avoid, reference_id: this.form.reference_id || null } }));
+        format: tm?.format || this.form.format, playbook_id: this.form.playbook_id || null, brand_id: this.form.brand_id || null, workspace_id: this.ws()?.id || null, context_ids: context.map(c => c.id), avoid: this.plan.avoid, reference_id: this.form.reference_id || null, voice: this.form.voice || '' } }));
       this.plan.loading = false;
       if (d) this.plan.data = d; else if (!this.plan.data) this.plan.open = false;
     },
@@ -3535,9 +3548,36 @@ function app() {
         if (await this.run(() => this.api(`/api/references/${r.id}`, { method: 'DELETE' }))) { this.refView = null; if (this.form.reference_id === r.id) this.form.reference_id = ''; this.loadRefs(); }
       }, { danger: true });
     },
-    useRef(r) {
+    // Picking a reference follows how it sounds and moves: no voice-over when nobody speaks in it, and Claude Motion
+    // (Quick can't animate); both stay changeable. Removing it undoes the voice change.
+    applyRef(r) {
       this.form.reference_id = r.id;
       if (r.stats?.format) this.form.format = r.stats.format;
+      if (r.analysis?.voice === 'none' && this.form.voice !== 'none') { this.refPrevVoice = this.form.voice; this.form.voice = 'none'; }
+      if (this.form.engine !== 'motion' && !['node','ffmpeg'].includes(this.motionInfo.code)) this.form.engine = 'motion';
+    },
+    clearRef() {
+      if (this.refPrevVoice !== null && this.form.voice === 'none') this.form.voice = this.refPrevVoice;
+      this.refPrevVoice = null;
+      this.form.reference_id = '';
+    },
+    refHint() {
+      const r = this.curRef(), a = r?.analysis || {};
+      if (!r) return '';
+      const out = [];
+      if (a.voice === 'none') out.push(this.form.voice === 'none' ? this.t('No voice-over, like this video: music and on-screen text') : this.t('This video has no voice-over; yours will have one'));
+      if (a.music && a.music !== 'none' && this.form.music !== 'none') { const m = a.music.split(/(?<=\.)\s/)[0]; out.push(this.t('Music like: {m}', {m: m.length > 90 ? m.slice(0, 89) + '…' : m})); }
+      const brand = this.brandList.find(b => b.id === this.form.brand_id);
+      if (this.form.voice === 'none' && !this.form.music && !this.musicList.length && !brand?.music?.length) out.push(this.t('Add a track under Background music → Library, or the video will be silent'));
+      if (this.form.engine !== 'motion') out.push(this.t('Quick follows only its structure and pacing; Claude Motion also follows its look and motion'));
+      return out.join(' · ');
+    },
+    async setRefSound(r, body) {
+      const x = await this.run(() => this.api(`/api/references/${r.id}/sound`, { method: 'PUT', body }));
+      if (x) { this.refView = x; this.loadRefs(); }
+    },
+    useRef(r) {
+      this.applyRef(r);
       this.refView = null;
       this.nav('/');
       this.$nextTick(() => document.getElementById('topic')?.focus());

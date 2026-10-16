@@ -222,7 +222,7 @@ async def run_project(pid: str):
                 duration=int(req.get("duration", 45)), style=req.get("style", ""),
                 notes="\n\n".join(filter(None, [
                     req.get("notes", ""), playbooks.script_notes(req.get("playbook_id")),
-                    references.script_notes(req.get("reference_id"), float(req.get("duration", 45))),
+                    references.script_notes(req.get("reference_id"), float(req.get("duration", 45)), req.get("voice") or ""),
                     f'Open the voice-over with exactly this hook (first scene): "{req["hook"]}"' if req.get("hook") else "",
                     "No voice-over: viewers read each scene's text as on-screen captions, so write short, punchy "
                     "lines (at most 10 words each)." if req.get("voice") == tts.NO_VOICE else ""])),

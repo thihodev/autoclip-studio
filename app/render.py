@@ -412,6 +412,7 @@ def new_timeline(meta: dict, req: dict, brand: dict | None = None) -> dict:
         "voice": re.sub(r"-(Male|Female)$", "", voice or DEFAULT_VOICES.get(language, DEFAULT_VOICES["English"])),
         "voice_rate": float(req.get("voice_rate", 1.0)),
         "music": req.get("music") or "",      # "" auto · "none" · a library file
+        "music_mood": _ref_music(req.get("reference_id")),  # "auto" prefers tracks like the reference video's music
         "sfx": req.get("sfx", True) is not False,  # a whoosh on every cut
         "motion": True,
         "captions": dict(DEFAULT_CAPTIONS),
@@ -425,6 +426,12 @@ def new_timeline(meta: dict, req: dict, brand: dict | None = None) -> dict:
     if not footage_status()["ok"] and not brand:
         tl["captions"]["position"] = 0.5  # text-centric look on motion backgrounds
     return tl
+
+
+def _ref_music(rid: str | None) -> str:
+    from . import references  # references imports render
+
+    return references.music_mood(rid)
 
 
 def _style(pid: str, tl: dict, brand: dict | None) -> dict:
@@ -454,7 +461,7 @@ def _style(pid: str, tl: dict, brand: dict | None) -> dict:
     if el["music"]:
         from . import audio  # audio imports render
 
-        if (m := audio.pick(tl.get("music") or "", brand, pid)):
+        if (m := audio.pick(tl.get("music") or "", brand, pid, tl.get("music_mood") or "")):
             style["music"] = {"path": m["path"], "volume": m["volume"]}
     return style
 

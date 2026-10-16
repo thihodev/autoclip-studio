@@ -119,9 +119,10 @@ async def music_generate(prompt: str, seconds: int) -> dict:
         tmp.unlink(missing_ok=True)
 
 
-def pick(choice: str | None, brand: dict | None, pid: str) -> dict | None:
+def pick(choice: str | None, brand: dict | None, pid: str, mood: str = "") -> dict | None:
     """The music bed for a video → {path, volume} or None.
-    choice: "" / "auto" (brand music, else a library track), "none", or a library file name."""
+    choice: "" / "auto" (brand music, else a library track), "none", or a library file name.
+    mood: a reference video's music; "auto" then prefers the library tracks whose name and mood share its words."""
     if choice == "none":
         return None
     if choice and choice != "auto":
@@ -133,6 +134,11 @@ def pick(choice: str | None, brand: dict | None, pid: str) -> dict | None:
             m = tracks[int(render._hash(pid), 16) % len(tracks)]
             return {"path": brands.asset_path(brand["id"], m["file"]), "volume": float(m.get("volume", 0.12))}
     lib = music_list()
+    if lib and (words := set(re.findall(r"[a-z]{4,}", mood.lower())) - {"music", "with", "that", "each", "none"}):
+        score = {m["file"]: len(words & set(re.findall(r"[a-z]{4,}", f"{m['name']} {m['mood']}".lower()))) for m in lib}
+        best = max(score.values())
+        if best:
+            lib = [m for m in lib if score[m["file"]] == best]
     if lib:
         m = lib[int(render._hash(pid), 16) % len(lib)]
         return {"path": MUSIC_DIR / m["file"], "volume": 0.12}

@@ -191,7 +191,7 @@ def _brief(req: dict, brand: dict | None, resolution: str, root: Path | None = N
     if root and req.get("style_id"):
         lines += styles.brief_lines(req["style_id"], root, bool(brand))
     if root and req.get("reference_id"):
-        lines += references.brief_lines(req["reference_id"], root, float(req.get("duration", 45)))
+        lines += references.brief_lines(req["reference_id"], root, float(req.get("duration", 45)), req.get("voice") or "")
     if root:
         lines += gsap.brief_lines()
     return "\n".join(lines) + "\n"
@@ -282,7 +282,7 @@ async def record_voice(pid: str, root: Path, req: dict, brand: dict | None, line
         done.append(f"frame {frame}: {dur:.2f}s, {len(words)} words")
         activity.add(pid, f"Scene {frame}: “{text[:140]}”", "say")
     bgm = meta.get("bgm")
-    if not bgm and (m := audio.pick(req.get("music") or "", brand, pid)):
+    if not bgm and (m := audio.pick(req.get("music") or "", brand, pid, references.music_mood(req.get("reference_id")))):
         (root / "assets" / "music").mkdir(parents=True, exist_ok=True)
         dest = root / "assets" / "music" / Path(m["path"]).name
         shutil.copyfile(m["path"], dest)

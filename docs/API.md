@@ -91,10 +91,11 @@ An episode is a normal project whose `request` has `template_id` and `template_m
 | Method | Path | What it does |
 |---|---|---|
 | GET | `/api/references` | Videos studied for their format, newest first |
-| POST | `/api/references` | Multipart `url` or `file`: download (yt-dlp) or store it, measure cuts and colors, take frames, Claude describes the format (`status`: queued → working → ready, or failed; `step` says what's happening) |
+| POST | `/api/references` | Multipart `url` or `file`: download (yt-dlp) or store it, measure cuts, colors, movement per second and the sound (spectrogram), take frames and motion strips, Claude describes the format (`analysis.voice`: none, voice-over or on-camera; `analysis.music`) (`status`: queued → working → ready, or failed; `step` says what's happening) |
 | GET, DELETE | `/api/references/{id}` | One reference (`stats`, `palette`, `frames`, `analysis`) / delete it |
-| POST | `/api/references/{id}/retry` | Study a failed one again |
-| GET | `/api/references/{id}/video.mp4`, `/sheet.jpg`, `/frames/{t}s.jpg` | Its video, contact sheet and frames |
+| POST | `/api/references/{id}/retry` | Study it again (a failed one, or a ready one) |
+| PUT | `/api/references/{id}/sound` | JSON `voice` (`none`, `voice-over`, `on-camera`) and/or `music`: correct what Claude heard |
+| GET | `/api/references/{id}/video.mp4`, `/sheet.jpg`, `/motion.jpg`, `/sound.png`, `/frames/{t}s.jpg` | Its video, contact sheet, motion strips, spectrogram and frames |
 
 `POST /api/projects` takes `reference_id` (follow its format) and `make_template` (Claude Motion: save the first version as a template).
 

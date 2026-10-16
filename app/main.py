@@ -28,6 +28,8 @@ async def lifespan(app: FastAPI):
     db.init()
     settings.migrate()
     context.cleanup(_context_in_use())
+    references.interrupted()
+    templates.interrupted()
     task = asyncio.create_task(pipeline.autopilot_loop())
     yield
     task.cancel()
@@ -571,6 +573,7 @@ class PlanIn(BaseModel):
     context_ids: list[str] = []
     avoid: list[str] = Field([], max_length=5)
     reference_id: str | None = None
+    voice: str = ""
 
 
 class MoveIn(BaseModel):
@@ -757,13 +760,29 @@ def get_reference(rid: str):
     return r
 
 
+class RefSoundIn(BaseModel):
+    voice: str | None = None
+    music: str | None = None
+
+
+@app.put("/api/references/{rid}/sound")
+def set_reference_sound(rid: str, body: RefSoundIn):
+    """Correct what Claude heard: whether anyone speaks, and the music."""
+    if not references.get(rid):
+        raise HTTPException(404, "Reference not found")
+    try:
+        return references.set_sound(rid, body.voice, body.music)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @app.post("/api/references/{rid}/retry")
-def retry_reference(rid: str):
+async def retry_reference(rid: str):
     r = references.get(rid)
     if not r:
         raise HTTPException(404, "Reference not found")
-    if r["status"] != "failed":
-        raise HTTPException(409, "This reference isn't stuck")
+    if r["status"] in ("queued", "working"):
+        raise HTTPException(409, "It's still being studied")
     references._set(rid, status="queued", error=None)
     _bg(references.run(rid))
     return references.get(rid)
@@ -908,7 +927,7 @@ async def plan(body: PlanIn):
     ids = [*body.context_ids, *[m["id"] for m in ((ws or {}).get("data") or {}).get("context") or []]]
     if ids:
         extra.append(context.prompt_block(ids, "Source material", budget=12_000))
-    if body.reference_id and (notes := references.script_notes(body.reference_id, body.duration)):
+    if body.reference_id and (notes := references.script_notes(body.reference_id, body.duration, body.voice)):
         extra.append(notes)
     try:
         return await claude.plan_video(body.topic.strip(), body.language, body.duration, body.format, "\n".join(extra),

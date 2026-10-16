@@ -55,6 +55,13 @@ def _save(t: dict):
     tmp.replace(path)
 
 
+def interrupted():
+    """At startup: a template whose reading or check was cut short by the app stopping can be retried."""
+    for t in list_all():
+        if t["status"] in ("analyzing", "checking"):
+            _save({**t, "status": "failed", "error": "Stopped when the app was closed — retry"})
+
+
 def list_all() -> list[dict]:
     if not TEMPLATES_DIR.exists():
         return []
