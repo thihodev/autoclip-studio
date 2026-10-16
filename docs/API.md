@@ -56,9 +56,13 @@ The web UI uses this JSON API; you can script it too. Everything runs on the loc
 | GET | `/api/projects/{id}/filmstrip?file=` | Frame strip of the current version (or of one of its version files) |
 | GET, PUT | `/api/projects/{id}/edit` | The timeline edit `{edit: {clips, texts, music, audio}}` on its base version, with the base's size and length |
 | POST | `/api/projects/{id}/edit/reset`, `/api/projects/{id}/edit/export` | Start over from the latest version / render the edit as a new version |
-| GET | `/api/projects/{id}/design` | Claude Motion design state: scenes (texts, start/end, pause after the narration), palette, `dirty` (unrendered changes), size, the player script |
+| GET | `/api/projects/{id}/design` | Claude Motion design state: scenes (texts, images and videos, start/end, pause after the narration), captions, fonts, font choices, palette, `dirty`, `undo` steps, size, the player script |
 | PUT | `/api/projects/{id}/design/text`, `/design/color`, `/design/hold` | `{scene, index, text}` · `{old, new}` (hex, whole video) · `{scene, hold}` (seconds, 0–5) |
-| POST | `/api/projects/{id}/design/discard`, `/api/projects/{id}/design/render` | Back to the last render / render the changes as a new version (HyperFrames, no Claude) |
+| PUT | `/api/projects/{id}/design/fit`, `/design/caption`, `/design/font` | `{scene, index, size}` (px) · `{id, text}` · `{old, new, weights?}` (`weights`: old weight → new weight) |
+| PUT | `/api/projects/{id}/design/media` | Multipart `scene, index, fit (keep/cover/contain), everywhere, file` — replace an image or video |
+| POST | `/api/projects/{id}/design/undo`, `/design/discard` | Undo one change / back to the last render |
+| POST | `/api/projects/{id}/design/check` | HyperFrames check of the edited video → `{issues, compared}`: only problems not in the version the edits started from |
+| POST | `/api/projects/{id}/design/render` | Render the changes as a new version (HyperFrames, no Claude) |
 | GET | `/api/projects/{id}/design/files/{path}` | The HyperFrames project for the live preview (frames with their texts marked) |
 | POST | `/api/projects/{id}/layers` | Export the latest version as layers (ZIP: scenes, transparent captions, audio stems, SRT, FCPXML) → `extra.layers.file` under `/videos/` |
 | GET | `/api/projects/{id}/activity` | Live steps and latest preview while a video is made |

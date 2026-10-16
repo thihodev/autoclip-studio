@@ -40,7 +40,7 @@ Make YouTube Shorts, TikToks, Facebook Reels or 16:9 YouTube videos; review them
  review: comment on a moment, a range or a spot ─► Claude applies the round ─► next version
         │
         ▼
- design (Motion: texts · colors · pauses, live) · timeline editor ─► export: MP4 · layers (CapCut, Premiere, DaVinci) · caption · cover
+ design (Motion, live: texts · images · captions · fonts · colors · pauses, quality check) · timeline editor ─► export: MP4 · layers (CapCut, Premiere, DaVinci) · caption · cover
 ```
 
 ## Quick start
@@ -108,7 +108,15 @@ Open a video's **AI & review** tab: the player gets a full-width filmstrip split
 
 The **Scenes** and **Style** tabs (Quick engine) edit text, footage, captions, voice and brand elements by hand. Every render is kept as a version you can preview.
 
-The **Design** tab (Claude Motion) edits the video Claude built directly, without running Claude again. The HyperFrames composition plays live in the browser; click any text on the video to retype it, swap a color everywhere in the video (captions included), or add a pause after a scene's narration — everything after it moves along, transitions and captions too. Changes show at once; **Render new version** renders the project with HyperFrames (about 3 seconds per second of video on a laptop, no Claude usage), and **Discard** goes back to the last render. Texts drawn by scripts (counters, for example) and the narration still go through Claude in **AI & review**.
+The **Design** tab (Claude Motion) edits the video Claude built directly, without running Claude again. The HyperFrames composition plays live in the browser, and you click what you want to change:
+
+- **Texts** — retype them; a text that no longer fits (off the video, out of its box, under TikTok's buttons) is flagged at once with a **Fit** button that sizes it back.
+- **Images and videos** — replace them with your own (as before, fill, or fit inside), once or everywhere the file is used, e.g. a logo. A picture smaller than its place is flagged before it goes in, since it would look soft.
+- **Captions** — fix their wording; the word timing is kept (or shared out again when the word count changes).
+- **Fonts** — swap a font for one of 24 Google Fonts that all cover Vietnamese; the preview flags letters the current font doesn't have, and the new font's weight is matched to how thick the old one looked.
+- **Colors** — swap one everywhere, captions included. **Pauses** — add up to 5 s after a scene's narration; everything after it moves along.
+
+Changes show at once, with undo (⌘Z) and **Discard**. **Render new version** first runs HyperFrames' check (layout, contrast, errors) and lists only the problems your changes brought in — compared with the same check on the version you started from — then renders with HyperFrames (about 3 seconds per second of video on a laptop, no Claude usage). Texts drawn by scripts (counters, for example), the narration and the layout still go through Claude in **AI & review**.
 
 The **Edit** tab is a CapCut-style timeline that works on any version, Claude Motion videos included: split (S), trim by dragging a clip's edges, reorder by dragging, delete, duplicate, speed (0.5–3×) and volume per clip, looks (Vivid, Warm, Faded, Film, Mono, Noir) with brightness, contrast and saturation; titles you drag into place on the video with size, color, outline/box/shadow and fade/pop/slide/typewriter animations; a music track from your library with volume and fades; undo/redo (⌘Z). The preview plays it live, the edit autosaves, and **Export** renders it with ffmpeg as a new version — the original is kept.
 

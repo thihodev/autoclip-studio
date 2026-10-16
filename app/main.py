@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import re
 import secrets
@@ -47,6 +48,7 @@ def _bg(coro):
     asyncio.get_running_loop().create_task(coro)
 
 
+log = logging.getLogger("autoclip")
 BUSY = ("queued", "scripting", "designing", "editing", "rendering", "publishing")
 
 
@@ -359,6 +361,23 @@ class DesignHoldIn(BaseModel):
     hold: float = Field(ge=0, le=design.MAX_HOLD)
 
 
+class DesignFitIn(BaseModel):
+    scene: str
+    index: int
+    size: float = Field(gt=0, le=1000)
+
+
+class DesignCaptionIn(BaseModel):
+    id: str
+    text: str = Field(max_length=300)
+
+
+class DesignFontIn(BaseModel):
+    old: str = Field(max_length=80)
+    new: str = Field(max_length=80)
+    weights: dict[str, int] | None = None
+
+
 def _design_root(pid: str, editing: bool = False) -> Path:
     p = _project(pid)
     root = motion.project_root(pid)
@@ -374,12 +393,37 @@ def _design_state(root: Path) -> dict:
             "player": f"https://cdn.jsdelivr.net/npm/@hyperframes/player@{motion.HF_VERSION}/dist/hyperframes-player.global.js"}
 
 
+_baselines: dict[str, asyncio.Task] = {}
+
+
 def _design(fn, *args) -> dict:
+    root = args[0]
     try:
         fn(*args)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    return _design_state(args[0])
+    if design.dirty(root) and not (root / design.BASELINE).exists():
+        _baseline(root)
+    return _design_state(root)
+
+
+def _baseline(root: Path) -> asyncio.Task:
+    """Check the version the edits started from once (in the background), to tell new problems from old ones."""
+    key = str(root)
+    if key in _baselines and not _baselines[key].done():
+        return _baselines[key]
+
+    async def job():
+        copy = root / ".autoclip" / "baseline-project"
+        try:
+            design.baseline_copy(root, copy)
+            found = design.issues(await motion.check(copy))
+            if (root / ".autoclip").exists():
+                (root / design.BASELINE).write_text(json.dumps(found))
+        finally:
+            shutil.rmtree(copy, ignore_errors=True)
+    _baselines[key] = asyncio.get_running_loop().create_task(job())
+    return _baselines[key]
 
 
 @app.get("/api/projects/{pid}/design")
@@ -400,6 +444,54 @@ async def design_color(pid: str, body: DesignColorIn):
 @app.put("/api/projects/{pid}/design/hold")
 async def design_hold(pid: str, body: DesignHoldIn):
     return _design(design.edit_hold, _design_root(pid, True), body.scene, body.hold)
+
+
+@app.put("/api/projects/{pid}/design/fit")
+async def design_fit(pid: str, body: DesignFitIn):
+    return _design(design.fit_text, _design_root(pid, True), body.scene, body.index, body.size)
+
+
+@app.put("/api/projects/{pid}/design/caption")
+async def design_caption(pid: str, body: DesignCaptionIn):
+    return _design(design.edit_caption, _design_root(pid, True), body.id, body.text)
+
+
+@app.put("/api/projects/{pid}/design/font")
+async def design_font(pid: str, body: DesignFontIn):
+    return _design(design.edit_font, _design_root(pid, True), body.old, body.new, body.weights)
+
+
+@app.put("/api/projects/{pid}/design/media")
+async def design_media(pid: str, scene: str = Form(...), index: int = Form(...), fit: str = Form("keep"),
+                       everywhere: bool = Form(False), file: UploadFile = File(...)):
+    """Replace an image or video in a scene with an uploaded file (up to 200 MB)."""
+    root = _design_root(pid, True)
+    data = await file.read(200 * 1024 * 1024 + 1)
+    if len(data) > 200 * 1024 * 1024:
+        raise HTTPException(413, "That file is too big (200 MB at most)")
+    return _design(design.replace_media, root, scene, index, data, file.filename or "upload", fit, everywhere)
+
+
+@app.post("/api/projects/{pid}/design/undo")
+async def design_undo(pid: str):
+    return _design(design.undo, _design_root(pid, True))
+
+
+@app.post("/api/projects/{pid}/design/check")
+async def design_check(pid: str):
+    """Check the edited video with HyperFrames (layout, contrast, errors): the problems the edits brought in."""
+    root = _design_root(pid, True)
+    compared = True
+    try:
+        await _baseline(root) if not (root / design.BASELINE).exists() else None
+    except Exception:
+        log.warning("design baseline check failed for %s", pid, exc_info=True)
+        compared = False
+    try:
+        report = await motion.check(root)
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+    return {"issues": design.new_issues(root, report), "compared": compared and (root / design.BASELINE).exists()}
 
 
 @app.post("/api/projects/{pid}/design/discard")

@@ -329,6 +329,15 @@
   .dsg-texts { display:grid; gap:6px; max-height:300px; overflow:auto; padding:2px; }
   .dsg-texts input.hl { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
   .dsg-colors { display:flex; gap:8px; flex-wrap:wrap; }
+  .dsg-issue { display:flex; gap:8px; align-items:center; font-size:13px; line-height:1.35; } .dsg-issue .grow { flex:1; min-width:0; }
+  .dsg-issue > .i { flex:none; } .dsg-issue.warn > .i { color:var(--warn); } .dsg-issue.err > .i { color:var(--err); } .dsg-issue.ok > .i { color:var(--ok); }
+  .dsg-media { display:flex; gap:10px; align-items:center; padding:6px; border:1px solid var(--border); border-radius:10px; }
+  .dsg-media.hl { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .dsg-media .th { flex:none; width:56px; height:56px; border-radius:7px; background:var(--surface-2) repeating-conic-gradient(var(--border) 0 25%, transparent 0 50%) 0 0/12px 12px; display:grid; place-items:center; overflow:hidden; }
+  .dsg-media .th img { width:100%; height:100%; object-fit:contain; }
+  .dsg-font { display:grid; grid-template-columns:minmax(0, 1fr) 150px; gap:8px; align-items:center; }
+  .dsg-font .nm { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+  .dsg-texts input.hl, .dsg-texts input:focus { border-color:var(--accent); }
   .dsg-sw { position:relative; width:30px; height:30px; border-radius:50%; border:1px solid var(--border-strong); cursor:pointer; overflow:hidden; }
   .dsg-sw input { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:0; padding:0; }
   .pubcol { display:flex; flex-direction:column; gap:16px; } .pubcol > .card { margin:0; }
@@ -935,17 +944,38 @@
                           <button type="button" :class="dz.scene===i && 'on'" @click="dzGo(i)" :title="s.texts.slice(0, 3).join(' · ')" x-text="i + 1"></button>
                         </template>
                       </div>
-                      <p class="hint" style="margin:0"><span x-t>Click a text on the video to change it. Changes show here at once; render them into a new version when you're done — no Claude run.</span></p>
+                      <p class="hint" style="margin:0"><span x-t>Click a text, an image or a caption on the video to change it. Changes show here at once; render them into a new version when you're done — no Claude run.</span></p>
                     </div>
                     <div class="card nle-insp dsg-insp">
-                      <div class="notice info" style="margin:0" x-show="dz.data.dirty"><div class="stack" style="gap:8px;min-width:0">
-                        <strong x-t>Changes not rendered yet.</strong>
-                        <div class="actions">
-                          <button class="btn primary sm" @click="dzRender()" :disabled="isBusy(cur) || dz.saving"><svg class="i"><use href="#i-film"/></svg><span x-t>Render new version</span></button>
+                      <!-- changes, quality, render -->
+                      <div class="notice info" style="margin:0" x-show="dz.data.dirty || dz.check || dz.warn.length"><div class="stack" style="gap:10px;min-width:0;flex:1">
+                        <strong x-show="dz.data.dirty" x-t>Changes not rendered yet.</strong>
+                        <template x-for="w in dz.warn" :key="w.key">
+                          <div class="dsg-issue warn"><svg class="i"><use href="#i-alert"/></svg><span class="grow" x-text="w.text"></span>
+                            <button class="btn sm" x-show="w.fit" @click="dzFit(w)" :disabled="isBusy(cur) || dz.saving"><span x-t>Fit</span></button>
+                            <button class="btn sm ghost" x-show="w.font" @click="document.getElementById('dz-fonts')?.scrollIntoView({behavior:'smooth', block:'center'})"><span x-t>Change font</span></button></div>
+                        </template>
+                        <template x-if="dz.checking"><div class="dsg-issue"><span class="spin"></span><span class="grow" x-t>Checking the video — layout, readability, errors…</span></div></template>
+                        <template x-if="dz.check && !dz.checking">
+                          <div class="stack" style="gap:6px">
+                            <div class="dsg-issue ok" x-show="!dz.check.issues.length"><svg class="i"><use href="#i-check"/></svg><span class="grow" x-t>The check found no new problems.</span></div>
+                            <template x-for="it in dz.check.issues" :key="it.key">
+                              <div class="dsg-issue" :class="it.severity==='error' ? 'err' : 'warn'"><svg class="i"><use href="#i-alert"/></svg>
+                                <span class="grow" x-text="dzIssueText(it)"></span>
+                                <button class="btn sm ghost" x-show="it.time != null" @click="dzSeek(it.time)"><span x-t>Show</span></button></div>
+                            </template>
+                            <p class="small muted" style="margin:0" x-show="!dz.check.compared"><span x-t>Couldn't check the version before your changes, so some of these may have been there already.</span></p>
+                          </div>
+                        </template>
+                        <div class="actions" x-show="dz.data.dirty">
+                          <button class="btn primary sm" @click="dzRender(dz.check && dz.check.issues.length)" :disabled="isBusy(cur) || dz.saving || dz.checking"><svg class="i"><use href="#i-film"/></svg>
+                            <span x-text="t(dz.check && dz.check.issues.length ? 'Render anyway' : 'Render new version')"></span></button>
+                          <button class="btn ghost sm" @click="dzUndo()" :disabled="isBusy(cur) || dz.saving || !dz.data.undo" :title="t('Undo') + ' (⌘Z)'"><svg class="i"><use href="#i-undo"/></svg><span x-t>Undo</span></button>
                           <button class="btn ghost sm" @click="dzDiscard()" :disabled="isBusy(cur) || dz.saving"><span x-t>Discard</span></button>
                         </div>
-                        <div class="small muted" x-text="t('About {n} with HyperFrames.', {n: dzEta()})"></div>
+                        <div class="small muted" x-show="dz.data.dirty" x-text="t('The video is checked first (about 30 s), then rendered with HyperFrames (about {n}). No Claude run.', {n: dzEta()})"></div>
                       </div></div>
+
                       <template x-if="dzScene()">
                         <div class="stack">
                           <h3 class="nle-h"><span x-text="t('Scene {n}', {n: dz.scene + 1})"></span> <span class="muted small" x-text="fmtT(dzScene().start) + ' – ' + fmtT(dzScene().end)"></span></h3>
@@ -956,11 +986,54 @@
                                        @focus="dz.focus=i" @keydown.enter="$event.target.blur()" @change="dzText(dzScene().id, i, $event.target)">
                               </template>
                             </div></div>
-                          <p class="small muted" style="margin:0" x-show="!dzScene().texts.length"><span x-t>This scene has no text to edit.</span></p>
+                          <div class="field" x-show="dzScene().media.length"><label><span x-t>Images and videos</span></label>
+                            <div class="stack" style="gap:8px">
+                              <template x-for="(m, i) in dzScene().media" :key="dzScene().id + i + m.src">
+                                <div class="dsg-media" :id="`dz-m-${i}`" :class="dz.media===i && 'hl'">
+                                  <div class="th"><template x-if="m.kind==='image'"><img :src="dzFileUrl(m)" alt="" loading="lazy"></template>
+                                    <template x-if="m.kind==='video'"><svg class="i"><use href="#i-film"/></svg></template></div>
+                                  <div class="grow" style="min-width:0">
+                                    <div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" x-text="(m.src || '').split('/').pop()"></div>
+                                    <div class="actions" style="margin-top:6px">
+                                      <label class="btn sm" :aria-disabled="isBusy(cur)"><svg class="i"><use href="#i-upload"/></svg><span x-t>Replace…</span>
+                                        <input type="file" hidden :accept="m.kind==='video' ? 'video/mp4,video/webm,video/quicktime' : 'image/*'" :disabled="isBusy(cur)" @change="dzMedia(i, m, $event.target)"></label>
+                                    </div>
+                                  </div>
+                                </div>
+                              </template>
+                              <div class="small muted" x-t>For the next image you choose:</div>
+                              <div class="seg full"><template x-for="f in ['keep','cover','contain']" :key="f"><button type="button" :class="dz.fit===f && 'on'" @click="dz.fit=f" x-text="t({keep:'As before', cover:'Fill', contain:'Fit inside'}[f])" :title="t({keep:'Keep how the image sits in its place', cover:'Fill its place; the edges may be cropped', contain:'Show the whole image inside its place'}[f])"></button></template></div>
+                              <label class="toggle small"><input type="checkbox" x-model="dz.everywhere"> <span x-t>Replace it everywhere it appears (logos)</span></label>
+                            </div></div>
+                          <div class="field" x-show="dzCaptions().length"><label><span x-t>Captions</span></label>
+                            <div class="dsg-texts">
+                              <template x-for="g in dzCaptions()" :key="g.id + g.text">
+                                <input type="text" :id="`dz-c-${g.id}`" :value="g.text" :class="dz.caption===g.id && 'hl'" maxlength="300" :disabled="isBusy(cur)"
+                                       @focus="dz.caption=g.id; dzSeek(g.start + 0.05, true)" @keydown.enter="$event.target.blur()" @change="dzCaption(g, $event.target)">
+                              </template>
+                            </div>
+                            <p class="small muted" style="margin:4px 0 0"><span x-t>Fix the wording of a caption; the voice stays the same.</span></p></div>
+                          <p class="small muted" style="margin:0" x-show="!dzScene().texts.length && !dzScene().media.length"><span x-t>This scene has no text or image to edit.</span></p>
                           <div class="field"><label><span x-t>Pause after the narration</span> <span class="muted" x-text="dz.hold.toFixed(2) + ' s'"></span></label>
                             <input type="range" min="0" max="5" step="0.25" x-model.number="dz.hold" :disabled="isBusy(cur)" @change="dzHold(dzScene().id)"></div>
                         </div>
                       </template>
+
+                      <div class="field" id="dz-fonts" x-show="dz.data.fonts.length"><label><span x-t>Fonts</span></label>
+                        <p class="small muted" style="margin:0 0 4px"><span x-t>Every font in the list has Vietnamese accents.</span></p>
+                        <div class="stack" style="gap:6px">
+                          <template x-for="f in dz.data.fonts" :key="f.family">
+                            <div class="dsg-font">
+                              <span class="nm" :title="f.family"><span x-text="f.family"></span>
+                                <span class="chip warn" style="margin-left:6px" x-show="dzMissing(f.family)" x-text="t('No {chars}', {chars: dzMissing(f.family)})"></span></span>
+                              <select x-select @change="$event.target.value && dzFont(f.family, $event.target.value)" :disabled="isBusy(cur)" :aria-label="t('Change font')">
+                                <option value="" x-text="t('Change…')"></option>
+                                <template x-for="c in dz.data.font_choices" :key="c.family"><option :value="c.family" x-text="c.family + ' · ' + t(FONT_GROUPS[c.group])"></option></template>
+                              </select>
+                            </div>
+                          </template>
+                        </div></div>
+
                       <div class="field"><label><span x-t>Colors</span></label>
                         <p class="small muted" style="margin:0 0 4px"><span x-t>A new color replaces it everywhere in the video, captions included.</span></p>
                         <div class="dsg-colors">
@@ -2272,7 +2345,7 @@
     </div>
   </div>
 
-  <div class="modal" x-show="dialog.open" x-transition.opacity @click.self="dialog.open=false" @keydown.escape.window="dialog.open=false">
+  <div class="modal" x-show="dialog.open" x-transition.opacity @click.self="dialogCancel()" @keydown.escape.window="dialog.open && dialogCancel()">
     <div class="card">
       <h2 x-text="dialog.title"></h2>
       <p class="muted" style="margin-top:6px" x-text="dialog.body"></p>
@@ -2281,8 +2354,8 @@
       </template>
       <template x-if="dialog.note"><p class="dnote muted" x-text="dialog.note"></p></template>
       <div class="actions" style="margin-top:16px;justify-content:flex-end">
-        <button class="btn" @click="dialog.open=false"><span x-t>Cancel</span></button>
-        <button class="btn" :class="dialog.danger ? 'danger-solid' : 'primary'" @click="dialog.open=false; dialog.action()" x-text="dialog.confirm"></button>
+        <button class="btn" @click="dialogCancel()"><span x-t>Cancel</span></button>
+        <button class="btn" :class="dialog.danger ? 'danger-solid' : 'primary'" @click="dialog.open=false; dialog.onCancel=null; dialog.action()" x-text="dialog.confirm"></button>
       </div>
     </div>
   </div>
@@ -2391,7 +2464,9 @@ function tr(key, vars) {
 
 const EDITOR_TABS = ['scenes', 'style', 'design', 'edit', 'review', 'export'];
 const ED_PAD = 44;  // timeline: left gutter for the track icons
-const DZ_EMPTY = { pid:null, data:null, err:'', scene:0, focus:null, t:0, hold:0, saving:false };
+const DZ_EMPTY = { pid:null, data:null, err:'', scene:0, focus:null, media:null, caption:null, t:0, hold:0, saving:false,
+  fit:'keep', everywhere:false, warn:[], missing:{}, check:null, checking:false, last:null };
+const FONT_GROUPS = { sans:'Sans', rounded:'Rounded', display:'Display', serif:'Serif', hand:'Handwritten' };
 const ED_EMPTY = { pid:null, data:null, err:'', edit:{ clips:[], texts:[], music:null, audio:{ original:1 } }, t:0, ci:0, playing:false, zoom:40,
                    sel:null, undo:[], redo:[], drag:null, strip:null, stageH:0, saving:false, savedAt:0, exporting:false };
 const VOICE_SAMPLES = {
@@ -2490,6 +2565,7 @@ function app() {
     async run(fn, okMsg) { try { const r = await fn(); if (okMsg) this.say(okMsg); return r ?? true; } catch (e) { this.say(e.message, true); return null; } },
     say(m, err=false) { this.toast = this.t(String(m)).slice(0, 300); this.toastErr = err; clearTimeout(this._t); this._t = setTimeout(() => this.toast = '', err ? 7000 : 3500); },
     confirm(title, body, confirm, action, extra = {}) { this.dialog = { open:true, title: this.t(title), body: this.t(body), confirm: this.t(confirm), action, ...extra }; },
+    dialogCancel() { const c = this.dialog.onCancel; this.dialog.open = false; this.dialog.onCancel = null; c?.(); },
     toggle(arr, id) { const i = arr.indexOf(id); i < 0 ? arr.push(id) : arr.splice(i, 1); },
     initial(s) { return (s || '?').trim().charAt(0).toUpperCase(); },
 
@@ -2639,6 +2715,8 @@ function app() {
       });
       window.addEventListener('keydown', e => {
         if (this.route.page === 'project' && this.route.sub === 'edit' && this.ed.data) return this.edKey(e);
+        if (this.route.page === 'project' && this.route.sub === 'design' && this.dz.data && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z'
+            && !e.shiftKey && !e.target.closest?.('input, textarea, select, [contenteditable]')) { e.preventDefault(); return this.dzUndo(); }
         if (this.route.page !== 'project' || this.route.sub !== 'review' || !this.cur?.video_path) return;
         if (e.target.closest('input, textarea, select, [contenteditable]') || this.dialog.open || this.conn || e.metaKey || e.ctrlKey) return;
         const step = e.shiftKey ? 1 : 1 / 30;
@@ -2904,7 +2982,7 @@ function app() {
     async dzOpen() {
       if (!this.isMotion(this.cur)) { this.dz = { ...DZ_EMPTY, err: this.t('Only Claude Motion videos can be edited here') }; return; }
       if (this.dz.pid === this.cur.id && this.dz.data) return this.dzMount();
-      this.dz = { ...this.dz, pid: this.cur.id, data: null, err: '', scene: 0, focus: null, t: 0 };
+      this.dz = { ...DZ_EMPTY, pid: this.cur.id };
       try {
         this.dz.data = await this.api(`/api/projects/${this.cur.id}/design`);
         this.dz.hold = this.dzScene()?.hold || 0;
@@ -2926,7 +3004,7 @@ function app() {
       const pl = document.createElement('hyperframes-player');
       pl.setAttribute('controls', '');
       pl.setAttribute('src', `/api/projects/${this.dz.pid}/design/files/index.html?v=${Date.now()}`);
-      pl.addEventListener('ready', () => { if (t) pl.seek(t); this.dzHook(pl); });
+      pl.addEventListener('ready', () => { if (t) pl.seek(t); this.dzHook(pl); setTimeout(() => this.dzInspect(pl), 700); });
       pl.addEventListener('timeupdate', () => { this.dz.t = pl.currentTime; this.dzFollow(); });
       box.replaceChildren(pl);
       this._dzp = pl;
@@ -2945,8 +3023,19 @@ function app() {
       const f = this._dzp?.iframeElement, d = f?.contentDocument;
       if (!e || !d) return null;
       const fr = f.getBoundingClientRect(), k = fr.width / (d.documentElement.clientWidth || fr.width);
-      const el = d.elementFromPoint((e.clientX - fr.left) / k, (e.clientY - fr.top) / k)?.closest?.('[data-ac-t]');
-      return el && (el.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) ?? true) ? el : null;
+      const x = (e.clientX - fr.left) / k, y = (e.clientY - fr.top) / k;
+      const shown = el => el && (el.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) ?? true);
+      // captions sit on top but take no clicks: find the one showing under the pointer first
+      for (const pill of d.querySelectorAll('.caption-pill')) {
+        const r = pill.getBoundingClientRect();
+        if (shown(pill) && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return pill;
+      }
+      // full-canvas layers (the captions track, wrappers) lie on top: take the first editable thing under them
+      for (const hit of d.elementsFromPoint(x, y)) {
+        const el = hit.closest?.('[data-ac-t],[data-ac-m]');
+        if (el && shown(el)) return el;
+      }
+      return null;
     },
     dzHover(e) {
       const el = this.dzHit(e);
@@ -2960,7 +3049,17 @@ function app() {
       const el = this.dzHit(e);
       if (!el) return;
       e.preventDefault(); e.stopPropagation(); this._dzp.pause();
-      const [id, i] = el.dataset.acT.split(':');
+      if (el.classList.contains('caption-pill')) {
+        const g = el.closest('.caption-group')?.id, cap = this.dz.data.captions.find(c => c.id === g);
+        if (!cap) return;
+        this.dz.scene = Math.max(0, Math.min(this.dz.data.scenes.length - 1, (cap.frame || 1) - 1)); this.dz.hold = this.dzScene().hold;
+        return this.$nextTick(() => { const inp = document.getElementById(`dz-c-${g}`); inp?.focus(); inp?.select(); });
+      }
+      const [id, i] = (el.dataset.acT || el.dataset.acM).split(':');
+      if (el.dataset.acM) {
+        this.dz.scene = this.dz.data.scenes.findIndex(s => s.id === id); this.dz.media = +i; this.dz.focus = null; this.dz.hold = this.dzScene().hold;
+        return this.$nextTick(() => document.getElementById(`dz-m-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+      }
       this.dzPick(this.dz.data.scenes.findIndex(s => s.id === id), +i);
     },
     dzPick(k, i) {
@@ -2973,32 +3072,177 @@ function app() {
       if (document.activeElement?.closest?.('.nle-insp')) return;
       const k = this.dz.data.scenes.findIndex(s => this.dz.t < s.end - 0.01);
       const n = k < 0 ? this.dz.data.scenes.length - 1 : k;
-      if (n !== this.dz.scene) { this.dz.scene = n; this.dz.focus = null; this.dz.hold = this.dzScene().hold; }
+      if (n !== this.dz.scene) { this.dz.scene = n; this.dz.focus = null; this.dz.media = null; this.dz.hold = this.dzScene().hold; }
+    },
+    dzCaptions() { return (this.dz.data?.captions || []).filter(c => (c.frame || 1) === this.dz.scene + 1); },
+    dzFileUrl(m) { return m.path ? `/api/projects/${this.dz.pid}/design/files/${m.path}` : m.src; },
+    dzSeek(t, keep) { this._dzp?.pause(); this._dzp?.seek(Math.max(0, t)); if (!keep) this.dz.t = t; },
+    dzMissing(family) { return this.dz.missing[family] || ''; },
+    dzIssueText(it) {
+      if (it.kind === 'contrast') return this.t('“{text}” is hard to read: contrast {r}:1, it needs {n}:1.', { text: it.text, r: (+it.ratio).toFixed(1), n: it.required });
+      if (it.kind === 'layout') return this.t(it.message) + (it.text ? ` — “${it.text}”` : '') + '.';
+      return it.message;
     },
     dzGo(k) { this.dz.scene = k; this.dz.focus = null; this.dz.hold = this.dzScene().hold; const s = this.dzScene(); this._dzp?.pause(); this._dzp?.seek(Math.min(s.end - 0.05, s.start + 0.8)); },
-    async dzSave(path, body, t) {
+    async dzSave(path, body, t, last = null) {
       this.dz.saving = true;
-      const d = await this.run(() => this.api(`/api/projects/${this.cur.id}/design/${path}`, { method: path === 'discard' ? 'POST' : 'PUT', body }));
+      const post = ['discard', 'undo'].includes(path);
+      const d = await this.run(() => this.api(`/api/projects/${this.cur.id}/design/${path}`, { method: post ? 'POST' : 'PUT', body }));
       this.dz.saving = false;
       if (!d) return false;
-      this.dz.data = d; this.dz.hold = this.dzScene()?.hold || 0;
+      this.dz.data = d; this.dz.hold = this.dzScene()?.hold || 0; this.dz.check = null; this.dz.last = last;
       this.dzMount(t);
       return true;
+    },
+    // Quality checks in the preview, right after a change: letters the font doesn't have, and a changed text that
+    // no longer fits (off the video, out of its box, under TikTok's buttons).
+    async dzInspect(pl) {
+      const d = pl.iframeElement?.contentDocument;
+      if (!d || pl !== this._dzp) return;
+      await d.fonts?.ready;
+      const view = d.defaultView, cv = d.createElement('canvas').getContext('2d');
+      const width = (font, ch) => { cv.font = `100px ${font}`; return cv.measureText(ch).width; };
+      const missing = {};
+      for (const el of d.querySelectorAll('[data-ac-t], .caption-word')) {
+        const chars = [...new Set(el.textContent)].filter(c => c.charCodeAt(0) > 127 && /\p{L}/u.test(c));
+        if (!chars.length) continue;
+        const fam = view.getComputedStyle(el).fontFamily.split(',')[0].trim(), name = fam.replace(/["']/g, '');
+        if (width(`${fam}, monospace`, 'a') === width('monospace', 'a')) continue;  // not loaded: can't tell
+        for (const c of chars) if (width(`${fam}, monospace`, c) === width('monospace', c)) (missing[name] ||= new Set()).add(c);
+      }
+      this.dz.missing = Object.fromEntries(Object.entries(missing).map(([k, v]) => [k, [...v].slice(0, 8).join(' ')]));
+      const warn = Object.entries(this.dz.missing).map(([f, c]) => ({ key: 'font:' + f, font: f,
+        text: this.t('{font} has no {chars}: those letters show in another font.', { font: f, chars: c }) }));
+      const last = this.dz.last;
+      let o = null;
+      for (let k = 0; last && k < 12 && pl === this._dzp; k++) {  // the player applies the seek a moment later
+        const el = d.querySelector(`[data-ac-t="${last.scene}:${last.index}"]`);
+        if (el && (el.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) ?? true)) { await new Promise(r => setTimeout(r, 150)); o = this.dzOverflow(el); break; }
+        await new Promise(r => setTimeout(r, 250));
+      }
+      if (o) warn.push({ key: 'fit', fit: { scene: last.scene, index: last.index, size: o.size }, text: this.t(o.why) });
+      this.dz.warn = warn;
+    },
+    dzOverflow(el) {
+      const d = el.ownerDocument, view = d.defaultView, W = this.dz.data.width, H = this.dz.data.height;
+      if (!(el.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) ?? true)) return null;
+      const range = d.createRange(); range.selectNodeContents(el);
+      const t = range.getBoundingClientRect();
+      if (!t.width) return null;
+      let box = el.parentElement, b = null;
+      for (let n = 0; box && box !== d.body && n < 6; n++, box = box.parentElement) {
+        const cs = view.getComputedStyle(box), r = box.getBoundingClientRect();
+        if (r.width < W * 0.95 && (cs.backgroundColor !== 'rgba(0, 0, 0, 0)' || parseFloat(cs.borderTopWidth) > 0 || cs.backgroundImage !== 'none')) { b = r; break; }
+      }
+      const tol = 3, vertical = H > W;
+      const off = t.left < -tol || t.top < -tol || t.right > W + tol || t.bottom > H + tol;
+      const spill = b && (t.left < b.left - tol || t.right > b.right + tol || t.top < b.top - tol || t.bottom > b.bottom + tol);
+      const safe = vertical && (t.left < W * 0.06 - tol || t.right > W * 0.85 + tol || t.top < H * 0.10 - tol || t.bottom > H * 0.78 + tol);
+      if (!off && !spill && !safe) return null;
+      // the room it has: its box (or, when the box grows with the text, the safe part of the video)
+      const hugs = b && t.width > b.width * 0.6 && !spill;
+      const room = spill ? Math.min(b.width / t.width, b.height / t.height) : (vertical ? W * 0.79 : W * 0.9) / (hugs ? b.width : t.width);
+      const size = parseFloat(view.getComputedStyle(el).fontSize) * Math.min(0.97, room * 0.97);
+      return { size, why: off ? 'This text runs off the video.' : spill ? 'This text spills out of its box.' : "This text goes under TikTok's buttons." };
+    },
+    dzFit(w) { this.dzSave('fit', { scene: w.fit.scene, index: w.fit.index, size: w.fit.size }, this.dz.t, { scene: w.fit.scene, index: w.fit.index }); },
+    dzUndo() { if (this.dz.data?.undo) this.dzSave('undo', undefined, this.dz.t); },
+    dzCaption(g, el) {
+      if (!el.value.trim()) { el.value = g.text; return this.say(this.t("A caption can't be empty"), true); }
+      if (el.value.trim() !== g.text) this.dzSave('caption', { id: g.id, text: el.value.trim() }, g.start + 0.05);
+    },
+    async dzFont(old, family) {
+      this.dz.saving = true;
+      const weights = await this.dzWeights(old, family).catch(() => null);
+      this.dzSave('font', { old, new: family, weights }, this.dz.t);
+    },
+    // For each weight the old font is used at, the new font's weight that looks as thick (ink per letter width,
+    // measured in the preview) — a heavy one-weight display font must not turn into a thin regular.
+    async dzWeights(old, family) {
+      const d = this._dzp?.iframeElement?.contentDocument, f = this.dz.data.fonts.find(x => x.family === old);
+      const choice = this.dz.data.font_choices.find(c => c.family === family);
+      if (!d || !f || !choice) return null;
+      const avail = (choice.css.split('wght@')[1] || '400').split(';').map(Number);
+      if (!d.querySelector(`link[data-dz-font="${family}"]`)) {
+        const l = d.createElement('link');
+        l.rel = 'stylesheet'; l.href = `https://fonts.googleapis.com/css2?family=${choice.css}&display=block`; l.dataset.dzFont = family;
+        d.head.appendChild(l);
+        await new Promise(r => { l.onload = r; l.onerror = r; setTimeout(r, 5000); });
+      }
+      await Promise.all(avail.map(w => d.fonts.load(`${w} 80px "${family}"`).catch(() => {})));
+      const all = [100, 200, 300, 400, 500, 600, 700, 800, 900];
+      const faces = [...d.fonts].filter(x => x.family.replace(/["']/g, '') === old && x.status === 'loaded');
+      const has = faces.length ? [...new Set(faces.flatMap(x => { const [a, b] = String(x.weight).split(' ').map(n => parseInt(n) || 400); return b ? all.filter(w => w >= a && w <= b) : [a]; }))] : null;
+      const cv = d.createElement('canvas'); cv.width = 1000; cv.height = 140;
+      const ctx = cv.getContext('2d', { willReadFrequently: true }), sample = 'Hamburgefonstiv 248';
+      const ink = font => {
+        ctx.clearRect(0, 0, 1000, 140); ctx.font = font; ctx.fillStyle = '#000'; ctx.textBaseline = 'middle'; ctx.fillText(sample, 10, 70);
+        const px = ctx.getImageData(0, 0, 1000, 140).data; let n = 0;
+        for (let i = 3; i < px.length; i += 4) if (px[i] > 127) n++;
+        return n / Math.max(1, ctx.measureText(sample).width);
+      };
+      const near = (list, w) => list.reduce((a, b) => Math.abs(b - w) < Math.abs(a - w) ? b : a);
+      const out = {};
+      for (const w of f.weights) {
+        const target = ink(`${has ? near(has, w) : w} 80px "${old}"`);
+        const score = x => Math.abs(Math.log(ink(`${x} 80px "${family}"`) / target));
+        out[w] = avail.reduce((best, x) => score(x) < score(best) ? x : best, avail[0]);
+      }
+      return out;
+    },
+    async dzMedia(i, m, input) {
+      const file = input.files?.[0];
+      input.value = '';
+      if (!file) return;
+      const s = this.dzScene(), ok = await this.dzSharp(file, s.id, i);
+      if (!ok) return;
+      const body = new FormData();
+      body.append('scene', s.id); body.append('index', i); body.append('fit', this.dz.fit); body.append('everywhere', this.dz.everywhere); body.append('file', file);
+      this.dz.saving = true;
+      const d = await this.run(() => this.api(`/api/projects/${this.cur.id}/design/media`, { method: 'PUT', body }));
+      this.dz.saving = false;
+      if (d) { this.dz.data = d; this.dz.check = null; this.dz.last = null; this.dzMount(this.dz.t); }
+    },
+    // A picture smaller than the place it fills looks soft in the video: say so before using it.
+    dzSharp(file, scene, i) {
+      const el = this._dzp?.iframeElement?.contentDocument?.querySelector(`[data-ac-m="${scene}:${i}"]`);
+      if (!el || !file.type.startsWith('image/') || file.type === 'image/svg+xml') return Promise.resolve(true);
+      const need = { w: Math.round(el.offsetWidth || el.getBBox?.().width || 0), h: Math.round(el.offsetHeight || el.getBBox?.().height || 0) };
+      return new Promise(done => {
+        const img = new Image(), url = URL.createObjectURL(file);
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          if (img.naturalWidth >= need.w * 0.9 && img.naturalHeight >= need.h * 0.9) return done(true);
+          this.confirm('This image is small for its place', this.t('It is {w}×{h} but fills {W}×{H} in the video, so it will look soft. Use a bigger one for a sharp video.', { w: img.naturalWidth, h: img.naturalHeight, W: need.w, H: need.h }),
+            'Use it anyway', () => done(true), { onCancel: () => done(false) });
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); done(true); };
+        img.src = url;
+      });
     },
     async dzText(scene, i, el) {
       if (!el.value.trim()) { el.value = this.dzScene().texts[i]; return this.say(this.t("Text can't be empty — ask Claude in AI & review to remove something"), true); }
       if (el.value === this.dzScene().texts[i]) return;
-      this.dzSave('text', { scene, index: i, text: el.value }, this.dz.t);
+      this.dzSave('text', { scene, index: i, text: el.value }, this.dz.t, { scene, index: i });
     },
     dzColor(old, color) { this.dzSave('color', { old, new: color }, this.dz.t); },
     dzHold(scene) { const s = this.dzScene(); this.dzSave('hold', { scene, hold: this.dz.hold }, Math.max(s.start, s.end - 1.5)); },
     dzDiscard() {
       this.confirm('Discard the changes?', 'The texts, colors and pauses go back to the latest version.', 'Discard', () => this.dzSave('discard', undefined, this.dz.t));
     },
-    async dzRender() {
+    // Quality first: check the edited video with HyperFrames, render only when nothing new is wrong (or when asked).
+    async dzRender(anyway) {
       this._dzp?.pause();
+      if (!anyway) {
+        this.dz.checking = true;
+        const c = await this.run(() => this.api(`/api/projects/${this.cur.id}/design/check`, { method: 'POST' }));
+        this.dz.checking = false;
+        if (!c) return;
+        this.dz.check = c;
+        if (c.issues.length) return;
+      }
       const p = await this.run(() => this.api(`/api/projects/${this.cur.id}/design/render`, { method: 'POST' }), 'Rendering — the new version appears in a few minutes');
-      if (p) { this.cur = { ...this.cur, status: 'rendering', progress: 2 }; this.loadProjects(); }
+      if (p) { this.cur = { ...this.cur, status: 'rendering', progress: 2 }; this.dz.check = null; this.loadProjects(); }
     },
     async edOpen() {
       if (!this.cur?.video_path) { this.ed = { ...this.ed, err: this.t('Render the video first.') }; return; }

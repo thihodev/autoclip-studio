@@ -588,6 +588,23 @@ async def edit(pid: str, req: dict, instruction: str, out: Path, report, model: 
     return await _finish(pid, root, brand, out, req)
 
 
+async def check(root: Path) -> dict:
+    """`hyperframes check --json` on a project: layout, contrast and runtime findings (it exits 1 when it finds any)."""
+    proc = await asyncio.create_subprocess_exec(
+        shutil.which("npx"), "-y", f"hyperframes@{HF_VERSION}", "check", ".", "--json", "--samples", "12",
+        "--at-transitions", "--max-transition-samples", "24", cwd=root, env=_env(),
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    try:
+        out, err = await asyncio.wait_for(proc.communicate(), 300)
+    except asyncio.TimeoutError:
+        proc.kill()
+        raise RuntimeError("The quality check timed out")
+    try:
+        return json.loads(out.decode(errors="replace"))
+    except ValueError:
+        raise RuntimeError(f"The quality check failed: {err.decode(errors='replace')[-400:]}")
+
+
 async def render_edits(pid: str, req: dict, out: Path, report) -> dict:
     """Render the project as it is now (direct edits from the Design tab) — HyperFrames only, no Claude."""
     brand = brands.get(req.get("brand_id"))
