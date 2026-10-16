@@ -494,6 +494,15 @@
 
   /* brand kits */
   /* templates */
+  .tstrip { margin-bottom:16px; }
+  .tstrip-head { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; flex-wrap:wrap; } .tstrip-head .t { font-weight:600; } .tstrip-head .grow { flex:1; }
+  .tstrip-row { display:flex; gap:10px; overflow-x:auto; scroll-snap-type:x proximity; padding:2px 2px 6px; }
+  .tmini { flex:none; width:250px; display:flex; gap:12px; align-items:center; padding:8px 12px 8px 8px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); color:var(--text); font:inherit; text-align:left; cursor:pointer; scroll-snap-align:start; transition:border-color .15s, transform .15s; }
+  .tmini:hover { border-color:var(--accent); transform:translateY(-1px); }
+  .tmini .th { position:relative; flex:none; width:46px; aspect-ratio:9/16; border-radius:7px; overflow:hidden; background:var(--surface-2); }
+  .tmini .th img, .tmini .th video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .tmini .th video { opacity:0; transition:opacity .2s; } .tmini:hover .th video { opacity:1; }
+  .tmini .tx { display:grid; gap:2px; min-width:0; } .tmini .tx b { font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .tgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:16px; }
   .tcard { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; text-decoration:none; color:inherit; box-shadow:var(--shadow); display:flex; flex-direction:column; transition:border-color .15s, transform .15s; }
   .tcard:hover { border-color:var(--border-strong); transform:translateY(-2px); }
@@ -680,6 +689,25 @@
         <svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg>
         <div><span x-t>Before creating videos:</span> <span x-text="missingSetup().join(t(' and '))"></span>. <a href="/connections" @click.prevent="nav('/connections')"><span x-t>Open Connections →</span></a></div>
       </div>
+
+      <!-- Start from a template: same design, a new topic (app/templates.py) -->
+      <div class="tstrip" x-show="readyTemplates().length">
+        <div class="tstrip-head"><span class="t" x-t>Start from a template</span>
+          <span class="small muted grow" x-text="t(form.topic.trim() ? 'Your topic above becomes its next episode.' : 'Same design, new topic: a few minutes, no design run.')"></span>
+          <a class="small" href="/templates" @click.prevent="nav('/templates')"><span x-t>All templates</span></a></div>
+        <div class="tstrip-row">
+          <template x-for="tm in readyTemplates().slice(0, 10)" :key="tm.id">
+            <button type="button" class="tmini" @click="useTemplate(tm)" :title="tm.summary"
+                    @mouseenter="$el.querySelector('video')?.play().catch(() => {})" @mouseleave="const v = $el.querySelector('video'); if (v) { v.pause(); v.currentTime = 0; }">
+              <span class="th"><img :src="`/api/templates/${tm.id}/cover.jpg`" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><video :src="`/api/templates/${tm.id}/preview.mp4`" muted loop playsinline preload="none"></video></span>
+              <span class="tx"><b x-text="tm.name"></b><span class="small muted" x-text="[t(tm.episodes === 1 ? '{n} episode' : '{n} episodes', {n: tm.episodes}), fmtT(tm.duration)].join(' · ')"></span></span>
+            </button>
+          </template>
+        </div>
+      </div>
+      <p class="small muted" style="margin:0 0 12px" x-show="templatesLoaded && !templateList.length && projects.some(p => isMotion(p) && p.video_path)">
+        <svg class="i" style="width:13px;height:13px;vertical-align:-2px"><use href="#i-grid"/></svg>
+        <span x-t>Tip: open a Claude Motion video you like and choose “Save as template” to make a whole series in that design.</span></p>
 
       <div class="card composer">
         <fieldset :disabled="creating">
@@ -1564,19 +1592,19 @@
         </div>
       </template>
       <div class="tgrid" x-show="templateList.length">
-        <template x-for="tp in templateList" :key="tp.id">
-          <a class="tcard" :href="`/templates/${tp.id}`" @click.prevent="nav(`/templates/${tp.id}`)"
+        <template x-for="tm in templateList" :key="tm.id">
+          <a class="tcard" :href="`/templates/${tm.id}`" @click.prevent="nav(`/templates/${tm.id}`)"
              @mouseenter="$el.querySelector('video')?.play().catch(() => {})" @mouseleave="const v = $el.querySelector('video'); if (v) { v.pause(); v.currentTime = 0; }">
-            <div class="tthumb" :style="`aspect-ratio:${fmtAspect(tp.format)}`">
-              <img :src="`/api/templates/${tp.id}/cover.jpg`" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
-              <video :src="`/api/templates/${tp.id}/preview.mp4`" muted loop playsinline preload="none"></video>
-              <span class="chip" x-show="tp.status!=='ready'" :class="tp.status==='failed' ? 'err' : 'warn'" x-text="t({analyzing:'Reading the scenes…', checking:'Checking…', failed:'Needs a retry'}[tp.status] || tp.status)"></span>
+            <div class="tthumb" :style="`aspect-ratio:${fmtAspect(tm.format)}`">
+              <img :src="`/api/templates/${tm.id}/cover.jpg`" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+              <video :src="`/api/templates/${tm.id}/preview.mp4`" muted loop playsinline preload="none"></video>
+              <span class="chip" x-show="tm.status!=='ready'" :class="tm.status==='failed' ? 'err' : 'warn'" x-text="t({analyzing:'Reading the scenes…', checking:'Checking…', failed:'Needs a retry'}[tm.status] || tm.status)"></span>
               <span class="tplay"><svg class="i"><use href="#i-play"/></svg></span>
             </div>
             <div class="tbody">
-              <strong x-text="tp.name"></strong>
-              <div class="small muted tsum" x-text="tp.summary || tp.example"></div>
-              <div class="small muted" x-text="[t('{n} scenes', {n: tp.scenes.length || '…'}), fmtT(tp.duration), t(tp.episodes === 1 ? '{n} episode' : '{n} episodes', {n: tp.episodes})].join(' · ')"></div>
+              <strong x-text="tm.name"></strong>
+              <div class="small muted tsum" x-text="tm.summary || tm.example"></div>
+              <div class="small muted" x-text="[t('{n} scenes', {n: tm.scenes.length || '…'}), fmtT(tm.duration), t(tm.episodes === 1 ? '{n} episode' : '{n} episodes', {n: tm.episodes})].join(' · ')"></div>
             </div>
           </a>
         </template>
@@ -1623,7 +1651,8 @@
             </div>
             <div class="stack">
               <div class="card">
-                <div class="card-head"><div class="grow"><h2><span x-t>New episodes</span></h2><p><span x-t>One episode per line. Paste a list to add many at once.</span></p></div></div>
+                <div class="card-head"><div class="grow"><h2><span x-t>New episodes</span></h2><p><span x-t>One episode per line. Paste a list to add many at once.</span>
+                  <span x-text="' ' + t('Episodes are in {lang}, with this template\'s voice.', {lang: t(tpl.language)})"></span></p></div></div>
                 <div class="eprows">
                   <template x-for="(row, i) in tp.rows" :key="i">
                     <div class="eprow">
@@ -3190,6 +3219,14 @@ function app() {
     // ---- templates: a Motion video as a series format (app/templates.py)
     async loadTemplates() { this.templateList = await this.api('/api/templates').catch(() => this.templateList); this.templatesLoaded = true; },
     templateById(id) { return this.templateList.find(t => t.id === id); },
+    readyTemplates() { return this.templateList.filter(t => t.status === 'ready'); },
+    // From the composer: the topic typed there (if any) becomes the template's first new episode.
+    useTemplate(tp) {
+      const topic = this.form.topic.trim();
+      this.tp = { rows: [topic], mode: tp.scenes.some(s => s.kind === 'redraw') ? 'redraw' : 'fill', busy: false, for: tp.id };
+      this.nav(`/templates/${tp.id}`);
+      this.$nextTick(() => setTimeout(() => document.getElementById('ep-0')?.focus(), 400));
+    },
     async openTemplate(id) {
       this.tpl = null; this.tplMissing = false;
       try { this.tpl = await this.api(`/api/templates/${id}`); } catch { this.tplMissing = true; return; }
