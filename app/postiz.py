@@ -88,7 +88,7 @@ def provider_settings(provider: str, meta: dict, opts: dict) -> dict:
             "brand_content_toggle": False,
             "brand_organic_toggle": False,
             "video_made_with_ai": True,
-            "content_posting_method": opts.get("tiktok_method", "DIRECT_POST"),
+            "content_posting_method": opts.get("tiktok_method", "UPLOAD"),
         }
     if provider == "instagram" or provider == "instagram-standalone":
         return {"__type": provider, "post_type": "post", "collaborators": []}

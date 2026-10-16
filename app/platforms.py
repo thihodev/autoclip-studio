@@ -189,7 +189,7 @@ class TikTok(Platform):
         chunk = size if size <= 64 * 1024 * 1024 else 10 * 1024 * 1024
         count = max(1, size // chunk)
         source = {"source": "FILE_UPLOAD", "video_size": size, "chunk_size": chunk, "total_chunk_count": count}
-        method = opts.get("tiktok_method", "DIRECT_POST")
+        method = opts.get("tiktok_method", "UPLOAD")
 
         async with httpx.AsyncClient(timeout=None) as h:
             if method == "UPLOAD":

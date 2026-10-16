@@ -1042,7 +1042,8 @@
                     <div class="field" x-show="selectedProviders().includes('youtube')"><label><span x-t>YouTube visibility</span></label>
                       <select x-select x-model="pubOpts.youtube_visibility"><option value="public" x-t>Public</option><option value="unlisted" x-t>Unlisted</option><option value="private" x-t>Private</option></select></div>
                     <div class="field" x-show="selectedProviders().includes('tiktok')"><label><span x-t>TikTok</span></label>
-                      <select x-select x-model="pubOpts.tiktok_method"><option value="DIRECT_POST" x-t>Post directly</option><option value="UPLOAD" x-t>Send to TikTok inbox as a draft</option></select></div>
+                      <select x-select x-model="pubOpts.tiktok_method"><option value="UPLOAD" x-t>Send to TikTok inbox as a draft</option><option value="DIRECT_POST" x-t>Post directly</option></select>
+                      <p class="hint" x-show="pubOpts.tiktok_method==='UPLOAD'"><span x-t>Recommended: open TikTok, add a trending sound (apps can't add those), then post.</span></p></div>
                   </div>
                   <div class="actions" style="margin-top:14px;justify-content:flex-end" x-show="channels.length">
                     <button class="btn primary" @click="publish()" :disabled="!pubIds.length || !cur.video_path || isBusy(cur) || dirty"><svg class="i"><use href="#i-send"/></svg><span x-t>Publish</span></button>
@@ -2296,7 +2297,7 @@ function app() {
     creating: false, thinking: false, ideaForm: { niche:'', language:'English' },
     switching: false, claudeCode: '', apiKey: '', keyEdit: false, savingKey: false, footageEdit: false, footageKey: '', footageProvider: 'pixabay', savingFootage: false,
     cur: null, curMissing: false, tl: { captions:{}, scenes:[] }, baseTl: '', edTitle: '', baseTitle: '', preview: null, instruction: '',
-    pubIds: [], pubOpts: { youtube_visibility:'public', tiktok_method:'DIRECT_POST' },
+    pubIds: [], pubOpts: { youtube_visibility:'public', tiktok_method:'UPLOAD' },
     editorTabs: [{key:'scenes',label:'Scenes'},{key:'style',label:'Style'},{key:'review',label:'AI & review'},{key:'publish',label:'Publish'}],
     presets: [
       {key:'bold', label:'Bold', cls:'b', demo:'This is <em>huge</em>'},

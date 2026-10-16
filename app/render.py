@@ -359,7 +359,7 @@ def build_ass(words: list, text: str, duration: float, size, captions: dict, fon
         "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, "
         "MarginR, MarginV, Encoding",
         f"Style: Default,{font_family.replace(',', ' ')},{fs},{color},{color},{out_color},{back},-1,0,0,0,100,100,0,0,"
-        f"{border_style},{outline},0,2,{int(w * 0.07)},{int(w * 0.07)},{margin_v},1",
+        f"{border_style},{outline},0,2,{int(w * 0.07)},{int(w * (0.14 if h > w else 0.07))},{margin_v},1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
 
@@ -402,10 +402,13 @@ def new_timeline(meta: dict, req: dict, brand: dict | None = None) -> dict:
     voice = req.get("voice")
     if not voice and brand and brand.get("voice_name") and brand.get("language") in ("", None, language):
         voice = brand["voice_name"]
+    fmt = req.get("format", "shorts")
     tl = {
         "engine": "classic",
         "language": language,
-        "format": req.get("format", "shorts"),
+        "format": fmt,
+        # Vertical feeds are swiped away in a second: open on the hook, not the brand intro (can be turned back on).
+        "brand_elements": {**BRAND_ELEMENTS, "intro": fmt != "shorts"},
         "voice": re.sub(r"-(Male|Female)$", "", voice or DEFAULT_VOICES.get(language, DEFAULT_VOICES["English"])),
         "voice_rate": float(req.get("voice_rate", 1.0)),
         "music": req.get("music") or "",      # "" auto · "none" · a library file
@@ -456,9 +459,19 @@ def _style(pid: str, tl: dict, brand: dict | None) -> dict:
     return style
 
 
-def _logo_xy(position: str, margin: int) -> tuple[str, str]:
-    x = f"main_w-overlay_w-{margin}" if "right" in position else str(margin)
-    y = f"main_h-overlay_h-{margin}" if "bottom" in position else str(margin)
+# Vertical feeds (TikTok, Reels, Shorts) cover the top ~9% (tabs, search), the bottom ~20% (caption, account)
+# and a column of buttons on the right: keep the logo and captions out of them.
+VERTICAL_SAFE = {"top": 0.09, "bottom": 0.22, "right": 0.15}
+
+
+def _logo_xy(position: str, margin: int, size: tuple[int, int] | None = None) -> tuple[str, str]:
+    w, h = size or (0, 0)
+    vertical = h > w
+    top = int(h * VERTICAL_SAFE["top"]) if vertical else margin
+    bottom = int(h * VERTICAL_SAFE["bottom"]) if vertical else margin
+    right = int(w * VERTICAL_SAFE["right"]) if vertical and "bottom" in position else margin
+    x = f"main_w-overlay_w-{right}" if "right" in position else str(margin)
+    y = f"main_h-overlay_h-{bottom}" if "bottom" in position else str(top)
     return x, y
 
 
@@ -496,7 +509,7 @@ async def _encode_scene(pid: str, scene: dict, clip_path: Path, voice_dur: float
     if logo:
         inputs += ["-i", logo["path"]]
         lw = max(16, int(w * float(logo.get("size", 0.16))) // 2 * 2)
-        x, y = _logo_xy(logo.get("position", "top-right"), int(min(w, h) * 0.045))
+        x, y = _logo_xy(logo.get("position", "top-right"), int(min(w, h) * 0.045), (w, h))
         graph += (f";[1:v]scale={lw}:-1,format=rgba,colorchannelmixer=aa={float(logo.get('opacity', 0.9)):.2f}[lg]"
                   f";[base][lg]overlay={x}:{y}:format=auto,format=yuv420p[vout]")
         out_label = "[vout]"

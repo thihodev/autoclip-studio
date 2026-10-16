@@ -163,7 +163,9 @@ def _brief(req: dict, brand: dict | None, resolution: str, root: Path | None = N
         if brand["font"]:
             lines.append(f"- Brand font: `public/brand/{brand['font']['file']}` (family \"{brand['font']['family']}\") — use it for display type.")
         if brand["logo"]:
-            lines.append(f"- Brand logo: `public/brand/{brand['logo']['file']}` — show it on the opening and closing frames.")
+            where = ("small (at most 12% of the width) in the top-left of the safe zone, and on the closing frame — "
+                     "never as an opening card" if resolution == "portrait" else "on the opening and closing frames")
+            lines.append(f"- Brand logo: `public/brand/{brand['logo']['file']}` — show it {where}.")
         if brand["clips"]:
             lines.append("- Brand footage in `public/brand/` may be used where it fits: "
                          + "; ".join(f"{x['file']} ({x['description']})" for x in brand["clips"]))
@@ -180,6 +182,8 @@ def _brief(req: dict, brand: dict | None, resolution: str, root: Path | None = N
             lines += ["", "## Customizations", "", guide]
     if req.get("hook"):
         lines += ["", "## Hook", f'The first spoken line — and the first frame\'s headline — is exactly: "{req["hook"]}"']
+    if resolution == "portrait":
+        lines += VERTICAL_RULES
     if root and req.get("playbook_id"):
         lines += playbooks.brief_lines(req["playbook_id"], root)
     if root and req.get("sfx", True) is not False:
@@ -189,6 +193,19 @@ def _brief(req: dict, brand: dict | None, resolution: str, root: Path | None = N
     if root:
         lines += gsap.brief_lines()
     return "\n".join(lines) + "\n"
+
+
+# TikTok / Reels / Shorts: what the feed's own UI covers, and how people swipe.
+VERTICAL_RULES = [
+    "", "## Vertical feed (TikTok, Reels, Shorts)",
+    "- Safe zone: keep every word, face, logo and key visual inside x 6–85% and y 10–78% of the canvas (1080×1920: "
+    "x 65–920 px, y 190–1500 px). The app's caption, account name and music bar cover the bottom ~20%, its like/"
+    "comment/share buttons the right ~15%, its tabs the top ~9%. Backgrounds may fill the whole canvas.",
+    "- The first frame is the hook: its headline is on screen by 0.5 s and the hook is spoken within the first 1.5 s. "
+    "No logo card, title card, slow fade-in or \"welcome\" opening — viewers decide in a second.",
+    "- Captions sit around 62–72% of the height, above the app's caption area.",
+    "- End so it loops: the last frame flows back into the first (no \"thanks for watching\" or subscribe card).",
+]
 
 
 async def prepare(pid: str, req: dict, brand: dict | None) -> Path:
@@ -498,10 +515,12 @@ def _frames(root: Path) -> list[dict]:
     return out
 
 
-async def _finish(pid: str, root: Path, brand: dict | None, out: Path) -> dict:
+async def _finish(pid: str, root: Path, brand: dict | None, out: Path, req: dict | None = None) -> dict:
     src = root / "renders" / "video.mp4"
     if not src.exists():
         raise RuntimeError("Claude finished without rendering renders/video.mp4 — see motion/agent.log")
+    if brand and RESOLUTIONS.get((req or {}).get("format", "shorts")) == "portrait":
+        brand = {**brand, "intro": None}  # vertical feeds: open on the hook, not the brand intro
     bumpers = [p for p in ((brands.asset_path(brand["id"], brand[k]["file"]) if brand and brand[k] else None)
                            for k in ("intro", "outro")) if p and p.exists()]
     if not bumpers:
@@ -546,7 +565,7 @@ async def create(pid: str, req: dict, out: Path, report, model: str | None = Non
             f"with the project already initialized (do not run init again). Follow the run instructions in your system "
             f"prompt for narration, checks and the final render.")
     await _agent(pid, root, req, brand, task, report, "motion", model, effort)
-    return await _finish(pid, root, brand, out)
+    return await _finish(pid, root, brand, out, req)
 
 
 async def edit(pid: str, req: dict, instruction: str, out: Path, report, model: str | None = None,
@@ -564,4 +583,4 @@ async def edit(pid: str, req: dict, instruction: str, out: Path, report, model: 
             f"check the API in `.claude/skills/gsap-plugins/SKILL.md`, HyperFrames' seek-safe rules first. Re-run "
             f"lint/check, then render to renders/video.mp4.")
     await _agent(pid, root, req, brand, task, report, "motion-edit", model, effort)
-    return await _finish(pid, root, brand, out)
+    return await _finish(pid, root, brand, out, req)
