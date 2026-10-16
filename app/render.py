@@ -475,14 +475,16 @@ def _logo_xy(position: str, margin: int, size: tuple[int, int] | None = None) ->
     return x, y
 
 
-async def _encode_scene(pid: str, scene: dict, clip_path: Path, voice_dur: float, words: list, tl: dict, style: dict) -> Path:
+async def _encode_scene(pid: str, scene: dict, clip_path: Path, voice_dur: float, words: list, tl: dict, style: dict,
+                        layers: bool = False) -> Path:
+    """One scene's video. layers=True: without captions and logo (they go on a separate transparent layer)."""
     size = SIZES.get(tl["format"], SIZES["shorts"])
     cache = project_dir(pid) / "cache"
-    logo = style["logo"]
+    logo = None if layers else style["logo"]
     is_motion = (scene.get("clip") or {}).get("provider") == "motion"
     key = _hash("scene", str(clip_path), voice_dur, words, scene["text"], tl["captions"], tl["motion"], size,
                 scene.get("clip_start", 0), style["family"], style["fonts_dir"], logo,
-                scene["clip"].get("colors") if is_motion else None)
+                scene["clip"].get("colors") if is_motion else None, layers)
     out = cache / f"scene_{key}.mp4"
     if out.exists():
         return out
@@ -496,7 +498,7 @@ async def _encode_scene(pid: str, scene: dict, clip_path: Path, voice_dur: float
     else:
         vf += [f"crop={w}:{h}"]
     vf += ["fps=30", "setsar=1", "format=yuv420p"]
-    ass = build_ass(words, scene["text"], voice_dur, size, tl["captions"], style["family"])
+    ass = None if layers else build_ass(words, scene["text"], voice_dur, size, tl["captions"], style["family"])
     if ass:
         (cache / f"cap_{key}.ass").write_text(ass, encoding="utf-8")
         vf.append(f"ass=cap_{key}.ass:fontsdir={style['fonts_dir']}")

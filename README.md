@@ -114,6 +114,8 @@ The **Scenes** and **Style** tabs (Quick engine) edit text, footage, captions, v
 
 The **Edit** tab is a CapCut-style timeline that works on any version, Claude Motion videos included: split (S), trim by dragging a clip's edges, reorder by dragging, delete, duplicate, speed (0.5–3×) and volume per clip, looks (Vivid, Warm, Faded, Film, Mono, Noir) with brightness, contrast and saturation; titles you drag into place on the video with size, color, outline/box/shadow and fade/pop/slide/typewriter animations; a music track from your library with volume and fades; undo/redo (⌘Z). The preview plays it live, the edit autosaves, and **Export** renders it with ffmpeg as a new version — the original is kept.
 
+To finish a video in another editor, **Publish → Layers for editing** makes a ZIP that CapCut, Premiere, DaVinci Resolve and Final Cut all import: each scene as its own clip without captions, the captions (and logo) on a transparent ProRes 4444 layer, voice / music / SFX as separate WAVs, the captions as SRT, and a `timeline.fcpxml` with everything in place (Claude Motion adds the whole video without captions). Quick videos are rebuilt in seconds; Claude Motion videos are re-rendered from their HyperFrames project, one composition per layer, in a few minutes — no Claude needed.
+
 ## Publish
 
 The **Publish** tab:

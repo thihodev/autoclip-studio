@@ -1232,6 +1232,20 @@
                       </div>
                     </template>
                   </div>
+                  <div class="pubkit" style="margin-top:10px">
+                    <div class="pubrow">
+                      <span class="ctile"><svg class="i"><use href="#i-layers"/></svg></span>
+                      <span class="grow"><span class="t" x-t>Layers for editing</span>
+                        <span class="d"><span x-t>Scenes as separate clips, captions on a transparent layer, voice / music / SFX tracks, SRT and a timeline — for CapCut, Premiere, DaVinci Resolve or Final Cut.</span></span></span>
+                      <template x-if="layersReady()">
+                        <span class="actions" style="gap:6px"><a class="btn sm primary" :href="`/videos/${cur.extra.layers.file}`" download><svg class="i"><use href="#i-download"/></svg><span x-text="t('ZIP · {size}', {size: fmtBytes(cur.extra.layers.size)})"></span></a>
+                          <button class="btn sm ghost" @click="exportLayers()" :disabled="isBusy(cur)" :title="t('Make them again')"><svg class="i"><use href="#i-retry"/></svg></button></span>
+                      </template>
+                      <template x-if="!layersReady()">
+                        <button class="btn sm" @click="exportLayers()" :disabled="isBusy(cur) || !cur.video_path"><span class="spin" x-show="cur.status==='rendering' && (cur.stage||'').length"></span><span x-text="t(isMotion(cur) ? 'Prepare layers (a few minutes)' : 'Prepare layers')"></span></button>
+                      </template>
+                    </div>
+                  </div>
                   <p class="hint"><span x-t>The caption comes from Post copy below — write it with Claude first. On a phone, “Share to an app” sends the video straight to TikTok, Instagram or YouTube.</span></p>
                 </div>
                 <div class="card">
@@ -2721,6 +2735,12 @@ function app() {
       const title = this.post.title.trim(), desc = this.post.description.trim();
       const body = pf === 'youtube' ? desc : (desc || title);
       return [body, tags.join(' ')].filter(Boolean).join('\n\n');
+    },
+    // Layers are made from the latest version that wasn't flattened by the timeline editor.
+    layersReady() { const l = this.cur?.extra?.layers, vs = (this.cur?.extra?.versions || []).filter(v => !v.edited); return !!(l && vs.length && l.version === vs[vs.length - 1].version); },
+    async exportLayers() {
+      const p = await this.run(() => this.api(`/api/projects/${this.cur.id}/layers`, { method:'POST' }), 'Preparing the layers — the download appears here when they are ready');
+      if (p) { this.cur = { ...this.cur, status:'rendering', progress:2 }; this.loadProjects(); }
     },
     canShareFiles() { try { return !!navigator.canShare && navigator.canShare({ files: [new File([''], 'v.mp4', { type: 'video/mp4' })] }); } catch { return false; } },
     async shareVideo() {

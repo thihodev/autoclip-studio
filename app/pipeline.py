@@ -389,6 +389,28 @@ async def export_edit(pid: str):
     return _save_version(pid, out, p["timeline"], f"Edited (from v{base['version']})", edited=True)
 
 
+async def export_layers(pid: str):
+    """The latest (non-edited) version as separate layers for other editors → extra["layers"]."""
+    from . import layers
+    p = db.get_project(pid)
+    base = edit_base(p)
+    if not base:
+        raise ValueError("Render the video first")
+    activity.start(pid)
+    activity.add(pid, f"Exporting the layers of version {base['version']}")
+    db.update_project(pid, status="rendering", progress=2)
+    report = _reporter(pid)
+    try:
+        async with (_motion_lock if is_motion(p) else _render_lock):
+            out = await layers.export(p, base, report)
+    finally:
+        STAGES.pop(pid, None)
+    extra = _extra(db.get_project(pid))
+    extra["layers"] = {"version": base["version"], "file": out.name, "size": out.stat().st_size, "at": time.time()}
+    db.update_project(pid, extra=extra, status="ready", progress=100, error=None)
+    activity.add(pid, "Layers ready", "done")
+
+
 # ---------- review: comments on the render, applied by Claude ----------
 
 def review_comments(p: dict, version: int | None = None) -> list[dict]:

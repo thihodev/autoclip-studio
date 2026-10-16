@@ -59,6 +59,7 @@ The web UI uses this JSON API; you can script it too. Everything runs on the loc
 | GET | `/api/projects/{id}/filmstrip?file=` | Frame strip of the current version (or of one of its version files) |
 | GET, PUT | `/api/projects/{id}/edit` | The timeline edit `{edit: {clips, texts, music, audio}}` on its base version, with the base's size and length |
 | POST | `/api/projects/{id}/edit/reset`, `/api/projects/{id}/edit/export` | Start over from the latest version / render the edit as a new version |
+| POST | `/api/projects/{id}/layers` | Export the latest version as layers (ZIP: scenes, transparent captions, audio stems, SRT, FCPXML) → `extra.layers.file` under `/videos/` |
 | GET | `/api/projects/{id}/activity` | Live steps and latest preview while a video is made |
 | GET | `/api/projects/{id}/usage` | Claude usage of this video |
 | POST, PUT | `/api/projects/{id}/post-copy` | Write (Claude) / save title, caption, hashtags, tags |

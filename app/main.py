@@ -397,6 +397,24 @@ async def export_edit(pid: str):
     return db.get_project(pid)
 
 
+@app.post("/api/projects/{pid}/layers")
+async def export_layers(pid: str):
+    """Export the video as separate layers (scenes, transparent captions, audio stems, SRT, FCPXML) in a ZIP."""
+    p = _project(pid)
+    if p["status"] in ("queued", "scripting", "designing", "editing", "rendering", "publishing"):
+        raise HTTPException(409, "This video is busy")
+    if not pipeline.edit_base(p):
+        raise HTTPException(400, "Render the video first")
+
+    async def job():
+        try:
+            await pipeline.export_layers(pid)
+        except Exception as e:
+            pipeline._fail(pid, e, status="ready")
+    pipeline.spawn(pid, job())
+    return db.get_project(pid)
+
+
 @app.get("/api/accounts/{aid}/tiktok-creator")
 async def tiktok_creator(aid: str):
     """What the TikTok publish panel shows: the account and the choices TikTok allows it right now."""
