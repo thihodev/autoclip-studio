@@ -13,16 +13,19 @@
   <a href="LICENSE">MIT</a>
 </p>
 
-**Open-source studio that turns a topic, a website or a GitHub repo into a finished short video — written, voiced, designed and animated by Claude, then edited by you — with a web UI for everything.**
+**Open-source studio that turns a topic, a website or a GitHub repo into a finished short video — written, voiced, designed and animated by Claude, then edited by you — and turns the videos you like into templates for a whole series. A web UI for everything.**
 
-Make YouTube Shorts, TikToks, Facebook Reels or 16:9 YouTube videos; review them frame by frame; let Claude apply your comments; fine-tune them on a timeline; export the video — or its layers for CapCut, Premiere and DaVinci — with a caption, hashtags and a cover. It runs on your own computer and uses your own Claude account (subscription or API key). No `.env`, no Docker: every connection is made from the UI.
+Make YouTube Shorts, TikToks, Facebook Reels or 16:9 YouTube videos; review them frame by frame; let Claude apply your comments; change any text, image, caption, font or color yourself, checked for layout and readability before each render; save a video as a template and make the next episodes from a list, in minutes and without designing again; export the video — or its layers for CapCut, Premiere and DaVinci — with a caption, hashtags and a cover. It runs on your own computer and uses your own Claude account (subscription or API key). No `.env`, no Docker: every connection is made from the UI.
 
 <p align="center">
-  <img src="website/public/shots/composer.webp" alt="Describe the video: topic, engine, format, video type, style and sound" width="32%">
-  <img src="website/public/shots/review.webp" alt="Review: comments pinned to frames, applied by Claude" width="32%">
-  <img src="website/public/shots/edit.webp" alt="The timeline editor: titles, looks, music and clips" width="32%">
+  <img src="website/public/shots/composer.webp" alt="Describe the video: topic, engine, format, video type, style and sound" width="49%">
+  <img src="website/public/shots/review.webp" alt="Review: comments pinned to frames, applied by Claude" width="49%">
 </p>
-<p align="center"><sub>Describe it · review it frame by frame · edit and export it — see the <a href="https://autoclip-connect.thihodev.workers.dev">website</a> for a tour.</sub></p>
+<p align="center">
+  <img src="website/public/shots/design.webp" alt="The Design tab: the animated video plays live; click a text, an image or a caption to change it" width="49%">
+  <img src="website/public/shots/templates.webp" alt="A template: what changes in each episode, new episodes typed one per line" width="49%">
+</p>
+<p align="center"><sub>Describe it · review it frame by frame · change it yourself · make the series — see the <a href="https://autoclip-connect.thihodev.workers.dev">website</a> for a tour.</sub></p>
 
 ```
  topic · website · GitHub repo · your files
@@ -41,6 +44,9 @@ Make YouTube Shorts, TikToks, Facebook Reels or 16:9 YouTube videos; review them
         │
         ▼
  design (Motion, live: texts · images · captions · fonts · colors · pauses, quality check) · timeline editor ─► export: MP4 · layers (CapCut, Premiere, DaVinci) · caption · cover
+        │
+        ▼
+ save as template ─► next episodes, one per line: new words, voice and captions in the same design (~3 min, no design run) ─► checked ─► ready
 ```
 
 ## Quick start
@@ -191,7 +197,8 @@ Contributions are welcome — through pull requests; `main` is protected. Read [
 
 - More voices: [Kokoro](https://github.com/hexgrad/kokoro), [F5-TTS](https://github.com/SWivid/F5-TTS) (voice cloning); dubbing a video into other languages.
 - One video → several formats (9:16 ↔ 16:9 ↔ 1:1).
-- A brand's design system generated once and reused, for consistency and fewer tokens.
+- Templates with per-episode images and data columns (a spreadsheet of episodes), and a template gallery to share.
+- Retention-aware edits: read a TikTok retention graph and fix the scene where viewers swipe away.
 - AI-generated shots (ComfyUI + Wan / LTX-Video); clipping long videos into shorts.
 - Docker image; resuming jobs after a restart.
 

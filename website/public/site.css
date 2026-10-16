@@ -178,6 +178,14 @@ h2 { font: 700 clamp(34px, 4.6vw, 56px)/1.05 var(--display); letter-spacing: -.0
 .node .ico { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; background: var(--surface-2); } .node .ico svg { width: 18px; height: 18px; }
 .node.mid { border-color: rgba(255,77,109,.4); box-shadow: 0 0 60px -20px rgba(255,77,109,.45); } .node.mid .ico { background: var(--accent-soft); color: var(--accent); }
 .arrow { color: var(--text-3); display: grid; place-items: center; } .arrow svg { width: 26px; height: 26px; }
+/* templates: one design, a series */
+.series { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.ep { margin: 0; padding: 14px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); display: grid; gap: 12px; align-content: start; transition: border-color .2s, transform .2s; }
+.ep:hover { border-color: var(--line-2); transform: translateY(-3px); }
+.ep .frames { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ep img { width: 100%; aspect-ratio: 9 / 16; object-fit: cover; border-radius: 10px; background: var(--surface-2); }
+.ep figcaption { display: grid; gap: 2px; font-size: 14px; color: var(--text-2); } .ep figcaption b { color: var(--text); font-size: 15px; }
+.ep:first-child { border-color: rgba(255,77,109,.35); box-shadow: 0 20px 50px -30px var(--accent); }
 .promise { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 18px; }
 .promise div { padding: 18px 20px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line); font-size: 14px; color: var(--text-2); }
 .promise b { display: block; color: var(--text); margin-bottom: 4px; font-size: 15px; }
@@ -232,6 +240,7 @@ footer nav { display: flex; gap: 20px; flex-wrap: wrap; } footer a { text-decora
   .install { grid-template-columns: 1fr; }
   .flow { grid-template-columns: 1fr; } .arrow { transform: rotate(90deg); }
   .promise { grid-template-columns: 1fr; }
+  .series { grid-template-columns: 1fr; max-width: 460px; margin: 0 auto; }
   .chip.c1, .chip.c4 { display: none; } .chip.c2 { left: auto; right: 4%; } .chip.c3 { left: auto; right: 2%; }
 }
 @media (max-width: 640px) {
