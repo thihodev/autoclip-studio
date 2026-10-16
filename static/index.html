@@ -493,6 +493,34 @@
   .filechip .x:hover { color:var(--err); background:var(--err-soft); }
 
   /* brand kits */
+  /* templates */
+  .tgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:16px; }
+  .tcard { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; text-decoration:none; color:inherit; box-shadow:var(--shadow); display:flex; flex-direction:column; transition:border-color .15s, transform .15s; }
+  .tcard:hover { border-color:var(--border-strong); transform:translateY(-2px); }
+  .tthumb { position:relative; background:var(--surface-2); overflow:hidden; }
+  .tthumb img, .tthumb video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .tthumb video { opacity:0; transition:opacity .25s; } .tcard:hover .tthumb video { opacity:1; }
+  .tthumb .chip { position:absolute; top:8px; left:8px; z-index:1; }
+  .tthumb .tplay { position:absolute; right:8px; bottom:8px; width:30px; height:30px; border-radius:50%; background:rgba(0,0,0,.55); color:#fff; display:grid; place-items:center; transition:opacity .2s; }
+  .tcard:hover .tplay { opacity:0; }
+  .tbody { padding:12px 14px 14px; display:grid; gap:4px; }
+  .tsum { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .tcard.skel .tthumb { aspect-ratio:9/16; } .tcard.skel .sk { display:block; height:10px; border-radius:5px; background:var(--surface-2); }
+  .h1edit { font:inherit; font-size:26px; font-weight:700; letter-spacing:-.01em; border:1px solid transparent; background:transparent; padding:2px 6px; margin:6px 0 0 -7px; border-radius:var(--radius-sm); width:100%; color:var(--text); }
+  .h1edit:hover { border-color:var(--border); } .h1edit:focus { border-color:var(--accent); outline:none; background:var(--surface); }
+  .tdetail { display:grid; grid-template-columns:minmax(240px, 320px) minmax(0, 1fr); gap:20px; align-items:start; }
+  @media (max-width: 860px) { .tdetail { grid-template-columns:minmax(0, 1fr); } }
+  .tside { display:grid; gap:12px; padding:14px; } .tside video { width:100%; max-height:62vh; background:#000; border-radius:10px; object-fit:contain; }
+  .tscene { display:flex; gap:10px; align-items:flex-start; }
+  .tscene .n, .eprow .n { flex:none; width:24px; height:24px; border-radius:50%; background:var(--surface-2); color:var(--text-2); display:grid; place-items:center; font-size:12px; font-weight:600; }
+  .eprows { display:grid; gap:8px; } .eprow { display:flex; gap:8px; align-items:center; } .eprow input { flex:1; min-width:0; }
+  .eplist { display:grid; }
+  .eprow2 { display:flex; gap:12px; align-items:center; padding:10px 4px; border-top:1px solid var(--border); text-decoration:none; color:inherit; }
+  .eprow2:first-child { border-top:0; } .eprow2:hover .ti { color:var(--accent); }
+  .eprow2 .th { flex:none; width:40px; height:56px; border-radius:6px; overflow:hidden; background:var(--surface-2); display:grid; place-items:center; color:var(--text-3); }
+  .eprow2 .th img { width:100%; height:100%; object-fit:cover; }
+  .eprow2 .ti { display:block; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .eprow2 .bar { display:block; }
   .brands { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:14px; }
   .bcard { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; text-decoration:none; color:inherit; box-shadow:var(--shadow); display:flex; flex-direction:column; }
   .bcard:hover { border-color:var(--border-strong); }
@@ -557,6 +585,7 @@
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
   <symbol id="i-send" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></symbol>
   <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
   <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
   <symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></symbol>
   <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
@@ -571,6 +600,8 @@
   <aside class="side">
     <div class="brand">Auto<span>Clip</span> Studio</div>
     <a class="nav" href="/" :class="(route.page==='studio'||route.page==='project')&&'on'" @click.prevent="nav('/')"><svg class="i"><use href="#i-film"/></svg><span x-t>Studio</span></a>
+    <a class="nav" href="/templates" :class="(route.page==='templates'||route.page==='template')&&'on'" @click.prevent="nav('/templates')"><svg class="i"><use href="#i-grid"/></svg><span x-t>Templates</span>
+      <span class="count" x-show="templateList.length" x-text="templateList.length" style="background:var(--surface-2);color:var(--text-2)"></span></a>
     <a class="nav" href="/ideas" :class="route.page==='ideas'&&'on'" @click.prevent="nav('/ideas')"><svg class="i"><use href="#i-zap"/></svg><span x-t>Ideas</span></a>
     <a class="nav" href="/brands" :class="(route.page==='brands'||route.page==='brand')&&'on'" @click.prevent="nav('/brands')"><svg class="i"><use href="#i-layers"/></svg><span x-t>Brand kits</span>
       <span class="count" x-show="brandList.length" x-text="brandList.length" style="background:var(--surface-2);color:var(--text-2)"></span></a>
@@ -840,13 +871,23 @@
               <div class="actions" style="margin-top:8px">
                 <span class="chip" :class="statusTone(cur)" x-text="statusText(cur)"></span>
                 <span class="small muted" x-show="cur.version" x-text="t('Version {v} · {n} scenes · {d}', {v: cur.version, n: (cur.timeline?.scenes||[]).length, d: duration(cur)})"></span>
+                <a class="chip" style="text-decoration:none" x-show="cur.request.template_id" :href="`/templates/${cur.request.template_id}`" @click.prevent="nav(`/templates/${cur.request.template_id}`)">
+                  <svg class="i" style="width:12px;height:12px"><use href="#i-grid"/></svg><span x-text="t('Template: {name}', {name: cur.extra?.template?.name || templateById(cur.request.template_id)?.name || '…'})"></span></a>
               </div>
             </div>
             <div class="actions">
+              <button class="btn" x-show="isMotion(cur) && cur.video_path && !isBusy(cur)" @click="tplNew = { open:true, name: projTitle(cur), busy:false }" :title="t('Make new episodes in this design without designing them again')"><svg class="i"><use href="#i-grid"/></svg><span x-t>Save as template</span></button>
               <a class="btn" x-show="cur.video_path" :href="expUrl()" :download="expName()" :title="t('Version {v}', {v: expVer()?.version || cur.version})"><svg class="i"><use href="#i-download"/></svg><span x-text="versions().length > 1 ? t('Download v{n}', {n: expVer()?.version || cur.version}) : t('Download')"></span></a>
               <button class="btn" x-show="cur.status==='failed'" @click="retry(cur)" :disabled="missingSetup().length > 0"><svg class="i"><use href="#i-retry"/></svg><span x-t>Retry</span></button>
               <button class="btn ghost danger" :title="t('Delete video')" @click="askDelete(cur)"><svg class="i"><use href="#i-trash"/></svg></button>
             </div>
+          </div>
+
+          <div class="notice warn" style="margin-bottom:16px" x-show="!isBusy(cur) && qualityIssues().length">
+            <svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg>
+            <div style="flex:1;min-width:0"><strong x-text="t('The quality check found {n} thing(s) to look at', {n: qualityIssues().length})"></strong>
+              <ul class="dlist" style="margin:6px 0 0"><template x-for="it in qualityIssues().slice(0, 5)" :key="it.key"><li x-text="dzIssueText(it)"></li></template></ul></div>
+            <a class="btn sm" x-show="route.sub!=='design'" :href="`/projects/${cur.id}/design`" @click.prevent="nav(`/projects/${cur.id}/design`)"><span x-t>Open Design</span></a>
           </div>
 
           <div class="card" x-show="isBusy(cur)" style="margin-bottom:16px;padding:14px">
@@ -1508,6 +1549,134 @@
     </section>
 
     <!-- ===================================================== BRAND KITS -->
+    <!-- Templates: a Claude Motion video as a series format; new episodes without designing again -->
+    <section class="page" x-show="route.page==='templates'">
+      <div class="page-head">
+        <div><h1><span x-t>Templates</span></h1><p class="sub"><span x-t>Claude designs a video once; every episode after it reuses that design. Only the words change, so each one takes a few minutes and no design run.</span></p></div>
+      </div>
+      <template x-if="!templatesLoaded"><div class="tgrid"><template x-for="i in 4" :key="i"><div class="tcard skel"><div class="tthumb"></div><div class="tbody"><span class="sk" style="width:70%"></span><span class="sk" style="width:45%"></span></div></div></template></div></template>
+      <template x-if="templatesLoaded && !templateList.length">
+        <div class="card empty">
+          <svg class="i" style="width:28px;height:28px;opacity:.6"><use href="#i-grid"/></svg>
+          <h2 style="margin-top:8px"><span x-t>No templates yet</span></h2>
+          <p><span x-t>Open a Claude Motion video you like and choose “Save as template”. Then type what the next episodes are about, one per line.</span></p>
+          <div class="actions" style="justify-content:center;margin-top:14px"><a class="btn primary" href="/" @click.prevent="nav('/')"><span x-t>Go to your videos</span></a></div>
+        </div>
+      </template>
+      <div class="tgrid" x-show="templateList.length">
+        <template x-for="tp in templateList" :key="tp.id">
+          <a class="tcard" :href="`/templates/${tp.id}`" @click.prevent="nav(`/templates/${tp.id}`)"
+             @mouseenter="$el.querySelector('video')?.play().catch(() => {})" @mouseleave="const v = $el.querySelector('video'); if (v) { v.pause(); v.currentTime = 0; }">
+            <div class="tthumb" :style="`aspect-ratio:${fmtAspect(tp.format)}`">
+              <img :src="`/api/templates/${tp.id}/cover.jpg`" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+              <video :src="`/api/templates/${tp.id}/preview.mp4`" muted loop playsinline preload="none"></video>
+              <span class="chip" x-show="tp.status!=='ready'" :class="tp.status==='failed' ? 'err' : 'warn'" x-text="t({analyzing:'Reading the scenes…', checking:'Checking…', failed:'Needs a retry'}[tp.status] || tp.status)"></span>
+              <span class="tplay"><svg class="i"><use href="#i-play"/></svg></span>
+            </div>
+            <div class="tbody">
+              <strong x-text="tp.name"></strong>
+              <div class="small muted tsum" x-text="tp.summary || tp.example"></div>
+              <div class="small muted" x-text="[t('{n} scenes', {n: tp.scenes.length || '…'}), fmtT(tp.duration), t(tp.episodes === 1 ? '{n} episode' : '{n} episodes', {n: tp.episodes})].join(' · ')"></div>
+            </div>
+          </a>
+        </template>
+      </div>
+    </section>
+
+    <section class="page" x-show="route.page==='template'">
+      <template x-if="!tpl"><div class="card empty"><template x-if="tplMissing"><div><h2><span x-t>Template not found</span></h2><div class="actions" style="justify-content:center;margin-top:12px"><a class="btn" href="/templates" @click.prevent="nav('/templates')"><span x-t>All templates</span></a></div></div></template><template x-if="!tplMissing"><span class="spin"></span></template></div></template>
+      <template x-if="tpl">
+        <div>
+          <div class="page-head">
+            <div style="min-width:0;flex:1">
+              <a class="btn ghost sm" href="/templates" @click.prevent="nav('/templates')" style="margin-left:-10px"><svg class="i"><use href="#i-back"/></svg><span x-t>Templates</span></a>
+              <input class="h1edit" :value="tpl.name" maxlength="80" :aria-label="t('Template name')" @keydown.enter="$event.target.blur()" @change="renameTemplate($event.target)">
+              <p class="sub" x-text="tpl.summary"></p>
+            </div>
+            <div class="actions"><button class="btn ghost danger" @click="askDeleteTemplate()" :title="t('Delete template')"><svg class="i"><use href="#i-trash"/></svg></button></div>
+          </div>
+          <div class="notice info" style="margin-bottom:16px" x-show="tpl.status==='analyzing' || tpl.status==='checking'">
+            <span class="spin" style="margin-top:3px"></span>
+            <div x-text="t(tpl.status==='analyzing' ? 'Claude is reading the scenes to see what changes from one episode to the next…' : 'Running the quality check once, so episodes are judged against it…')"></div>
+          </div>
+          <div class="notice err" style="margin-bottom:16px" x-show="tpl.status==='failed'">
+            <svg class="i" style="margin-top:2px"><use href="#i-alert"/></svg><div style="flex:1" x-text="tpl.error"></div>
+            <button class="btn sm" @click="retryTemplate()"><svg class="i"><use href="#i-retry"/></svg><span x-t>Retry</span></button>
+          </div>
+          <div class="tdetail">
+            <div class="card tside">
+              <video class="player" :src="`/api/templates/${tpl.id}/preview.mp4`" controls playsinline preload="metadata" :style="`aspect-ratio:${fmtAspect(tpl.format)}`"></video>
+              <div class="small muted" x-text="[t('{n} scenes', {n: tpl.scenes.length || '…'}), fmtT(tpl.duration), tpl.language].join(' · ')"></div>
+              <div class="stack" style="gap:8px" x-show="tpl.scenes.length">
+                <div class="lbl"><span x-t>What changes in each episode</span></div>
+                <template x-for="sc in tpl.scenes" :key="sc.id">
+                  <div class="tscene">
+                    <span class="n" x-text="sc.frame"></span>
+                    <div style="min-width:0;flex:1">
+                      <span class="chip" :class="{fixed:'', fill:'ok', redraw:'warn'}[sc.kind]" x-text="t(KIND_NAMES[sc.kind])"></span>
+                      <div class="small" style="margin-top:4px" x-text="sc.slots.length ? sc.slots.map(x => x.label).join(' · ') : t(sc.kind==='fixed' ? 'Kept as it is' : 'Narration only')"></div>
+                    </div>
+                  </div>
+                </template>
+                <p class="small muted" style="margin:0"><span x-t>Fixed: the same in every episode. Fill: new texts and narration in the same design. Redraw: the illustration belongs to the topic, so Claude redraws it.</span></p>
+              </div>
+            </div>
+            <div class="stack">
+              <div class="card">
+                <div class="card-head"><div class="grow"><h2><span x-t>New episodes</span></h2><p><span x-t>One episode per line. Paste a list to add many at once.</span></p></div></div>
+                <div class="eprows">
+                  <template x-for="(row, i) in tp.rows" :key="i">
+                    <div class="eprow">
+                      <span class="n" x-text="i + 1"></span>
+                      <input :id="`ep-${i}`" x-model="tp.rows[i]" maxlength="500" :placeholder="i === 0 ? (tpl.episode_prompt || t('What is this episode about?')) : t('What is this episode about?')"
+                             @paste="epPaste($event, i)" @keydown.enter.prevent="epAdd(i)" @keydown.backspace="!tp.rows[i] && tp.rows.length > 1 && ($event.preventDefault(), epRemove(i))">
+                      <button type="button" class="btn ghost icon sm" x-show="tp.rows.length > 1" @click="epRemove(i)" :aria-label="t('Remove')"><svg class="i"><use href="#i-x"/></svg></button>
+                    </div>
+                  </template>
+                  <button type="button" class="btn ghost sm" style="justify-self:start" @click="epAdd(tp.rows.length - 1)" :disabled="tp.rows.length >= MAX_EPISODES"><svg class="i"><use href="#i-plus"/></svg><span x-t>Add episode</span></button>
+                </div>
+                <div class="field" style="margin-top:14px" x-show="tplRedraw().length">
+                  <label><span x-t>Illustrations</span></label>
+                  <div class="engines" role="radiogroup" :aria-label="t('Illustrations')">
+                    <button type="button" class="engine" role="radio" :aria-checked="String(tp.mode==='redraw')" :class="tp.mode==='redraw' && 'on'" @click="tp.mode='redraw'">
+                      <span class="radio"></span><span class="grow"><span class="t"><span x-t>Redraw for each topic</span><span class="time" x-text="epEta('redraw')"></span></span>
+                      <span class="d" x-text="t('Best quality: Claude redraws scene(s) {list} so the picture matches what is said.', {list: tplRedraw().join(', ')})"></span></span></button>
+                    <button type="button" class="engine" role="radio" :aria-checked="String(tp.mode==='fill')" :class="tp.mode==='fill' && 'on'" @click="tp.mode='fill'">
+                      <span class="radio"></span><span class="grow"><span class="t"><span x-t>Keep the illustrations</span><span class="time" x-text="epEta('fill')"></span></span>
+                      <span class="d" x-t>Only texts and narration change, no design run; the pictures stay as in the template.</span></span></button>
+                  </div>
+                </div>
+                <p class="small muted" x-show="!tplRedraw().length" x-text="t('Every scene works for any topic: about {n} per video, no design run.', {n: epEta('fill')})"></p>
+                <div class="actions" style="justify-content:flex-end;margin-top:14px">
+                  <span class="small muted" x-show="epCount()" x-text="t('Each one is checked for layout, readability and errors before it is ready.')"></span>
+                  <button class="btn primary" @click="makeEpisodes()" :disabled="!epCount() || tp.busy || tpl.status==='failed' || missingSetup().length > 0">
+                    <span class="spin" x-show="tp.busy"></span><svg class="i" x-show="!tp.busy"><use href="#i-film"/></svg>
+                    <span x-text="t(epCount() === 1 ? 'Make {n} video' : 'Make {n} videos', {n: epCount() || ''})"></span></button>
+                </div>
+              </div>
+              <div class="card" x-show="tpl.list.length">
+                <div class="card-head"><div class="grow"><h2><span x-t>Episodes</span></h2></div></div>
+                <div class="eplist">
+                  <template x-for="e in tpl.list" :key="e.id">
+                    <a class="eprow2" :href="`/projects/${e.id}`" @click.prevent="nav(`/projects/${e.id}`)">
+                      <span class="th"><img x-show="e.video_path" :src="e.video_path ? '/videos/' + base(e.video_path).replace(/\.mp4$/, '.jpg') : ''" alt="" loading="lazy"><svg class="i" x-show="!e.video_path"><use href="#i-film"/></svg></span>
+                      <span style="min-width:0;flex:1">
+                        <span class="ti" x-text="e.title"></span>
+                        <span class="small muted" x-text="isBusy(e) ? statusText(e) + (e.stage ? ' · ' + t(e.stage) : '') : (e.status==='failed' ? (e.error || t('Failed')) : ago(e.created_at))"></span>
+                        <span class="bar run" x-show="isBusy(e)" style="margin-top:6px"><i :style="`width:${Math.max(4, e.progress)}%`"></i></span>
+                      </span>
+                      <span class="chip" :class="statusTone(e)" x-show="!isBusy(e)" x-text="statusText(e)"></span>
+                      <span class="chip warn" x-show="e.issues" x-text="t('{n} to check', {n: e.issues})"></span>
+                    </a>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </section>
+
     <section class="page" x-show="route.page==='brands'">
       <div class="page-head">
         <div><h1><span x-t>Brand kits</span></h1><p class="sub"><span x-t>A design system for your videos: logo, colors, font, intro/outro, music, b-roll and tone of voice.</span></p></div>
@@ -2002,6 +2171,18 @@
     </div>
   </div>
 
+  <div class="modal" x-show="tplNew.open" x-transition.opacity @click.self="tplNew.open=false" @keydown.escape.window="tplNew.open && (tplNew.open=false)">
+    <div class="card">
+      <h2><span x-t>Save as template</span></h2>
+      <p class="muted" style="margin-top:6px"><span x-t>New episodes keep this video's design, motion, voice and music; only what they say changes. Claude reads the scenes once to see what changes from one episode to the next.</span></p>
+      <div class="field" style="margin-top:12px"><label><span x-t>Name</span></label><input x-model="tplNew.name" maxlength="80" @keydown.enter="saveTemplate()"></div>
+      <div class="actions" style="margin-top:16px;justify-content:flex-end">
+        <button class="btn" @click="tplNew.open=false"><span x-t>Cancel</span></button>
+        <button class="btn primary" @click="saveTemplate()" :disabled="tplNew.busy"><span class="spin" x-show="tplNew.busy"></span><span x-t>Save template</span></button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" x-show="newBrand.open" x-transition.opacity @click.self="newBrand.open=false">
     <div class="card">
       <h2><span x-t>New brand kit</span></h2>
@@ -2477,6 +2658,8 @@ function tr(key, vars) {
 
 const EDITOR_TABS = ['scenes', 'style', 'design', 'edit', 'review', 'export'];
 const ED_PAD = 44;  // timeline: left gutter for the track icons
+const KIND_NAMES = { fixed:'Fixed', fill:'Fill in', redraw:'Redraw' };
+const MAX_EPISODES = 30;  // app/templates.py MAX_EPISODES
 const DZ_EMPTY = { pid:null, data:null, err:'', scene:0, focus:null, media:null, caption:null, t:0, hold:0, saving:false,
   fit:'keep', everywhere:false, warn:[], missing:{}, check:null, checking:false, last:null };
 const FONT_GROUPS = { sans:'Sans', rounded:'Rounded', display:'Display', serif:'Serif', hand:'Handwritten' };
@@ -2498,8 +2681,9 @@ function parseRoute(pathname) {
   const p = pathname.split('/').filter(Boolean);
   if (p[0] === 'projects' && p[1]) { const sub = p[2] === 'publish' ? 'export' : p[2]; return { page:'project', id:p[1], sub: EDITOR_TABS.includes(sub) ? sub : 'scenes' }; }
   if (p[0] === 'brands' && p[1]) return { page:'brand', id:p[1], sub:null };
+  if (p[0] === 'templates' && p[1]) return { page:'template', id:p[1], sub:null };
   if (p[0] === 'w' && p[1]) return { page:'studio', id:p[1], sub:null };
-  if (['ideas','autopilot','connections','brands','usage'].includes(p[0])) return { page:p[0], id:null, sub:null };
+  if (['ideas','autopilot','connections','brands','usage','templates'].includes(p[0])) return { page:p[0], id:null, sub:null };
   return { page:'studio', id:null, sub:null };
 }
 
@@ -2531,6 +2715,8 @@ function app() {
     editorTabs: [{key:'scenes',label:'Scenes'},{key:'style',label:'Style'},{key:'design',label:'Design'},{key:'edit',label:'Edit'},{key:'review',label:'AI & review'},{key:'export',label:'Export'}],
     ed: JSON.parse(JSON.stringify(ED_EMPTY)),
     dz: { ...DZ_EMPTY },
+    templateList: [], templatesLoaded: false, tpl: null, tplMissing: false, tplNew: { open:false, name:'', busy:false },
+    tp: { rows: [''], mode: 'redraw', busy: false, for: null },
     LOOK_NAMES: { none:'Original', vivid:'Vivid', warm:'Warm', fade:'Faded', film:'Film', mono:'Mono', noir:'Noir' },
     presets: [
       {key:'bold', label:'Bold', cls:'b', demo:'This is <em>huge</em>'},
@@ -2562,7 +2748,7 @@ function app() {
       try { localStorage.setItem('autoclip.theme', theme); } catch {}
     },
     setTitle() {
-      const name = this.ws() ? null : { studio:'Studio', project:'Editor', ideas:'Ideas', autopilot:'Autopilot', connections:'Connections', brands:'Brand kits', brand:'Brand kit', usage:'Usage' }[this.route.page];
+      const name = this.ws() ? null : { studio:'Studio', project:'Editor', ideas:'Ideas', autopilot:'Autopilot', connections:'Connections', brands:'Brand kits', brand:'Brand kit', usage:'Usage', templates:'Templates', template:'Template' }[this.route.page];
       document.title = (name ? this.t(name) : this.ws().name) + ' · AutoClip Studio';
     },
 
@@ -2701,6 +2887,8 @@ function app() {
       const r = this.route = parseRoute(location.pathname);
       this.setTitle();
       if (r.page === 'brands') this.loadBrands();
+      if (r.page === 'templates') this.loadTemplates();
+      if (r.page === 'template' && (prev.page !== 'template' || prev.id !== r.id || !this.tpl)) this.openTemplate(r.id);
       if (r.page === 'usage') { this.loadUsage(); this.loadPlan(); }
       if (r.page === 'studio' && r.id !== prev.id) { this.wsOpen = false; this.syncWsForm(); }
       if (r.page === 'brand' && (prev.page !== 'brand' || prev.id !== r.id || !this.brand)) this.loadBrand(r.id);
@@ -2748,7 +2936,7 @@ function app() {
       });
       window.addEventListener('beforeunload', e => { if (this.dirty || this.brandDirty) { e.preventDefault(); e.returnValue = ''; } });
       await this.loadComposer();
-      await Promise.all([this.refreshStatus(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers(), this.loadGithub(), this.loadStyles(), this.loadPlaybooks(), this.loadMusic(),
+      await Promise.all([this.refreshStatus(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadTemplates(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers(), this.loadGithub(), this.loadStyles(), this.loadPlaybooks(), this.loadMusic(),
         this.api('/api/settings').then(s => { if (s) this.cfg = s; }).catch(() => {})]);
       // Plan limits move while videos render: keep the Usage page current.
       setInterval(() => { if (this.route.page === 'usage' && !document.hidden && !this.planLoading) this.loadPlan(); }, 60000);
@@ -2758,7 +2946,7 @@ function app() {
       this.$watch('form', () => { clearTimeout(this._composerT); this._composerT = setTimeout(() => this.saveComposer(), 500); });
       this.ready = true;
       await this.onRoute();
-      setInterval(() => { this.loadProjects(); this.loadLive(); }, 2500);
+      setInterval(() => { this.loadProjects(); this.loadLive(); this.tplTick(); }, 2500);
       setInterval(() => { if (this.live.started && this.cur && this.isBusy(this.cur) && !document.hidden) this.now = Date.now() / 1000; }, 1000);
       setInterval(() => this.refreshStatus(), 30000);
     },
@@ -2999,6 +3187,81 @@ function app() {
     // ------------------------------------------------ editor (Edit tab): a CapCut-style timeline on a version
     // The preview plays the base video clip by clip (speed, look as CSS filters) with titles and music on top,
     // timed exactly like the ffmpeg export in app/editor.py.
+    // ---- templates: a Motion video as a series format (app/templates.py)
+    async loadTemplates() { this.templateList = await this.api('/api/templates').catch(() => this.templateList); this.templatesLoaded = true; },
+    templateById(id) { return this.templateList.find(t => t.id === id); },
+    async openTemplate(id) {
+      this.tpl = null; this.tplMissing = false;
+      try { this.tpl = await this.api(`/api/templates/${id}`); } catch { this.tplMissing = true; return; }
+      if (this.tp.for !== id) this.tp = { rows: [''], mode: this.tplRedraw().length ? 'redraw' : 'fill', busy: false, for: id };
+      this.setTitle();
+    },
+    // Live while something moves: the template being read, or its episodes being made.
+    async tplTick() {
+      if (document.hidden) return;
+      if (this.route.page === 'templates' && this.templateList.some(t => t.status === 'analyzing' || t.status === 'checking')) this.loadTemplates();
+      if (this.route.page === 'template' && this.tpl && (['analyzing', 'checking'].includes(this.tpl.status) || this.tpl.list.some(e => this.isBusy(e)))) {
+        const was = this.tpl.status;
+        const t = await this.api(`/api/templates/${this.tpl.id}`).catch(() => null);
+        if (t && this.route.page === 'template' && this.route.id === t.id) {
+          this.tpl = t;
+          if (was !== 'ready' && t.status === 'ready' && this.tp.rows.every(r => !r.trim())) this.tp.mode = this.tplRedraw().length ? 'redraw' : 'fill';
+        }
+      }
+    },
+    tplRedraw() { return (this.tpl?.scenes || []).filter(s => s.kind === 'redraw').map(s => s.frame); },
+    fmtAspect(format) { return { youtube:'16/9', square:'1/1' }[format] || '9/16'; },
+    epCount() { return this.tp.rows.filter(r => r.trim()).length; },
+    // Measured on a laptop, 31 s template: 2.7 min without a design run; 13 min when Claude Motion redraws 4 scenes.
+    epEta(mode) { const d = this.tpl?.duration || 30, min = Math.max(2, Math.ceil(d * 5.2 / 60)) + (mode === 'redraw' ? 10 : 0); return this.t('~{n} min', {n: min}); },
+    epAdd(i) {
+      if (this.tp.rows.length >= MAX_EPISODES) return;
+      this.tp.rows.splice(i + 1, 0, '');
+      this.$nextTick(() => document.getElementById(`ep-${i + 1}`)?.focus());
+    },
+    epRemove(i) { this.tp.rows.splice(i, 1); this.$nextTick(() => document.getElementById(`ep-${Math.max(0, i - 1)}`)?.focus()); },
+    // A pasted list (one per line, or rows from a spreadsheet) becomes one row per episode.
+    epPaste(e, i) {
+      const text = e.clipboardData?.getData('text') || '';
+      const lines = text.split(/\r?\n/).map(l => l.split('\t')[0].trim()).filter(Boolean);
+      if (lines.length < 2) return;
+      e.preventDefault();
+      const rows = [...this.tp.rows];
+      rows.splice(i, rows[i].trim() ? 0 : 1, ...lines);
+      this.tp.rows = rows.slice(0, MAX_EPISODES);
+      if (rows.length > MAX_EPISODES) this.say(this.t('At most {n} episodes at a time', {n: MAX_EPISODES}), true);
+    },
+    async makeEpisodes() {
+      const episodes = this.tp.rows.map(r => r.trim()).filter(Boolean);
+      this.tp.busy = true;
+      const made = await this.run(() => this.api(`/api/templates/${this.tpl.id}/episodes`, { method: 'POST', body: { episodes, mode: this.tplRedraw().length ? this.tp.mode : 'fill' } }),
+        episodes.length === 1 ? 'Making the episode — it appears below' : 'Making the episodes — they appear below, one after another');
+      this.tp.busy = false;
+      if (made) { this.tp.rows = ['']; this.openTemplate(this.tpl.id); this.loadProjects(); }
+    },
+    async saveTemplate() {
+      this.tplNew.busy = true;
+      const t = await this.run(() => this.api('/api/templates', { method: 'POST', body: { project_id: this.cur.id, name: this.tplNew.name.trim() } }));
+      this.tplNew.busy = false;
+      if (!t) return;
+      this.tplNew.open = false;
+      this.templateList = [t, ...this.templateList];
+      this.nav(`/templates/${t.id}`);
+    },
+    async renameTemplate(el) {
+      const name = el.value.trim();
+      if (!name) { el.value = this.tpl.name; return; }
+      const t = await this.run(() => this.api(`/api/templates/${this.tpl.id}`, { method: 'PATCH', body: { name } }));
+      if (t) { this.tpl = { ...this.tpl, name: t.name }; this.loadTemplates(); }
+    },
+    async retryTemplate() { const t = await this.run(() => this.api(`/api/templates/${this.tpl.id}/retry`, { method: 'POST' })); if (t) this.tpl = { ...this.tpl, ...t }; },
+    askDeleteTemplate() {
+      this.confirm('Delete this template?', this.t('“{name}” is removed. The episodes already made stay in your videos.', {name: this.tpl.name}), 'Delete', async () => {
+        if (await this.run(() => this.api(`/api/templates/${this.tpl.id}`, { method: 'DELETE' }))) { this.loadTemplates(); this.nav('/templates'); }
+      }, { danger: true });
+    },
+    qualityIssues() { const q = this.cur?.extra?.quality; return q && q.version === this.cur.version ? (q.issues || []) : []; },
+
     // ---- design tab: direct edits to a Claude Motion video, previewed with the HyperFrames player
     async dzOpen() {
       if (!this.isMotion(this.cur)) { this.dz = { ...DZ_EMPTY, err: this.t('Only Claude Motion videos can be edited here') }; return; }
@@ -3822,7 +4085,7 @@ function app() {
       this.mpClose();
     },
     effortLabel(e) { return this.t({ '':'Model default', low:'Low effort', medium:'Medium effort', high:'High effort', xhigh:'Extra-high effort', max:'Max effort' }[e] ?? e); },
-    kindLabel(k) { return this.t({ script:'Script', ideas:'Ideas', edit:'AI edit', motion:'Claude Motion', 'motion-edit':'Claude Motion edit', 'brand-import':'Brand import' }[k] || k); },
+    kindLabel(k) { return this.t({ script:'Script', ideas:'Ideas', edit:'AI edit', motion:'Claude Motion', 'motion-edit':'Claude Motion edit', 'brand-import':'Brand import', template:'Template', episode:'Template episode' }[k] || k); },
     async loadPlan(refresh = false) {
       this.planLoading = true;
       this.plan = await this.api(`/api/claude/plan-usage${refresh ? '?refresh=true' : ''}`).catch(e => ({ error: e.message }));

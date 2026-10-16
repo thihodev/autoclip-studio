@@ -187,6 +187,14 @@ async def _render_version(pid: str, note: str) -> dict:
 async def run_project(pid: str):
     activity.clear(pid)
     activity.start(pid)
+    if db.get_project(pid)["request"].get("template_id"):
+        try:
+            await make_episode(pid)
+        except Exception as e:
+            _fail(pid, e, status="ready" if db.get_project(pid).get("video_path") else "failed")
+        finally:
+            STAGES.pop(pid, None)
+        return
     db.update_project(pid, status="designing" if db.get_project(pid)["request"].get("engine") == "motion" else "scripting",
                       progress=1)
     try:
@@ -347,6 +355,63 @@ async def manual_edit(pid: str, timeline: dict, title: str | None = None):
         await _render_version(pid, "Manual edit")
     except Exception as e:
         _fail(pid, e, status="ready")
+
+
+# ---------- templates: new episodes of a Claude Motion format (templates.py) ----------
+
+_episode_writers = asyncio.Semaphore(2)  # Claude writes two episodes at a time; renders take turns (_motion_lock)
+
+
+async def make_episode(pid: str):
+    from . import templates
+    p = db.get_project(pid)
+    req = p["request"]
+    db.update_project(pid, status="queued", progress=1)
+    STAGES[pid] = "Preparing the template"
+    t = await templates.wait_ready(req["template_id"])
+    brand = brands.get(req.get("brand_id"))
+    report = _reporter(pid)
+    async with _episode_writers:
+        db.update_project(pid, status="scripting", progress=5)
+        STAGES[pid] = "Writing the episode"
+        activity.add(pid, f"Claude is writing this episode of “{t['name']}”")
+        data = await templates.write_episode(t, req["topic"], pid)
+    title = str(data.get("title") or req["topic"])[:100]
+    script = {**(p.get("script") or {}), "title": title,
+              "script": " ".join(str(s.get("narration") or "") for s in data.get("scenes", []) if isinstance(s, dict))}
+    db.update_project(pid, script=script)
+    activity.add(pid, f"Episode written: “{title}”", "say")
+    out = VIDEOS_DIR / f"{pid}_v{(p.get('version') or 0) + 1}.mp4"
+    instruction = templates.redraw_instruction(t, data) if req.get("template_mode") == "redraw" else None
+    model = effort = None
+    db.update_project(pid, status="queued", progress=20)
+    async with _motion_lock:
+        db.update_project(pid, status="rendering", progress=22)
+        root = await templates.build(t, pid, data, req, brand, report)
+        if instruction:
+            db.update_project(pid, status="designing")
+            activity.add(pid, "Claude is redrawing the scenes that belong to this topic")
+            model, effort = usage.choose("motion", req.get("model"), req.get("effort"))
+            tl = await motion.edit(pid, req, instruction, out, report, model, effort)
+        else:
+            tl = await motion.render_edits(pid, req, out, report, low=60)
+        report(96, "Checking the video")
+        try:
+            found = templates.check_issues(t, await motion.check(root))
+        except Exception:
+            log.warning("episode check failed for %s", pid, exc_info=True)
+            found = None
+    tl["format"] = req.get("format", "shorts")
+    tl["brand_id"] = req.get("brand_id")
+    await render.thumbnail(out)
+    extra = _extra(db.get_project(pid))
+    extra["template"] = {"id": t["id"], "name": t["name"]}
+    extra["quality"] = {"issues": found, "at": time.time(), "version": (p.get("version") or 0) + 1}
+    db.update_project(pid, extra=extra)
+    _save_version(pid, out, tl, f"From the template “{t['name']}”", model, effort)
+    if found:
+        activity.add(pid, f"The quality check found {len(found)} thing(s) to look at in the Design tab", "warn")
+    activity.add(pid, "Episode ready", "done")
 
 
 # ---------- design: direct edits to a Claude Motion video, rendered without Claude ----------

@@ -662,8 +662,13 @@ def issues(report: dict) -> list[dict]:
 def new_issues(root: Path, report: dict) -> list[dict]:
     base = root / BASELINE
     known = {i["key"] for i in json.loads(base.read_text())} if base.exists() else set()
+    return diff_issues(issues(report), known)
+
+
+def diff_issues(found: list[dict], known: set[str]) -> list[dict]:
+    """The issues whose key isn't in `known`, one per line of text (a finding per word is merged)."""
     seen, out = set(), []
-    for i in issues(report):
+    for i in found:
         if i["key"] in known or i["key"] in seen:
             continue
         seen.add(i["key"])

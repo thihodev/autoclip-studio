@@ -73,6 +73,19 @@ The web UI uses this JSON API; you can script it too. Everything runs on the loc
 `voice`: an edge-tts voice name, `eleven:<voice_id>`, `none` (no voice-over: captions timed to reading speed, music turned up) or empty for the default.
 
 
+## Templates
+
+| Method | Path | What it does |
+|---|---|---|
+| GET | `/api/templates` | Templates, newest first, with their episode counts |
+| POST | `/api/templates` | `{project_id, name?}` — save a Claude Motion video as a template; Claude reads its scenes in the background (`status`: analyzing → checking → ready, or failed) |
+| GET, PATCH, DELETE | `/api/templates/{id}` | The template with its scenes (kind fixed/fill/redraw, text slots) and episodes (`list`) / rename `{name}` / delete (episodes stay) |
+| POST | `/api/templates/{id}/retry` | Analyze a failed template again |
+| GET | `/api/templates/{id}/preview.mp4`, `/cover.jpg` | The template's video and cover |
+| POST | `/api/templates/{id}/episodes` | `{episodes: [what each is about], mode: fill\|redraw}` — one new video per line (at most 30), made one after another |
+
+An episode is a normal project whose `request` has `template_id` and `template_mode`; its quality check result is in `extra.quality` (`{issues, version}`).
+
 ## Brand kits and projects
 
 | Method | Path | |

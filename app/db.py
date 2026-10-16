@@ -147,6 +147,21 @@ def list_projects(limit: int = 100, workspace_id: str | None = None):
     return [_row(r) for r in rows]
 
 
+def template_projects(template_id: str, limit: int = 200) -> list[dict]:
+    """Episodes made from a template, newest first."""
+    with conn() as c:
+        rows = c.execute("SELECT * FROM projects WHERE json_extract(request, '$.template_id') = ? "
+                         "ORDER BY created_at DESC LIMIT ?", (template_id, limit)).fetchall()
+    return [_row(r) for r in rows]
+
+
+def template_counts() -> dict[str, int]:
+    with conn() as c:
+        rows = c.execute("SELECT json_extract(request, '$.template_id') AS t, COUNT(*) AS n FROM projects "
+                         "WHERE json_extract(request, '$.template_id') IS NOT NULL GROUP BY t").fetchall()
+    return {r["t"]: r["n"] for r in rows}
+
+
 def delete_project(pid: str):
     with conn() as c:
         c.execute("DELETE FROM projects WHERE id=?", (pid,))

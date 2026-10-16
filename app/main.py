@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import activity, audio, brands, claude, context, covers, db, design, editor, leftovers, playbooks, styles, motion, pipeline, render, settings, tts, usage
+from . import activity, audio, brands, claude, context, covers, db, design, editor, leftovers, playbooks, styles, motion, pipeline, render, settings, templates, tts, usage
 from .config import DATA_DIR, ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -533,6 +533,151 @@ async def design_file(pid: str, path: str):
                 src = design.annotate(src, scene)
         return Response(src, media_type="text/html", headers={"Cache-Control": "no-store"})
     return FileResponse(f)
+
+
+# ------------------------------------------------------------------ templates: a Motion video as a series format
+
+class TemplateIn(BaseModel):
+    project_id: str
+    name: str = Field("", max_length=80)
+
+
+class TemplatePatch(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+
+
+class EpisodesIn(BaseModel):
+    episodes: list[str] = Field(min_length=1, max_length=templates.MAX_EPISODES)
+    mode: str = Field("fill", pattern="^(fill|redraw)$")
+
+
+def _template(tid: str) -> dict:
+    t = templates.get(tid)
+    if not t:
+        raise HTTPException(404, "Template not found")
+    return t
+
+
+def _episodes(tid: str) -> list[dict]:
+    keep = ("id", "status", "progress", "version", "video_path", "error", "created_at")
+    out = []
+    for p in db.template_projects(tid):
+        q = (pipeline._extra(p).get("quality") or {})
+        out.append({**{k: p.get(k) for k in keep}, "title": (p.get("script") or {}).get("title") or p["request"]["topic"],
+                    "topic": p["request"]["topic"], "stage": pipeline.STAGES.get(p["id"]),
+                    "issues": len(q.get("issues") or []) if q.get("version") == p.get("version") else None})
+    return out
+
+
+def _with_counts(t: dict, counts: dict | None = None) -> dict:
+    return {**t, "episodes": (counts if counts is not None else db.template_counts()).get(t["id"], 0)}
+
+
+@app.get("/api/templates")
+def list_templates():
+    counts = db.template_counts()
+    return [_with_counts(t, counts) for t in templates.list_all()]
+
+
+@app.post("/api/templates")
+async def create_template(body: TemplateIn):
+    """Save a Claude Motion video as a template; Claude reads its scenes in the background (status "analyzing")."""
+    _require_setup()
+    p = _project(body.project_id)
+    if p["status"] in BUSY:
+        raise HTTPException(409, "This video is busy")
+    if not pipeline.is_motion(p):
+        raise HTTPException(400, "Only Claude Motion videos can become templates")
+    try:
+        t = templates.start(p, body.name)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    async def job():
+        try:
+            await templates.analyze(t["id"])
+        except Exception as e:
+            log.warning("template analysis failed for %s", t["id"], exc_info=True)
+            if (cur := templates.get(t["id"])):
+                cur.update(status="failed", error=f"{e.__class__.__name__}: {e}"[:500])
+                templates._save(cur)
+    _bg(job())
+    return _with_counts(t)
+
+
+@app.get("/api/templates/{tid}")
+def get_template(tid: str):
+    return {**_with_counts(_template(tid)), "list": _episodes(tid)}
+
+
+@app.patch("/api/templates/{tid}")
+def rename_template(tid: str, body: TemplatePatch):
+    _template(tid)
+    return _with_counts(templates.update(tid, body.name))
+
+
+@app.post("/api/templates/{tid}/retry")
+async def retry_template(tid: str):
+    t = _template(tid)
+    if t["status"] != "failed":
+        raise HTTPException(409, "This template isn't stuck")
+    t.update(status="analyzing", error=None)
+    templates._save(t)
+
+    async def job():
+        try:
+            await templates.analyze(tid)
+        except Exception as e:
+            if (cur := templates.get(tid)):
+                cur.update(status="failed", error=f"{e.__class__.__name__}: {e}"[:500])
+                templates._save(cur)
+    _bg(job())
+    return _with_counts(t)
+
+
+@app.delete("/api/templates/{tid}")
+def delete_template(tid: str):
+    """Delete a template. Its episodes stay: each has its own copy of the project."""
+    _template(tid)
+    templates.delete(tid)
+    return {"ok": True}
+
+
+@app.get("/api/templates/{tid}/preview.mp4")
+def template_preview(tid: str):
+    _template(tid)
+    return FileResponse(templates.preview(tid), media_type="video/mp4")
+
+
+@app.get("/api/templates/{tid}/cover.jpg")
+def template_cover(tid: str):
+    _template(tid)
+    f = templates.cover(tid)
+    if not f.exists():
+        raise HTTPException(404)
+    return FileResponse(f, media_type="image/jpeg")
+
+
+@app.post("/api/templates/{tid}/episodes")
+async def make_episodes(tid: str, body: EpisodesIn):
+    """New episodes from a template: one video per line, made one after another."""
+    _require_setup()
+    t = _template(tid)
+    if t["status"] == "failed":
+        raise HTTPException(409, "This template couldn't be prepared — try again first")
+    briefs = [" ".join(b.split())[:500] for b in body.episodes if b.strip()]
+    if not briefs:
+        raise HTTPException(400, "Write what at least one episode is about")
+    made = []
+    for brief in briefs:
+        req = {"topic": brief, "engine": "motion", "template_id": tid, "template_mode": body.mode,
+               "format": t["format"], "language": t["language"], "voice": t["voice"], "voice_rate": t["voice_rate"],
+               "brand_id": t["brand_id"] if t["brand_id"] and brands.get(t["brand_id"]) else None,
+               "music": t["music"], "sfx": t["sfx"], "duration": round(t["duration"])}
+        p = db.create_project(req, None)
+        pipeline.start(p["id"])
+        made.append(p)
+    return made
 
 
 # ------------------------------------------------------------------ ideas & projects
@@ -1412,9 +1557,12 @@ INDEX = ROOT / "static" / "index.html"
 @app.get("/w/{wid}", include_in_schema=False)
 @app.get("/brands", include_in_schema=False)
 @app.get("/brands/{bid}", include_in_schema=False)
+@app.get("/templates", include_in_schema=False)
+@app.get("/templates/{tid}", include_in_schema=False)
 @app.get("/projects/{pid}", include_in_schema=False)
 @app.get("/projects/{pid}/{section}", include_in_schema=False)
-def page(pid: str | None = None, section: str | None = None, bid: str | None = None, wid: str | None = None):
+def page(pid: str | None = None, section: str | None = None, bid: str | None = None, wid: str | None = None,
+         tid: str | None = None):
     return FileResponse(INDEX, headers={"Cache-Control": "no-cache"})
 
 

@@ -133,6 +133,18 @@ The **Export** tab works on the version you pick at its top (the one the player 
 
 AutoClip doesn't connect to social networks or post for you: it focuses on making and editing the video, and you post it wherever you like.
 
+## Templates: design once, make a series
+
+Claude designs a video once; **Save as template** turns it into a format for a series. Claude reads the scenes once (one small call) and marks each one:
+
+- **Fixed** — the same in every episode (brand intro, call to action): visuals, texts and narration are kept.
+- **Fill in** — the content is in the texts: an episode gets new texts and narration in the same design.
+- **Redraw** — the illustration belongs to the topic (a drawn brain for "your brain").
+
+Then type what the next episodes are about, one per line (or paste a list). For each one Claude writes the narration and the on-screen texts, sized to the template's slots (one small call); the voice is recorded and the workflow's own scripts re-time the video — captions, assembly and transitions — without an agent run. With **Redraw for each topic** (the default when a template has such scenes) Claude Motion redraws only those scenes in the template's style; **Keep the illustrations** skips it. Every episode is checked with HyperFrames before it is ready, against the same check run once on the template, so only problems the new content brought in are reported (in the video's page and its Design tab). On a laptop a 30-second episode takes about 3 minutes without redrawing, about 13 when Claude Motion redraws four scenes.
+
+Episodes are ordinary videos: edit them in the Design tab, ask Claude for changes, export them, or save one as a new template.
+
 ## Brand kits
 
 A brand kit is a design system for videos: description, voice and tone, audience, call to action, knowledge files, colors, caption style, font, logo, intro/outro, music and a b-roll library. Claude follows it when writing and designing; the renderer applies its assets.
@@ -166,6 +178,7 @@ Everything lives in `data/` (`autoclip.db` for settings and projects, renders, b
 | `app/render.py` · `app/tts.py` · `app/audio.py` · `app/covers.py` | Quick engine (ffmpeg) · voices · music and sound effects · cover images |
 | `app/brands.py` · `app/styles.py` · `app/playbooks.py` | Brand kits and imports · visual styles · video types |
 | `app/design.py` · `app/editor.py` · `app/layers.py` | Direct edits to Claude Motion projects · the timeline editor's export · layers for other editors |
+| `app/templates.py` | Templates: a Claude Motion video as a series format, and its episodes |
 | `static/index.html` · `static/locales/` | The whole UI (Alpine.js) · translations |
 | `website/` | The [website](https://autoclip-connect.thihodev.workers.dev): static files on Cloudflare Workers |
 | `app/assets/` | Bundled font, FrameJam styles and playbooks, GSAP skills (with their licenses), AutoClip playbooks |

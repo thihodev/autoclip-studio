@@ -246,14 +246,54 @@ async def prepare(pid: str, req: dict, brand: dict | None) -> Path:
 
 # ------------------------------------------------------------------ narration tool
 
-def _voiceover_server(pid: str, root: Path, req: dict, brand: dict | None):
+def voice_choice(req: dict, brand: dict | None) -> tuple[str, str, float]:
+    """(language, voice, rate) for a video: its own pick, else the brand kit's voice for that language."""
     language = req.get("language", "English")
     voice = req.get("voice") or ""  # the video's pick (edge name or "eleven:<id>"); empty = default
     if not voice and brand and brand.get("voice_name") and brand.get("language") in ("", None, language):
         voice = brand["voice_name"]
-    voice = re.sub(r"-(Male|Female)$", "", voice)
-    rate = float(req.get("voice_rate", 1.0))
+    return language, re.sub(r"-(Male|Female)$", "", voice), float(req.get("voice_rate", 1.0))
 
+
+async def record_voice(pid: str, root: Path, req: dict, brand: dict | None, lines: list[dict]) -> list[str]:
+    """Narration for the given frames → assets/voice/NN.wav + audio_meta.json (frame-relative word timings, and the
+    music bed when the video has one). Returns one summary line per recorded frame."""
+    language, voice, rate = voice_choice(req, brand)
+    meta_path = root / "audio_meta.json"
+    meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+    voices = {v["frame"]: v for v in meta.get("voices", [])}
+    (root / "assets" / "voice").mkdir(parents=True, exist_ok=True)
+    done = []
+    for line in lines:
+        frame, text = int(line["frame"]), line["text"].strip()
+        if not text:
+            continue
+        mp3 = root / "assets" / "voice" / f"{frame:02d}.mp3"
+        wav = mp3.with_suffix(".wav")
+        words = await tts.synthesize(text, language, voice, rate, mp3)
+        await render._ffmpeg("-i", mp3, "-ac", "1", "-ar", "44100", wav)
+        mp3.unlink(missing_ok=True)
+        dur = await render.media_duration(wav)
+        voices[frame] = {"frame": frame, "path": f"assets/voice/{frame:02d}.wav", "duration_s": round(dur, 3),
+                         "words": [{"id": f"w{frame:02d}_{i}", "text": w, "start": round(s, 3), "end": round(e, 3)}
+                                   for i, (s, e, w) in enumerate(words)], "text": text}
+        done.append(f"frame {frame}: {dur:.2f}s, {len(words)} words")
+        activity.add(pid, f"Scene {frame}: “{text[:140]}”", "say")
+    bgm = meta.get("bgm")
+    if not bgm and (m := audio.pick(req.get("music") or "", brand, pid)):
+        (root / "assets" / "music").mkdir(parents=True, exist_ok=True)
+        dest = root / "assets" / "music" / Path(m["path"]).name
+        shutil.copyfile(m["path"], dest)
+        vol = m["volume"] * (tts.MUSIC_BOOST if voice == tts.NO_VOICE else 1)
+        bgm = {"path": f"assets/music/{dest.name}", "source": "host", "volume": round(vol, 3),
+               "query": None, "duration_s": round(await render.media_duration(dest), 3)}
+    meta = {**meta, "bgm": bgm, "bgm_pending": False, "voices": sorted(voices.values(), key=lambda v: v["frame"]),
+            "sfx": meta.get("sfx", [])}
+    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
+    return done
+
+
+def _voiceover_server(pid: str, root: Path, req: dict, brand: dict | None):
     @tool(
         "voiceover",
         "Record the narration for the video. Pass every SCRIPT.md line (frame number + exact spoken text). "
@@ -264,38 +304,8 @@ def _voiceover_server(pid: str, root: Path, req: dict, brand: dict | None):
             "properties": {"frame": {"type": "integer"}, "text": {"type": "string"}}}}}},
     )
     async def voiceover(args):
-        lines = args.get("lines") or []
-        meta_path = root / "audio_meta.json"
-        meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
-        voices = {v["frame"]: v for v in meta.get("voices", [])}
-        (root / "assets" / "voice").mkdir(parents=True, exist_ok=True)
-        done = []
-        for line in lines:
-            frame, text = int(line["frame"]), line["text"].strip()
-            if not text:
-                continue
-            mp3 = root / "assets" / "voice" / f"{frame:02d}.mp3"
-            wav = mp3.with_suffix(".wav")
-            words = await tts.synthesize(text, language, voice, rate, mp3)
-            await render._ffmpeg("-i", mp3, "-ac", "1", "-ar", "44100", wav)
-            mp3.unlink(missing_ok=True)
-            dur = await render.media_duration(wav)
-            voices[frame] = {"frame": frame, "path": f"assets/voice/{frame:02d}.wav", "duration_s": round(dur, 3),
-                             "words": [{"id": f"w{frame:02d}_{i}", "text": w, "start": round(s, 3), "end": round(e, 3)}
-                                       for i, (s, e, w) in enumerate(words)], "text": text}
-            done.append(f"frame {frame}: {dur:.2f}s, {len(words)} words")
-            activity.add(pid, f"Scene {frame}: “{text[:140]}”", "say")
-        bgm = meta.get("bgm")
-        if not bgm and (m := audio.pick(req.get("music") or "", brand, pid)):
-            (root / "assets" / "music").mkdir(parents=True, exist_ok=True)
-            dest = root / "assets" / "music" / Path(m["path"]).name
-            shutil.copyfile(m["path"], dest)
-            vol = m["volume"] * (tts.MUSIC_BOOST if voice == tts.NO_VOICE else 1)
-            bgm = {"path": f"assets/music/{dest.name}", "source": "host", "volume": round(vol, 3),
-                   "query": None, "duration_s": round(await render.media_duration(dest), 3)}
-        meta = {"bgm": bgm, "bgm_pending": False, "voices": sorted(voices.values(), key=lambda v: v["frame"]),
-                "sfx": meta.get("sfx", [])}
-        meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
+        done = await record_voice(pid, root, req, brand, args.get("lines") or [])
+        bgm = json.loads((root / "audio_meta.json").read_text()).get("bgm")
         summary = "\n".join(done) or "nothing to record"
         music = f"music bed: {bgm['path']} (host)" if bgm else "no music bed (set `music: none` in STORYBOARD.md)"
         return {"content": [{"type": "text", "text": f"✓ voiceover → audio_meta.json\n{summary}\n{music}"}]}
@@ -605,12 +615,14 @@ async def check(root: Path) -> dict:
         raise RuntimeError(f"The quality check failed: {err.decode(errors='replace')[-400:]}")
 
 
-async def render_edits(pid: str, req: dict, out: Path, report) -> dict:
-    """Render the project as it is now (direct edits from the Design tab) — HyperFrames only, no Claude."""
+async def render_edits(pid: str, req: dict, out: Path, report, low: int = 3) -> dict:
+    """Render the project as it is now (direct edits from the Design tab, a template episode) — HyperFrames only,
+    no Claude. Progress runs from `low` to 95."""
     brand = brands.get(req.get("brand_id"))
     root = project_root(pid)
     video = root / "renders" / "video.mp4"
     video.unlink(missing_ok=True)
+    video.parent.mkdir(exist_ok=True)
     total = design.state(root)["duration"]
     expected = max(30.0, total * 3)  # about 3 s of rendering per second of video on a laptop
 
@@ -618,7 +630,7 @@ async def render_edits(pid: str, req: dict, out: Path, report) -> dict:
         t0 = time.monotonic()
         while True:
             await asyncio.sleep(2)
-            report(min(95, 3 + int(92 * (time.monotonic() - t0) / expected)), "Rendering with HyperFrames")
+            report(min(95, low + int((95 - low) * (time.monotonic() - t0) / expected)), "Rendering with HyperFrames")
 
     ticker = asyncio.create_task(tick())
     try:
