@@ -3,8 +3,8 @@ from . import db
 
 DEFAULTS = {
     # source: "" until the user picks. effort "" = the model's default.
-    "claude": {"source": "", "api_key": "", "model": "sonnet", "effort": "", "motion_model": "opus", "motion_effort": "medium",
-               "designer_model": "sonnet", "designer_effort": "medium"},
+    "claude": {"source": "", "api_key": "", "model": "sonnet", "effort": "", "motion_model": "opus", "motion_effort": "high",
+               "designer_model": "opus", "designer_effort": "high"},
     "footage": {"provider": "pixabay", "pexels_api_key": "", "pixabay_api_key": ""},
     "voice": {"elevenlabs_api_key": "", "elevenlabs_voice_id": "", "elevenlabs_voice_name": "", "elevenlabs_model": ""},
     "postiz": {"url": "", "api_key": ""},
@@ -68,4 +68,17 @@ def migrate():
         if saved and saved.get("motion_effort") == "high":
             db.set_setting("cfg.claude", {**saved, "motion_effort": "medium"})
         done.add("motion_effort_medium")
+    if "motion_quality_defaults" not in done:
+        # Back to Opus at high effort for the orchestrator and the scene designers: the cheaper defaults
+        # (medium effort, Sonnet designers) made visibly weaker videos. Only settings still on those defaults move.
+        saved = db.get_setting("cfg.claude")
+        if saved:
+            fix = {}
+            if saved.get("motion_effort") == "medium" and "motion_effort_medium" in done:
+                fix["motion_effort"] = "high"
+            if saved.get("designer_model", "sonnet") == "sonnet" and saved.get("designer_effort", "medium") == "medium":
+                fix |= {"designer_model": "opus", "designer_effort": "high"}
+            if fix:
+                db.set_setting("cfg.claude", {**saved, **fix})
+        done.add("motion_quality_defaults")
     db.set_setting("migrations", sorted(done))

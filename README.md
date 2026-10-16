@@ -82,7 +82,7 @@ The composer remembers its choices for the next video.
 | Sound | Music bed + sound-effect cues placed by the agent | Music bed + a whoosh on every cut |
 | Editing | Review comments and instructions; Claude re-animates only what you point at | Scene-by-scene editor, footage swap, caption styles, AI edits |
 
-Claude Motion is token-heavy, so it is built to spend less: scene designers run on Sonnet by default (configurable), the orchestrator defaults to Opus at medium effort, it never idles waiting for sub-agents, keeps its context small and only gets the tools it needs. The usage page shows what each video used.
+Claude Motion is token-heavy. Quality comes first — the orchestrator and the scene designers run on Opus at high effort by default (both configurable in Connections → Claude, e.g. Sonnet designers to spend about half) — and it is built not to waste: it never idles waiting for sub-agents, keeps its context small and only gets the tools it needs. The usage page shows what each video used.
 
 HyperFrames' skill installer normally writes into your global agent folders (`~/.claude/skills`, …). AutoClip never lets it: skills are installed into `data/hyperframes/` with an app-owned `HOME`, and the agent runs with a command allow/deny policy, file writes limited to its project folder and no web access.
 

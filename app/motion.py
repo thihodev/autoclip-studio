@@ -328,7 +328,8 @@ Hard rules:
 
 DESIGNER = """You design and animate ONE HyperFrames frame for AutoClip Studio, from the `_role.md` and frame packet you
 are given. Follow them exactly (look, timing, Vietnamese typography rules, safe margins). Write only your frame's
-composition file, inside the project folder. Run `npx hyperframes lint` on it when done and fix real problems. Keep
+composition file, inside the project folder. Finish with the self-check in your role, fixing your file in place; don't
+run the HyperFrames CLI (lint/check work on the assembled project, not one frame — the orchestrator runs them). Keep
 command output short (`| tail -n 40`) and don't re-read files.
 When your packet uses a GSAP plugin or `gsap.utils` helper, check its API in `.claude/skills/gsap-plugins/SKILL.md`
 (or `gsap-utils`): grep the heading and read only that section. Load the plugin inside your `<template>` right after
