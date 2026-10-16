@@ -271,6 +271,8 @@
   .rqrow .grow { flex:1; min-width:0; } .rqrow .t { font-weight:600; color:var(--text); text-decoration:none; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .rqth { width:40px; height:56px; flex:none; border-radius:6px; overflow:hidden; background:var(--surface-2); display:flex; align-items:center; justify-content:center; color:var(--text-3); }
   .rqth img { width:100%; height:100%; object-fit:cover; }
+  .ttpost { display:grid; gap:12px; margin-top:14px; padding:14px; border:1px solid var(--border); border-radius:var(--radius-sm); }
+  .ttwho { display:flex; align-items:center; gap:10px; font-weight:600; }
   .pubcol { display:flex; flex-direction:column; gap:16px; } .pubcol > .card { margin:0; }
   .pubkit { display:grid; margin-top:14px; border:1px solid var(--border); border-radius:var(--radius-sm); }
   .pubrow { display:flex; align-items:center; gap:10px; padding:10px 12px; flex-wrap:wrap; } .pubrow + .pubrow { border-top:1px solid var(--border); }
@@ -1054,8 +1056,43 @@
                       <select x-select x-model="pubOpts.tiktok_method"><option value="UPLOAD" x-t>Send to TikTok inbox as a draft</option><option value="DIRECT_POST" x-t>Post directly</option></select>
                       <p class="hint" x-show="pubOpts.tiktok_method==='UPLOAD'"><span x-t>Recommended: open TikTok, add a trending sound (apps can't add those), then post.</span></p></div>
                   </div>
+                  <!-- TikTok direct post: what TikTok's content sharing guidelines ask the user to see and choose -->
+                  <div class="ttpost" x-show="ttDirect()">
+                    <template x-for="a in ttAccounts()" :key="a.id">
+                      <div class="ttwho"><span class="avatar"><img x-show="tt.info[a.id]?.creator_avatar_url || a.avatar" :src="tt.info[a.id]?.creator_avatar_url || a.avatar" alt=""><span x-show="!(tt.info[a.id]?.creator_avatar_url || a.avatar)" x-text="initial(a.name)"></span></span>
+                        <span x-text="t('Posting to TikTok as {name}', {name: tt.info[a.id]?.creator_nickname || a.name})"></span>
+                        <span class="small" style="color:var(--err)" x-show="tt.err[a.id]" x-text="tt.err[a.id]"></span></div>
+                    </template>
+                    <div class="field"><label><span x-t>Caption</span> <span class="muted small" x-text="tt.caption.length + '/2200'"></span></label>
+                      <textarea x-model="tt.caption" maxlength="2200" rows="3"></textarea></div>
+                    <div class="field"><label><span x-t>Who can see this video</span></label>
+                      <select x-model="tt.privacy">
+                        <option value="" disabled x-t>Choose…</option>
+                        <template x-for="o in ttPrivacyOptions()" :key="o"><option :value="o" :disabled="o==='SELF_ONLY' && tt.branded" x-text="t(TT_PRIVACY[o] || o)" :title="o==='SELF_ONLY' && tt.branded ? t('Branded content visibility can\'t be set to private.') : ''"></option></template>
+                      </select></div>
+                    <div class="field"><label><span x-t>Allow users to</span></label>
+                      <div class="actions" style="gap:16px">
+                        <template x-for="k in ['comment','duet','stitch']" :key="k">
+                          <label class="toggle small" :style="ttDisabled(k) && 'opacity:.5'" :title="ttDisabled(k) ? t('Turned off in this account\'s TikTok settings') : ''">
+                            <input type="checkbox" x-model="tt[k]" :disabled="ttDisabled(k)"> <span x-text="t({comment:'Comment', duet:'Duet', stitch:'Stitch'}[k])"></span></label>
+                        </template></div></div>
+                    <div class="field">
+                      <label class="toggle"><input type="checkbox" x-model="tt.disclose" @change="if (!tt.disclose) { tt.yourBrand = false; tt.branded = false }"> <span style="font-weight:600" x-t>Disclose video content</span></label>
+                      <p class="hint"><span x-t>Turn on to disclose that this video promotes goods or services in exchange for something of value. Your video could promote yourself, a third party, or both.</span></p>
+                      <div x-show="tt.disclose" class="stack" style="gap:8px;margin-top:6px">
+                        <label class="toggle small"><input type="checkbox" x-model="tt.yourBrand"> <span><b x-t>Your brand</b> — <span x-t>You are promoting yourself or your own business. This video will be classified as Brand Organic.</span></span></label>
+                        <label class="toggle small"><input type="checkbox" x-model="tt.branded" @change="if (tt.branded && tt.privacy==='SELF_ONLY') tt.privacy=''"> <span><b x-t>Branded content</b> — <span x-t>You are promoting another brand or a third party. This video will be classified as Branded Content.</span></span></label>
+                        <p class="hint" x-show="tt.yourBrand || tt.branded" x-text="t(tt.branded ? 'Your video will be labeled as \u201cPaid partnership\u201d.' : 'Your video will be labeled as \u201cPromotional content\u201d.')"></p>
+                        <p class="hint" style="color:var(--warn)" x-show="!tt.yourBrand && !tt.branded"><span x-t>You need to indicate if your content promotes yourself, a third party, or both.</span></p>
+                      </div></div>
+                    <p class="hint" style="color:var(--warn)" x-show="ttTooLong()" x-text="t('This video is longer than this account can post ({n} s).', {n: ttMaxDuration()})"></p>
+                    <p class="small muted" style="margin:0"><span x-t>By posting, you agree to TikTok's</span>
+                      <template x-if="tt.branded"><span><a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noopener"><span x-t>Branded Content Policy</span></a> <span x-t>and</span> </span></template>
+                      <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener"><span x-t>Music Usage Confirmation</span></a>.</p>
+                  </div>
                   <div class="actions" style="margin-top:14px;justify-content:flex-end" x-show="channels.length">
-                    <button class="btn primary" @click="publish()" :disabled="!pubIds.length || !cur.video_path || isBusy(cur) || dirty"><svg class="i"><use href="#i-send"/></svg><span x-t>Publish</span></button>
+                    <span class="small muted" x-show="ttDirect() && !ttReady()" x-text="t(!tt.privacy ? 'Choose who can see the TikTok video.' : 'Finish the TikTok settings.')"></span>
+                    <button class="btn primary" @click="publish()" :disabled="!pubIds.length || !cur.video_path || isBusy(cur) || dirty || (ttDirect() && !ttReady())"><svg class="i"><use href="#i-send"/></svg><span x-t>Publish</span></button>
                   </div>
                   <p class="hint" x-show="dirty"><span x-t>Save your edits first so the published video includes them.</span></p>
                 </div>
@@ -2315,6 +2352,8 @@ function app() {
     ghPick: { open:false, q:'', pos:{}, loading:false, current:'' },
     conn: '',
     hooks: { list:[], loading:false, ab:false, topic:'' }, post: { title:'', description:'', hashtags:'', youtube_tags:'' }, postBusy: false, coverText: '', coverBusy: false, sharing: false,
+    tt: { info:{}, err:{}, caption:'', privacy:'', comment:false, duet:false, stitch:false, disclose:false, yourBrand:false, branded:false },
+    TT_PRIVACY: { PUBLIC_TO_EVERYONE:'Everyone', MUTUAL_FOLLOW_FRIENDS:'Friends', FOLLOWER_OF_CREATOR:'Followers', SELF_ONLY:'Only me' },
     // Posting by hand: each app's own upload page (no developer app, no connection).
     MANUAL_PLATFORMS: [
       { key:'tiktok', label:'TikTok', note:'Upload on tiktok.com or send it to the TikTok app', url:'https://www.tiktok.com/tiktokstudio/upload' },
@@ -2423,6 +2462,23 @@ function app() {
     brandSummary(b) { const t = (k, v) => this.t(k, v); const parts = []; if (b.logo) parts.push(t('logo')); if (b.font) parts.push(b.font.family); if (b.intro) parts.push(t('intro')); if (b.outro) parts.push(t('outro')); if (b.music.length) parts.push(t(b.music.length > 1 ? '{n} tracks' : '{n} track', {n: b.music.length})); if (b.clips.length) parts.push(t(b.clips.length > 1 ? '{n} clips' : '{n} clip', {n: b.clips.length})); return parts.join(' · ') || t('No assets yet'); },
     brandFontFamily(b) { return b?.font ? `'bf-${b.id}', sans-serif` : 'inherit'; },
     brandFontCss() { return [...this.brandList, ...(this.brand ? [this.brand] : [])].filter(b => b.font).map(b => `@font-face{font-family:'bf-${b.id}';src:url('${this.brandUrl(b, b.font.file)}')}`).join(''); },
+    // TikTok direct posting (TikTok's content sharing guidelines): accounts, their allowed choices, readiness.
+    ttAccounts() { return this.channels.filter(c => this.pubIds.includes(c.id) && c.provider === 'tiktok' && c.via !== 'postiz'); },
+    ttDirect() { return this.pubOpts.tiktok_method === 'DIRECT_POST' && this.ttAccounts().length > 0; },
+    async ttLoad() {
+      for (const a of this.ttAccounts()) {
+        if (this.tt.info[a.id]) continue;
+        try { this.tt.info = { ...this.tt.info, [a.id]: await this.api(`/api/accounts/${a.id}/tiktok-creator`) }; this.tt.err = { ...this.tt.err, [a.id]: '' }; }
+        catch (e) { this.tt.err = { ...this.tt.err, [a.id]: e.message }; }
+      }
+      if (!this.tt.caption) this.tt.caption = this.captionFor('tiktok');
+    },
+    ttInfos() { return this.ttAccounts().map(a => this.tt.info[a.id]).filter(Boolean); },
+    ttPrivacyOptions() { const all = this.ttInfos().map(i => i.privacy_level_options || []); return all.length ? all.reduce((a, b) => a.filter(x => b.includes(x))) : []; },
+    ttDisabled(k) { return this.ttInfos().some(i => i[k + '_disabled']); },
+    ttMaxDuration() { const m = this.ttInfos().map(i => i.max_video_post_duration_sec).filter(Boolean); return m.length ? Math.min(...m) : 0; },
+    ttTooLong() { const d = this.cur?.timeline?.scenes?.at(-1)?.end; return !!(this.ttMaxDuration() && d && d > this.ttMaxDuration()); },
+    ttReady() { return !!this.tt.privacy && this.ttInfos().length === this.ttAccounts().length && (!this.tt.disclose || this.tt.yourBrand || this.tt.branded) && !this.ttTooLong(); },
     selectedProviders() { return this.channels.filter(c => this.pubIds.includes(c.id)).map(c => c.provider); },
     pick(ids) { return this.channels.filter(c => ids.includes(c.id)).map(({id,provider,name,via}) => ({id,provider,name,via})); },
     fmt(t) { t = +t || 0; return `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`; },
@@ -2547,6 +2603,8 @@ function app() {
       this.form.channelIds = this.form.channelIds.filter(id => this.channels.some(c => c.id === id));
       // Remember the composer's choices for the next video (saved shortly after each change).
       this.$watch('form', () => { clearTimeout(this._composerT); this._composerT = setTimeout(() => this.saveComposer(), 500); });
+      // TikTok direct post: load who's posting and what they may choose as soon as it's picked.
+      this.$watch('pubIds', () => this.ttDirect() && this.ttLoad()); this.$watch('pubOpts.tiktok_method', () => this.ttDirect() && this.ttLoad());
       this.ready = true;
       await this.onRoute();
       setInterval(() => { this.loadProjects(); this.loadLive(); }, 2500);
@@ -2891,7 +2949,10 @@ function app() {
     },
     async publish() {
       this.cur = { ...this.cur, status:'publishing' };
-      const p = await this.run(() => this.api(`/api/projects/${this.cur.id}/publish`, { method:'POST', body:{ integrations: this.pick(this.pubIds), publish_options: this.pubOpts } }));
+      const tiktok = this.ttDirect() ? { caption: this.tt.caption, privacy_level: this.tt.privacy, allow_comment: this.tt.comment, allow_duet: this.tt.duet,
+                                         allow_stitch: this.tt.stitch, brand_organic: this.tt.disclose && this.tt.yourBrand, brand_content: this.tt.disclose && this.tt.branded } : null;
+      const p = await this.run(() => this.api(`/api/projects/${this.cur.id}/publish`, { method:'POST', body:{ integrations: this.pick(this.pubIds), publish_options: { ...this.pubOpts, tiktok } } }));
+      if (p) this.tt = { ...this.tt, privacy:'', disclose:false, yourBrand:false, branded:false };  // TikTok asks for these every time
       await this.loadProjects();
       if (p) this.say(p.error ? 'Some accounts failed — see the results' : 'Published', !!p.error);
     },

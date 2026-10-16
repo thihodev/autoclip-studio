@@ -474,6 +474,10 @@ async def publish_project(pid: str, channels: list[dict] | None = None, opts: di
         raise ValueError("No channels selected")
     db.update_project(pid, status="publishing")
     video = Path(p["video_path"])
+    try:
+        opts.setdefault("duration", await render.media_duration(video))  # TikTok checks it against the account's limit
+    except Exception:
+        pass
     results, errors = [], []
     for ch in [c for c in channels if c.get("via", "native") == "native"]:
         account = db.get_account(ch["id"])

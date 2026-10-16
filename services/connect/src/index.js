@@ -28,7 +28,15 @@ export default {
         case "/tiktok/refresh":
           if (request.method !== "POST") return json({ error: "POST only" }, 405);
           return await tiktokRefresh(request, env);
-        default: return new Response("Not found", { status: 404 });
+        default: {
+          // TikTok's URL-prefix verification: /tiktok<code>.txt for each code in TIKTOK_SITE_VERIFICATION.
+          const m = url.pathname.match(/^\/tiktok([A-Za-z0-9]+)\.txt$/);
+          const codes = String(env.TIKTOK_SITE_VERIFICATION || "").split(",").map((c) => c.trim());
+          if (m && codes.includes(m[1])) {
+            return new Response(`tiktok-developers-site-verification=${m[1]}`, { headers: { "Content-Type": "text/plain" } });
+          }
+          return new Response("Not found", { status: 404 });
+        }
       }
     } catch (e) {
       return page("Something went wrong", `<h1>Something went wrong</h1><p>${esc(e.message || e)}</p>`, 500);

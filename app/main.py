@@ -331,6 +331,18 @@ async def oauth_callback(platform: str, request: Request):
     return RedirectResponse("/connections?" + urlencode({"connected": platforms.PLATFORMS[platform].label}))
 
 
+@app.get("/api/accounts/{aid}/tiktok-creator")
+async def tiktok_creator(aid: str):
+    """What the TikTok publish panel shows: the account and the choices TikTok allows it right now."""
+    account = db.get_account(aid)
+    if not account or account["platform"] != "tiktok":
+        raise HTTPException(404)
+    try:
+        return await platforms.PLATFORMS["tiktok"].creator_info(account)
+    except Exception as e:
+        raise HTTPException(502, str(e))
+
+
 @app.get("/api/channels")
 async def channels():
     out = [

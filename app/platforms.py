@@ -205,24 +205,37 @@ class TikTok(Platform):
         chunk = size if size <= 64 * 1024 * 1024 else 10 * 1024 * 1024
         count = max(1, size // chunk)
         source = {"source": "FILE_UPLOAD", "video_size": size, "chunk_size": chunk, "total_chunk_count": count}
+        # Direct posting follows TikTok's content sharing guidelines: the user picks who can see the video, which
+        # interactions are allowed and any commercial disclosure on the Publish tab, every time. Without those
+        # choices (Autopilot, auto-publish) the video goes to the TikTok inbox as a draft instead.
+        tt = opts.get("tiktok") or {}
         method = opts.get("tiktok_method", "UPLOAD")
+        if method == "DIRECT_POST" and not tt.get("privacy_level"):
+            method = "UPLOAD"
 
         async with httpx.AsyncClient(timeout=None) as h:
             if method == "UPLOAD":
                 r = await h.post(f"{self.API}/post/publish/inbox/video/init/", headers=headers,
                                  json={"source_info": source})
             else:
-                info = (await h.post(f"{self.API}/post/publish/creator_info/query/", headers=headers)).json()
-                allowed = info.get("data", {}).get("privacy_level_options") or ["SELF_ONLY"]
-                privacy = opts.get("tiktok_privacy", "PUBLIC_TO_EVERYONE")
-                if privacy not in allowed:
-                    privacy = "SELF_ONLY" if "SELF_ONLY" in allowed else allowed[0]
-                title = f"{meta.get('title', '')}\n{_caption(meta)}"[:2200]
+                info = await self.creator_info(account)
+                if tt["privacy_level"] not in info.get("privacy_level_options", []):
+                    raise RuntimeError("TikTok: that audience isn't available for this account — choose another")
+                if tt.get("brand_content") and tt["privacy_level"] == "SELF_ONLY":
+                    raise RuntimeError("TikTok: branded content can't be private")
+                if (dur := opts.get("duration")) and dur > info.get("max_video_post_duration_sec", 600):
+                    raise RuntimeError(f"TikTok: this account can post videos up to {info['max_video_post_duration_sec']} s")
+                title = (tt.get("caption") or f"{meta.get('title', '')}\n{_caption(meta)}")[:2200]
                 r = await h.post(f"{self.API}/post/publish/video/init/", headers=headers, json={
-                    "post_info": {"title": title, "privacy_level": privacy, "disable_duet": False,
-                                  "disable_comment": False, "disable_stitch": False, "is_aigc": True,
-                                  **({"video_cover_timestamp_ms": int(opts["cover_t"] * 1000)}
-                                     if opts.get("cover_t") is not None else {})},
+                    "post_info": {
+                        "title": title, "privacy_level": tt["privacy_level"], "is_aigc": True,
+                        "disable_comment": info.get("comment_disabled") or not tt.get("allow_comment"),
+                        "disable_duet": info.get("duet_disabled") or not tt.get("allow_duet"),
+                        "disable_stitch": info.get("stitch_disabled") or not tt.get("allow_stitch"),
+                        "brand_organic_toggle": bool(tt.get("brand_organic")),
+                        "brand_content_toggle": bool(tt.get("brand_content")),
+                        **({"video_cover_timestamp_ms": int(opts["cover_t"] * 1000)}
+                           if opts.get("cover_t") is not None else {})},
                     "source_info": source,
                 })
             body = r.json()
@@ -242,7 +255,20 @@ class TikTok(Platform):
                     })
                     if r.status_code >= 400:
                         raise RuntimeError(f"TikTok upload chunk {i + 1}/{count}: {r.status_code} {r.text[:200]}")
-        return {"publish_id": publish_id, "method": method}
+        return {"publish_id": publish_id, "method": method,
+                "note": "Sent to your TikTok inbox: open TikTok to finish and post" if method == "UPLOAD"
+                else "Posted: TikTok may take a few minutes to process it before it shows on your profile"}
+
+    async def creator_info(self, account) -> dict:
+        """Who will post and what they may choose: nickname, avatar, privacy options, interaction limits, max length."""
+        token = await self._access_token(account)
+        async with httpx.AsyncClient(timeout=30) as h:
+            r = await h.post(f"{self.API}/post/publish/creator_info/query/",
+                             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json; charset=UTF-8"})
+        body = r.json()
+        if body.get("error", {}).get("code", "ok") != "ok":
+            raise RuntimeError(f"TikTok: {body['error'].get('message') or body['error'].get('code')}")
+        return body.get("data", {})
 
 
 # ---------------------------------------------------------------- Facebook Pages
