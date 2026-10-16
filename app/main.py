@@ -10,13 +10,13 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from fastapi import Body, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import activity, audio, brands, claude, context, covers, db, editor, leftovers, playbooks, styles, motion, pipeline, render, settings, tts, usage
+from . import activity, audio, brands, claude, context, covers, db, design, editor, leftovers, playbooks, styles, motion, pipeline, render, settings, tts, usage
 from .config import DATA_DIR, ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -45,6 +45,9 @@ def _context_in_use() -> set[str]:
 
 def _bg(coro):
     asyncio.get_running_loop().create_task(coro)
+
+
+BUSY = ("queued", "scripting", "designing", "editing", "rendering", "publishing")
 
 
 def _project(pid: str) -> dict:
@@ -306,7 +309,7 @@ async def reset_edit(pid: str):
 @app.post("/api/projects/{pid}/edit/export")
 async def export_edit(pid: str):
     p = _project(pid)
-    if p["status"] in ("queued", "scripting", "designing", "editing", "rendering", "publishing"):
+    if p["status"] in BUSY:
         raise HTTPException(409, "This video is busy")
     if not (pipeline._extra(p).get("edit") or {}).get("clips"):
         raise HTTPException(400, "Nothing to export yet")
@@ -324,7 +327,7 @@ async def export_edit(pid: str):
 async def export_layers(pid: str):
     """Export the video as separate layers (scenes, transparent captions, audio stems, SRT, FCPXML) in a ZIP."""
     p = _project(pid)
-    if p["status"] in ("queued", "scripting", "designing", "editing", "rendering", "publishing"):
+    if p["status"] in BUSY:
         raise HTTPException(409, "This video is busy")
     if not pipeline.edit_base(p):
         raise HTTPException(400, "Render the video first")
@@ -336,6 +339,106 @@ async def export_layers(pid: str):
             pipeline._fail(pid, e, status="ready")
     pipeline.spawn(pid, job())
     return db.get_project(pid)
+
+
+# ------------------------------------------------------------------ design: direct edits to a Claude Motion video
+
+class DesignTextIn(BaseModel):
+    scene: str
+    index: int
+    text: str = Field(max_length=500)
+
+
+class DesignColorIn(BaseModel):
+    old: str = Field(pattern=r"^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
+    new: str = Field(pattern=r"^#?[0-9a-fA-F]{6}$")
+
+
+class DesignHoldIn(BaseModel):
+    scene: str
+    hold: float = Field(ge=0, le=design.MAX_HOLD)
+
+
+def _design_root(pid: str, editing: bool = False) -> Path:
+    p = _project(pid)
+    root = motion.project_root(pid)
+    if not pipeline.is_motion(p) or not (root / "index.html").exists():
+        raise HTTPException(400, "Only Claude Motion videos can be edited here")
+    if editing and p["status"] in BUSY:
+        raise HTTPException(409, "This video is busy")
+    return root
+
+
+def _design_state(root: Path) -> dict:
+    return {**design.state(root),
+            "player": f"https://cdn.jsdelivr.net/npm/@hyperframes/player@{motion.HF_VERSION}/dist/hyperframes-player.global.js"}
+
+
+def _design(fn, *args) -> dict:
+    try:
+        fn(*args)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _design_state(args[0])
+
+
+@app.get("/api/projects/{pid}/design")
+async def get_design(pid: str):
+    return _design_state(_design_root(pid))
+
+
+@app.put("/api/projects/{pid}/design/text")
+async def design_text(pid: str, body: DesignTextIn):
+    return _design(design.edit_text, _design_root(pid, True), body.scene, body.index, body.text)
+
+
+@app.put("/api/projects/{pid}/design/color")
+async def design_color(pid: str, body: DesignColorIn):
+    return _design(design.edit_color, _design_root(pid, True), body.old, body.new)
+
+
+@app.put("/api/projects/{pid}/design/hold")
+async def design_hold(pid: str, body: DesignHoldIn):
+    return _design(design.edit_hold, _design_root(pid, True), body.scene, body.hold)
+
+
+@app.post("/api/projects/{pid}/design/discard")
+async def design_discard(pid: str):
+    return _design(design.discard, _design_root(pid, True))
+
+
+@app.post("/api/projects/{pid}/design/render")
+async def design_render(pid: str):
+    """Render the direct edits as a new version with HyperFrames (no Claude run)."""
+    root = _design_root(pid, True)
+    if not design.dirty(root):
+        raise HTTPException(400, "Nothing changed yet")
+
+    async def job():
+        try:
+            await pipeline.render_design(pid)
+        except Exception as e:
+            pipeline._fail(pid, e, status="ready")
+    pipeline.spawn(pid, job())
+    return db.get_project(pid)
+
+
+@app.get("/api/projects/{pid}/design/files/{path:path}")
+async def design_file(pid: str, path: str):
+    """The HyperFrames project for the live preview; frames come with their texts marked for clicking."""
+    root = _design_root(pid).resolve()
+    f = (root / path).resolve()
+    if not f.is_relative_to(root) or not f.is_file() or f.relative_to(root).parts[0] in (".autoclip", ".claude", "renders"):
+        raise HTTPException(404)
+    if f.suffix == ".html":
+        src = f.read_text(encoding="utf-8")
+        rel = f.relative_to(root).as_posix()
+        if rel.startswith("compositions/frames/"):
+            scene = next((s["id"] for s in design.scenes(root) if s["src"] == rel), None)
+            if scene:
+                src = design.annotate(src, scene)
+        return Response(src, media_type="text/html", headers={"Cache-Control": "no-store"})
+    return FileResponse(f)
 
 
 # ------------------------------------------------------------------ ideas & projects

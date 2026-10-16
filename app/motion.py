@@ -28,7 +28,7 @@ from claude_agent_sdk import (
     TextBlock, ToolUseBlock, create_sdk_mcp_server, query, tool,
 )
 
-from . import activity, audio, brands, claude, context, gsap, playbooks, render, settings, styles, tts, usage
+from . import activity, audio, brands, claude, context, design, gsap, playbooks, render, settings, styles, tts, usage
 from .config import DATA_DIR
 
 log = logging.getLogger("motion")
@@ -510,8 +510,8 @@ def _frames(root: Path) -> list[dict]:
     out, t = [], 0.0
     for v in voices:
         out.append({"id": f"f{v['frame']}", "frame": v["frame"], "text": v.get("text", ""),
-                    "start": round(t, 2), "end": round(t + v["duration_s"], 2), "search": "", "clip": None})
-        t += v["duration_s"]
+                    "start": round(t, 2), "end": round(t + v["duration_s"] + v.get("hold_s", 0), 2), "search": "", "clip": None})
+        t += v["duration_s"] + v.get("hold_s", 0)  # hold_s: a pause added in the Design tab
     return out
 
 
@@ -575,12 +575,38 @@ async def edit(pid: str, req: dict, instruction: str, out: Path, report, model: 
     if not (root / "STORYBOARD.md").exists():
         raise RuntimeError("This video has no motion project to edit — retry it first")
     (root / "renders" / "video.mp4").unlink(missing_ok=True)
+    design.keep(root)  # unrendered Design-tab changes become part of what Claude edits
     gsap.install(root)
     report(5, "Reading your request")
     task = (f"Edit this existing HyperFrames project (an explainer made with /{WORKFLOW}). Change only what this asks, "
             f"keep everything else:\n\n{instruction}\n\nIf narration changes, update SCRIPT.md and call the voiceover tool "
             f"for the changed frames only, then sync durations and reassemble. GSAP plugins (SplitText, DrawSVG, MorphSVG…): "
             f"check the API in `.claude/skills/gsap-plugins/SKILL.md`, HyperFrames' seek-safe rules first. Re-run "
-            f"lint/check, then render to renders/video.mp4.")
+            f"lint/check, then render to renders/video.mp4. The texts, colors and pauses may have been changed by hand since the "
+            f"last render: keep those changes.")
     await _agent(pid, root, req, brand, task, report, "motion-edit", model, effort)
+    return await _finish(pid, root, brand, out, req)
+
+
+async def render_edits(pid: str, req: dict, out: Path, report) -> dict:
+    """Render the project as it is now (direct edits from the Design tab) — HyperFrames only, no Claude."""
+    brand = brands.get(req.get("brand_id"))
+    root = project_root(pid)
+    video = root / "renders" / "video.mp4"
+    video.unlink(missing_ok=True)
+    total = design.state(root)["duration"]
+    expected = max(30.0, total * 3)  # about 3 s of rendering per second of video on a laptop
+
+    async def tick():
+        t0 = time.monotonic()
+        while True:
+            await asyncio.sleep(2)
+            report(min(95, 3 + int(92 * (time.monotonic() - t0) / expected)), "Rendering with HyperFrames")
+
+    ticker = asyncio.create_task(tick())
+    try:
+        await _run([shutil.which("npx"), "-y", f"hyperframes@{HF_VERSION}", "render", ".", "--quality", "delivery",
+                    "-o", str(video), "--quiet"], root, _env(), timeout=TIMEOUT)
+    finally:
+        ticker.cancel()
     return await _finish(pid, root, brand, out, req)

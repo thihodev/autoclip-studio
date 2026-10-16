@@ -9,7 +9,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import activity, brands, claude, context, db, editor, motion, playbooks, render, settings, tts, usage
+from . import activity, brands, claude, context, db, design, editor, motion, playbooks, render, settings, tts, usage
 from .config import DATA_DIR, VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
@@ -347,6 +347,27 @@ async def manual_edit(pid: str, timeline: dict, title: str | None = None):
         await _render_version(pid, "Manual edit")
     except Exception as e:
         _fail(pid, e, status="ready")
+
+
+# ---------- design: direct edits to a Claude Motion video, rendered without Claude ----------
+
+async def render_design(pid: str):
+    p = db.get_project(pid)
+    out = VIDEOS_DIR / f"{pid}_v{(p.get('version') or 0) + 1}.mp4"
+    activity.start(pid)
+    activity.add(pid, "Rendering your design changes — no Claude run")
+    db.update_project(pid, status="rendering", progress=2)
+    try:
+        async with _motion_lock:
+            tl = await motion.render_edits(pid, p["request"], out, _reporter(pid))
+    finally:
+        STAGES.pop(pid, None)
+    design.keep(motion.project_root(pid))
+    tl["format"] = p["request"].get("format", "shorts")
+    tl["brand_id"] = p["request"].get("brand_id")
+    await render.thumbnail(out)
+    _save_version(pid, out, tl, "Design edits")
+    activity.add(pid, "Version ready", "done")
 
 
 # ---------- timeline editor: CapCut-style edits on top of a version ----------

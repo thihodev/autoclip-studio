@@ -317,6 +317,20 @@
   .nle-head { position:absolute; top:0; bottom:0; width:2px; margin-left:-1px; background:var(--accent); z-index:6; cursor:ew-resize; }
   .nle-head::before { content:""; position:absolute; top:0; left:-5px; border:6px solid transparent; border-top:8px solid var(--accent); }
   @media (max-width: 980px) { .nle-top { grid-template-columns:minmax(0, 1fr); } .nle-insp { position:static; } }
+  /* design tab: direct edits to a Claude Motion video */
+  .editor.designing { grid-template-columns:minmax(0, 1fr); } .editor.designing > .left { display:none; }
+  .dsg-stage { padding:12px; display:grid; gap:10px; }
+  .dsg-player { position:relative; margin:0 auto; width:100%; max-height:72vh; background:#000; border-radius:10px; overflow:hidden; }
+  .dsg-player hyperframes-player { display:block; width:100%; height:100%; }
+  .dsg-scenes { display:flex; gap:6px; flex-wrap:wrap; }
+  .dsg-scenes button { min-width:34px; padding:5px 9px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text-2); font:inherit; font-size:12px; cursor:pointer; }
+  .dsg-scenes button.on { border-color:var(--accent); color:var(--text); box-shadow:0 0 0 2px var(--accent-soft); }
+  .dsg-insp { grid-template-columns:minmax(0, 1fr); } .dsg-insp input[type=text] { width:100%; }
+  .dsg-texts { display:grid; gap:6px; max-height:300px; overflow:auto; padding:2px; }
+  .dsg-texts input.hl { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .dsg-colors { display:flex; gap:8px; flex-wrap:wrap; }
+  .dsg-sw { position:relative; width:30px; height:30px; border-radius:50%; border:1px solid var(--border-strong); cursor:pointer; overflow:hidden; }
+  .dsg-sw input { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:0; padding:0; }
   .pubcol { display:flex; flex-direction:column; gap:16px; } .pubcol > .card { margin:0; }
   .pubkit { display:grid; margin-top:14px; border:1px solid var(--border); border-radius:var(--radius-sm); }
   .pubrow { display:flex; align-items:center; gap:10px; padding:10px 12px; flex-wrap:wrap; } .pubrow + .pubrow { border-top:1px solid var(--border); }
@@ -866,7 +880,7 @@
               <a href="/connections" x-show="/Connections/.test(cur.error||'')" @click.prevent="nav('/connections')"> <span x-t>Open Connections →</span></a></div>
           </div>
 
-          <div class="editor" :class="{reviewing: route.sub==='review', editing: route.sub==='edit'}" @resize.window="route.sub==='edit' && edMeasure()">
+          <div class="editor" :class="{reviewing: route.sub==='review', editing: route.sub==='edit', designing: route.sub==='design'}" @resize.window="route.sub==='edit' && edMeasure()">
             <div class="left">
               <div class="card">
                 <template x-if="cur.video_path">
@@ -902,10 +916,63 @@
 
             <div>
               <nav class="tabs">
-                <template x-for="tab in editorTabs.filter(x => !(isMotion(cur) && x.key==='style'))" :key="tab.key">
+                <template x-for="tab in editorTabs.filter(x => isMotion(cur) ? x.key!=='style' : x.key!=='design')" :key="tab.key">
                   <a :href="`/projects/${cur.id}/${tab.key}`" :class="route.sub===tab.key&&'on'" @click.prevent="nav(`/projects/${cur.id}/${tab.key}`)" x-text="t(tab.label)"></a>
                 </template>
               </nav>
+
+              <!-- Design: direct edits to a Claude Motion video (texts, colors, pauses), live preview, rendered without Claude -->
+              <div x-show="route.sub==='design'">
+                <template x-if="!dz.data && !dz.err"><div class="card empty small"><span class="spin"></span></div></template>
+                <template x-if="dz.err"><div class="card empty small" x-text="dz.err"></div></template>
+                <template x-if="dz.data">
+                  <div class="nle-top">
+                    <div class="card dsg-stage">
+                      <div class="dsg-player" id="dzbox" @pointerdown.capture="dzHit($event) && $event.stopPropagation()" @click.capture="dzClick($event)"
+                           @pointermove="dzHover($event)" @pointerleave="dzHover(null)" :style="`aspect-ratio:${dz.data.width}/${dz.data.height};max-width:calc(72vh * ${dz.data.width / dz.data.height})`"></div>
+                      <div class="dsg-scenes">
+                        <template x-for="(s, i) in dz.data.scenes" :key="s.id">
+                          <button type="button" :class="dz.scene===i && 'on'" @click="dzGo(i)" :title="s.texts.slice(0, 3).join(' · ')" x-text="i + 1"></button>
+                        </template>
+                      </div>
+                      <p class="hint" style="margin:0"><span x-t>Click a text on the video to change it. Changes show here at once; render them into a new version when you're done — no Claude run.</span></p>
+                    </div>
+                    <div class="card nle-insp dsg-insp">
+                      <div class="notice info" style="margin:0" x-show="dz.data.dirty"><div class="stack" style="gap:8px;min-width:0">
+                        <strong x-t>Changes not rendered yet.</strong>
+                        <div class="actions">
+                          <button class="btn primary sm" @click="dzRender()" :disabled="isBusy(cur) || dz.saving"><svg class="i"><use href="#i-film"/></svg><span x-t>Render new version</span></button>
+                          <button class="btn ghost sm" @click="dzDiscard()" :disabled="isBusy(cur) || dz.saving"><span x-t>Discard</span></button>
+                        </div>
+                        <div class="small muted" x-text="t('About {n} with HyperFrames.', {n: dzEta()})"></div>
+                      </div></div>
+                      <template x-if="dzScene()">
+                        <div class="stack">
+                          <h3 class="nle-h"><span x-text="t('Scene {n}', {n: dz.scene + 1})"></span> <span class="muted small" x-text="fmtT(dzScene().start) + ' – ' + fmtT(dzScene().end)"></span></h3>
+                          <div class="field" x-show="dzScene().texts.length"><label><span x-t>Texts</span></label>
+                            <div class="dsg-texts">
+                              <template x-for="(tx, i) in dzScene().texts" :key="dzScene().id + i + tx">
+                                <input type="text" :id="`dz-t-${i}`" :value="tx" :class="dz.focus===i && 'hl'" maxlength="500" :disabled="isBusy(cur)"
+                                       @focus="dz.focus=i" @keydown.enter="$event.target.blur()" @change="dzText(dzScene().id, i, $event.target)">
+                              </template>
+                            </div></div>
+                          <p class="small muted" style="margin:0" x-show="!dzScene().texts.length"><span x-t>This scene has no text to edit.</span></p>
+                          <div class="field"><label><span x-t>Pause after the narration</span> <span class="muted" x-text="dz.hold.toFixed(2) + ' s'"></span></label>
+                            <input type="range" min="0" max="5" step="0.25" x-model.number="dz.hold" :disabled="isBusy(cur)" @change="dzHold(dzScene().id)"></div>
+                        </div>
+                      </template>
+                      <div class="field"><label><span x-t>Colors</span></label>
+                        <p class="small muted" style="margin:0 0 4px"><span x-t>A new color replaces it everywhere in the video, captions included.</span></p>
+                        <div class="dsg-colors">
+                          <template x-for="c in dz.data.colors" :key="c.hex">
+                            <label class="dsg-sw" :style="`background:${c.hex}`" :title="c.hex"><input type="color" :value="c.hex" :disabled="isBusy(cur)" @change="dzColor(c.hex, $event.target.value)"></label>
+                          </template>
+                        </div></div>
+                      <p class="small muted" style="margin:0"><span x-t>To change the narration, the layout or the animation, ask Claude in AI & review.</span></p>
+                    </div>
+                  </div>
+                </template>
+              </div>
 
               <!-- Edit: a CapCut-style timeline on top of a version (any engine); exports a new version -->
               <div x-show="route.sub==='edit'" class="nle">
@@ -2322,8 +2389,9 @@ function tr(key, vars) {
   return s;
 }
 
-const EDITOR_TABS = ['scenes', 'style', 'edit', 'review', 'export'];
+const EDITOR_TABS = ['scenes', 'style', 'design', 'edit', 'review', 'export'];
 const ED_PAD = 44;  // timeline: left gutter for the track icons
+const DZ_EMPTY = { pid:null, data:null, err:'', scene:0, focus:null, t:0, hold:0, saving:false };
 const ED_EMPTY = { pid:null, data:null, err:'', edit:{ clips:[], texts:[], music:null, audio:{ original:1 } }, t:0, ci:0, playing:false, zoom:40,
                    sel:null, undo:[], redo:[], drag:null, strip:null, stageH:0, saving:false, savedAt:0, exporting:false };
 const VOICE_SAMPLES = {
@@ -2372,8 +2440,9 @@ function app() {
     creating: false, thinking: false, ideaForm: { niche:'', language:'English' },
     switching: false, claudeCode: '', apiKey: '', keyEdit: false, savingKey: false, footageEdit: false, footageKey: '', footageProvider: 'pixabay', savingFootage: false,
     cur: null, curMissing: false, tl: { captions:{}, scenes:[] }, baseTl: '', edTitle: '', baseTitle: '', preview: null, instruction: '',
-    editorTabs: [{key:'scenes',label:'Scenes'},{key:'style',label:'Style'},{key:'edit',label:'Edit'},{key:'review',label:'AI & review'},{key:'export',label:'Export'}],
+    editorTabs: [{key:'scenes',label:'Scenes'},{key:'style',label:'Style'},{key:'design',label:'Design'},{key:'edit',label:'Edit'},{key:'review',label:'AI & review'},{key:'export',label:'Export'}],
     ed: JSON.parse(JSON.stringify(ED_EMPTY)),
+    dz: { ...DZ_EMPTY },
     LOOK_NAMES: { none:'Original', vivid:'Vivid', warm:'Warm', fade:'Faded', film:'Film', mono:'Mono', noir:'Noir' },
     presets: [
       {key:'bold', label:'Bold', cls:'b', demo:'This is <em>huge</em>'},
@@ -2541,6 +2610,7 @@ function app() {
       if (r.page === 'project' && (prev.page !== 'project' || prev.id !== r.id || !this.cur)) await this.openProject(r.id);
       if (r.page === 'project' && r.sub === 'review' && this.cur) this.enterReview();
       if (r.page === 'project' && r.sub === 'edit' && this.cur) this.edOpen(); else this.edPause();
+      if (r.page === 'project' && r.sub === 'design' && this.cur) this.dzOpen(); else this._dzp?.pause?.();
       if (r.page === 'project' && r.sub === 'export' && this.cur) this.syncPost();
       this.conn = '';
       if (r.page === 'connections') this.loadConnections();
@@ -2737,6 +2807,7 @@ function app() {
       const newVersion = fresh.version !== this.cur.version;
       this.cur = fresh;
       if (newVersion && this.route.sub === 'review') this.enterReview();
+      if (newVersion && this.route.sub === 'design') { this.dz.pid = null; this.dzOpen(); }
       if (newVersion && this.route.sub === 'edit' && this.ed.data) this.api(`/api/projects/${fresh.id}/edit`).then(d => { this.ed.data.newer = d.newer; }).catch(() => {});
       if (gotTimeline || (finished && !this.dirty)) this.loadTimeline();
       if (finished) {
@@ -2829,6 +2900,106 @@ function app() {
     // ------------------------------------------------ editor (Edit tab): a CapCut-style timeline on a version
     // The preview plays the base video clip by clip (speed, look as CSS filters) with titles and music on top,
     // timed exactly like the ffmpeg export in app/editor.py.
+    // ---- design tab: direct edits to a Claude Motion video, previewed with the HyperFrames player
+    async dzOpen() {
+      if (!this.isMotion(this.cur)) { this.dz = { ...DZ_EMPTY, err: this.t('Only Claude Motion videos can be edited here') }; return; }
+      if (this.dz.pid === this.cur.id && this.dz.data) return this.dzMount();
+      this.dz = { ...this.dz, pid: this.cur.id, data: null, err: '', scene: 0, focus: null, t: 0 };
+      try {
+        this.dz.data = await this.api(`/api/projects/${this.cur.id}/design`);
+        this.dz.hold = this.dzScene()?.hold || 0;
+        this.$nextTick(() => this.dzMount());
+      } catch (e) { this.dz.err = e.message; }
+    },
+    dzScene() { return this.dz.data?.scenes[this.dz.scene]; },
+    dzEta() { const s = Math.round(Math.max(30, (this.dz.data?.duration || 30) * 3) / 30) * 30; return s < 90 ? this.t('{n} seconds', {n: s}) : this.t('{n} minutes', {n: Math.round(s / 60 * 2) / 2}); },
+    async dzPlayer() {
+      if (customElements.get('hyperframes-player')) return;
+      this._dzLoad ||= new Promise((ok, fail) => { const s = document.createElement('script'); s.src = this.dz.data.player; s.onload = ok; s.onerror = () => { this._dzLoad = null; fail(new Error(this.t('The preview player could not load — check the internet connection.'))); }; document.head.appendChild(s); });
+      await this._dzLoad;
+    },
+    // (Re)load the preview, back at time t: after each change the player reads the project again.
+    async dzMount(t = this.dz.t) {
+      const box = document.getElementById('dzbox');
+      if (!box || !this.dz.data) return;
+      try { await this.dzPlayer(); } catch (e) { this.dz.err = e.message; return; }
+      const pl = document.createElement('hyperframes-player');
+      pl.setAttribute('controls', '');
+      pl.setAttribute('src', `/api/projects/${this.dz.pid}/design/files/index.html?v=${Date.now()}`);
+      pl.addEventListener('ready', () => { if (t) pl.seek(t); this.dzHook(pl); });
+      pl.addEventListener('timeupdate', () => { this.dz.t = pl.currentTime; this.dzFollow(); });
+      box.replaceChildren(pl);
+      this._dzp = pl;
+    },
+    // Texts in the preview are marked data-ac-t="scene:i" by the server. The player's own layer takes the clicks,
+    // so the stage finds the text under the pointer itself; clicks elsewhere still play and pause.
+    dzHook(pl) {
+      const d = pl.iframeElement?.contentDocument;
+      if (!d || d._dzHooked) return;
+      d._dzHooked = true;
+      const st = d.createElement('style');
+      st.textContent = '[data-ac-hover]{outline:4px dashed #e8385a;outline-offset:6px}';
+      d.head.appendChild(st);
+    },
+    dzHit(e) {
+      const f = this._dzp?.iframeElement, d = f?.contentDocument;
+      if (!e || !d) return null;
+      const fr = f.getBoundingClientRect(), k = fr.width / (d.documentElement.clientWidth || fr.width);
+      const el = d.elementFromPoint((e.clientX - fr.left) / k, (e.clientY - fr.top) / k)?.closest?.('[data-ac-t]');
+      return el && (el.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) ?? true) ? el : null;
+    },
+    dzHover(e) {
+      const el = this.dzHit(e);
+      if (el === this._dzHov) return;
+      this._dzHov?.removeAttribute('data-ac-hover');
+      el?.setAttribute('data-ac-hover', '');
+      this._dzHov = el;
+      document.getElementById('dzbox').style.cursor = el ? 'pointer' : '';
+    },
+    dzClick(e) {
+      const el = this.dzHit(e);
+      if (!el) return;
+      e.preventDefault(); e.stopPropagation(); this._dzp.pause();
+      const [id, i] = el.dataset.acT.split(':');
+      this.dzPick(this.dz.data.scenes.findIndex(s => s.id === id), +i);
+    },
+    dzPick(k, i) {
+      if (k < 0) return;
+      this.dz.scene = k; this.dz.focus = i; this.dz.hold = this.dzScene().hold;
+      this.$nextTick(() => { const el = document.getElementById(`dz-t-${i}`); el?.focus(); el?.select(); });
+    },
+    // The inspector follows the playhead, unless a text is being typed in.
+    dzFollow() {
+      if (document.activeElement?.closest?.('.nle-insp')) return;
+      const k = this.dz.data.scenes.findIndex(s => this.dz.t < s.end - 0.01);
+      const n = k < 0 ? this.dz.data.scenes.length - 1 : k;
+      if (n !== this.dz.scene) { this.dz.scene = n; this.dz.focus = null; this.dz.hold = this.dzScene().hold; }
+    },
+    dzGo(k) { this.dz.scene = k; this.dz.focus = null; this.dz.hold = this.dzScene().hold; const s = this.dzScene(); this._dzp?.pause(); this._dzp?.seek(Math.min(s.end - 0.05, s.start + 0.8)); },
+    async dzSave(path, body, t) {
+      this.dz.saving = true;
+      const d = await this.run(() => this.api(`/api/projects/${this.cur.id}/design/${path}`, { method: path === 'discard' ? 'POST' : 'PUT', body }));
+      this.dz.saving = false;
+      if (!d) return false;
+      this.dz.data = d; this.dz.hold = this.dzScene()?.hold || 0;
+      this.dzMount(t);
+      return true;
+    },
+    async dzText(scene, i, el) {
+      if (!el.value.trim()) { el.value = this.dzScene().texts[i]; return this.say(this.t("Text can't be empty — ask Claude in AI & review to remove something"), true); }
+      if (el.value === this.dzScene().texts[i]) return;
+      this.dzSave('text', { scene, index: i, text: el.value }, this.dz.t);
+    },
+    dzColor(old, color) { this.dzSave('color', { old, new: color }, this.dz.t); },
+    dzHold(scene) { const s = this.dzScene(); this.dzSave('hold', { scene, hold: this.dz.hold }, Math.max(s.start, s.end - 1.5)); },
+    dzDiscard() {
+      this.confirm('Discard the changes?', 'The texts, colors and pauses go back to the latest version.', 'Discard', () => this.dzSave('discard', undefined, this.dz.t));
+    },
+    async dzRender() {
+      this._dzp?.pause();
+      const p = await this.run(() => this.api(`/api/projects/${this.cur.id}/design/render`, { method: 'POST' }), 'Rendering — the new version appears in a few minutes');
+      if (p) { this.cur = { ...this.cur, status: 'rendering', progress: 2 }; this.loadProjects(); }
+    },
     async edOpen() {
       if (!this.cur?.video_path) { this.ed = { ...this.ed, err: this.t('Render the video first.') }; return; }
       if (this.ed.pid === this.cur.id && this.ed.data) return;

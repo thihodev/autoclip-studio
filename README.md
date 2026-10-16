@@ -40,7 +40,7 @@ Make YouTube Shorts, TikToks, Facebook Reels or 16:9 YouTube videos; review them
  review: comment on a moment, a range or a spot ─► Claude applies the round ─► next version
         │
         ▼
- timeline editor ─► export: MP4 · layers (CapCut, Premiere, DaVinci) · caption · cover
+ design (Motion: texts · colors · pauses, live) · timeline editor ─► export: MP4 · layers (CapCut, Premiere, DaVinci) · caption · cover
 ```
 
 ## Quick start
@@ -108,6 +108,8 @@ Open a video's **AI & review** tab: the player gets a full-width filmstrip split
 
 The **Scenes** and **Style** tabs (Quick engine) edit text, footage, captions, voice and brand elements by hand. Every render is kept as a version you can preview.
 
+The **Design** tab (Claude Motion) edits the video Claude built directly, without running Claude again. The HyperFrames composition plays live in the browser; click any text on the video to retype it, swap a color everywhere in the video (captions included), or add a pause after a scene's narration — everything after it moves along, transitions and captions too. Changes show at once; **Render new version** renders the project with HyperFrames (about 3 seconds per second of video on a laptop, no Claude usage), and **Discard** goes back to the last render. Texts drawn by scripts (counters, for example) and the narration still go through Claude in **AI & review**.
+
 The **Edit** tab is a CapCut-style timeline that works on any version, Claude Motion videos included: split (S), trim by dragging a clip's edges, reorder by dragging, delete, duplicate, speed (0.5–3×) and volume per clip, looks (Vivid, Warm, Faded, Film, Mono, Noir) with brightness, contrast and saturation; titles you drag into place on the video with size, color, outline/box/shadow and fade/pop/slide/typewriter animations; a music track from your library with volume and fades; undo/redo (⌘Z). The preview plays it live, the edit autosaves, and **Export** renders it with ffmpeg as a new version — the original is kept.
 
 To finish a video in another editor, **Export → Layers for editing** makes a ZIP that CapCut, Premiere, DaVinci Resolve and Final Cut all import: each scene as its own clip without captions, the captions (and logo) on a transparent ProRes 4444 layer, voice / music / SFX as separate WAVs, the captions as SRT, and a `timeline.fcpxml` with everything in place (Claude Motion adds the whole video without captions). Quick videos are rebuilt in seconds; Claude Motion videos are re-rendered from their HyperFrames project, one composition per layer, in a few minutes — no Claude needed.
@@ -150,12 +152,12 @@ Everything lives in `data/` (`autoclip.db` for settings and projects, renders, b
 | Path | What's there |
 |---|---|
 | `app/main.py` | FastAPI routes ([API reference](docs/API.md)) |
-| `app/pipeline.py` | Video jobs: create, render versions, AI edits, review rounds, timeline edits, layers, autopilot |
+| `app/pipeline.py` | Video jobs: create, render versions, AI edits, review rounds, design and timeline edits, layers, autopilot |
 | `app/claude.py` · `app/usage.py` | Claude via the Agent SDK (scripts, ideas, edits, hooks, post copy, sign-in) · usage metering and plan limits |
 | `app/motion.py` | Claude Motion engine (HyperFrames agent, voice-over tool, rules) |
 | `app/render.py` · `app/tts.py` · `app/audio.py` · `app/covers.py` | Quick engine (ffmpeg) · voices · music and sound effects · cover images |
 | `app/brands.py` · `app/styles.py` · `app/playbooks.py` | Brand kits and imports · visual styles · video types |
-| `app/editor.py` · `app/layers.py` | The timeline editor's export · layers for other editors |
+| `app/design.py` · `app/editor.py` · `app/layers.py` | Direct edits to Claude Motion projects · the timeline editor's export · layers for other editors |
 | `static/index.html` · `static/locales/` | The whole UI (Alpine.js) · translations |
 | `website/` | The [website](https://autoclip-connect.thihodev.workers.dev): static files on Cloudflare Workers |
 | `app/assets/` | Bundled font, FrameJam styles and playbooks, GSAP skills (with their licenses), AutoClip playbooks |
