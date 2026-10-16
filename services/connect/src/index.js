@@ -141,13 +141,16 @@ const bad = (msg) => page("Can't connect", `<h1>Can't connect</h1><p>${esc(msg)}
 
 function page(title, body, status = 200) {
   return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(title)}</title><style>
-:root{color-scheme:light dark;--a:#e8385a}body{margin:0;font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;background:Canvas;color:CanvasText}
-main{max-width:720px;margin:0 auto;padding:40px 20px}h1{font-size:26px;line-height:1.25}h2{font-size:18px;margin-top:28px}a{color:var(--a)}
-.btn{display:inline-block;background:var(--a);color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600}
-.muted{opacity:.7;font-size:14px}footer{margin-top:40px}</style></head><body><main>${body}
-<footer class="muted"><a href="/">AutoClip Connect</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> ·
-<a href="https://github.com/thihodev/autoclip-studio">Source code</a></footer></main></body></html>`,
+<title>${esc(title)}</title><link rel="icon" href="/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700&family=Instrument+Serif:ital@1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css"></head><body>
+<header class="nav scrolled"><div class="wrap"><a class="logo" href="/"><span class="mark">AC</span><span>Auto<b>Clip</b> Studio</span></a>
+<div class="right"><a class="btn ghost sm" href="/">Home</a></div></div></header>
+<main class="wrap"><div class="legal">${body}</div></main>
+<footer style="margin-top:60px"><div class="wrap"><a class="logo" href="/"><span class="mark">AC</span><span>Auto<b>Clip</b> Studio</span></a>
+<nav><a href="/">Home</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="https://github.com/thihodev/autoclip-studio">GitHub</a></nav>
+<span>© 2026 Ho Van Thi (@thihodev) · MIT</span></div></footer></body></html>`,
     { status, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
 }
 
@@ -164,8 +167,8 @@ and your videos post from your own computer with your own account.</p>
 }
 
 function privacy(env) {
-  return `<h1>Privacy policy</h1>
-<p class="muted">AutoClip Connect, operated by ${operator(env)}. Contact: ${contact(env)}.</p>
+  return `<div class="eyebrow">AutoClip Connect</div><h1>Privacy policy</h1>
+<p class="meta">AutoClip Connect, operated by ${operator(env)}. Contact: ${contact(env)}. Last updated October 16, 2026.</p>
 <h2>What this service does</h2>
 <p>When you connect TikTok in AutoClip Studio, your browser visits this service, which sends you to TikTok to sign in
 and approve access. TikTok returns an authorization code here; the service exchanges it for access and refresh tokens,
@@ -185,8 +188,8 @@ and publishes the videos you choose. Those tokens and that data stay on your own
 }
 
 function terms(env) {
-  return `<h1>Terms of service</h1>
-<p class="muted">AutoClip Connect, operated by ${operator(env)}. Contact: ${contact(env)}.</p>
+  return `<div class="eyebrow">AutoClip Connect</div><h1>Terms of service</h1>
+<p class="meta">AutoClip Connect, operated by ${operator(env)}. Contact: ${contact(env)}. Last updated October 16, 2026.</p>
 <p>AutoClip Connect is a free service, provided as is, without warranty, that connects AutoClip Studio to TikTok.</p>
 <ul>
 <li>You are responsible for what you publish and must follow TikTok's Terms of Service and Community Guidelines,

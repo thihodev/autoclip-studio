@@ -2,6 +2,10 @@ name = "autoclip-connect"
 main = "src/index.js"
 compatibility_date = "2025-09-01"
 
+# The landing page and its media (public/) are served as static assets; everything else goes to the Worker.
+[assets]
+directory = "./public"
+
 [vars]
 OPERATOR_NAME = "Ho Van Thi (@thihodev)"
 # Public codes from TikTok's "URL properties" (URL prefix) verification, comma-separated

@@ -18,7 +18,8 @@ the user's computer straight to TikTok. It runs free on Cloudflare Workers.
 | `GET /tiktok/start?return=…&key=…&state=…` | AutoClip sends the browser here; redirects to TikTok's consent screen. A `return` outside the user's computer/network asks for confirmation first. |
 | `GET /tiktok/callback` | TikTok's redirect URI. Exchanges the code and sends the sealed tokens back to `return?state=…&sealed=…`. |
 | `POST /tiktok/refresh` `{refresh_token}` | Renews an access token (TikTok access tokens last 24 hours). |
-| `GET /`, `/privacy`, `/terms`, `/health` | Pages TikTok's app review asks for, and a health check. |
+| `GET /` | The AutoClip Studio landing page (`public/`, served as static assets with its media). |
+| `GET /privacy`, `/terms`, `/health` | Pages TikTok's app review asks for, and a health check. |
 
 ## Deploy (operator)
 
