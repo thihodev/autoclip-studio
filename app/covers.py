@@ -1,7 +1,7 @@
 """Cover images (thumbnails): good frames of the render with big, readable text on them.
 
 Three candidates come from different moments of the video. The text uses the brand kit's font and accent color
-when there is one. The chosen cover becomes the YouTube thumbnail (landscape videos) and its moment the TikTok cover.
+when there is one. The chosen cover is the one the Export tab downloads.
 """
 import textwrap
 import uuid

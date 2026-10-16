@@ -41,9 +41,3 @@ jobs:
         run: |
           python -c "from app import styles, playbooks; s=styles.list_all(); p=playbooks.list_all(); assert len(s)>=30 and len(p)>=11, (len(s), len(p)); print(len(s), 'styles,', len(p), 'playbooks')"
           python -c "from app import gsap; assert all((gsap.SKILLS_SRC / n / 'SKILL.md').exists() for n in gsap.SKILLS); print(len(gsap.SKILLS), 'GSAP skills')"
-      - name: AutoClip Connect (Worker) flow and sealing
-        env:
-          DATA_DIR: ${{ runner.temp }}/autoclip-data
-        run: |
-          node --test services/connect/test/flow.test.mjs
-          python services/connect/test/roundtrip.py

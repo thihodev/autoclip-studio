@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS brands (
 CREATE TABLE IF NOT EXISTS accounts (
     id TEXT PRIMARY KEY,
     created_at REAL NOT NULL,
-    platform TEXT NOT NULL,        -- youtube | tiktok | facebook
+    platform TEXT NOT NULL,        -- (unused since publishing was removed; kept so old databases open)
     external_id TEXT NOT NULL,     -- channel / open_id / page id
     name TEXT,
     avatar TEXT,
@@ -167,40 +167,11 @@ def set_setting(key: str, value):
         )
 
 
-def upsert_account(platform: str, external_id: str, name: str, avatar: str, data: dict) -> dict:
+def forget_publishing():
+    """Publishing was removed: drop the social accounts' tokens and the publishing settings that held secrets."""
     with conn() as c:
-        row = c.execute(
-            "SELECT id FROM accounts WHERE platform=? AND external_id=?", (platform, external_id)
-        ).fetchone()
-        aid = row["id"] if row else uuid.uuid4().hex[:12]
-        c.execute(
-            "INSERT INTO accounts (id, created_at, platform, external_id, name, avatar, data) "
-            "VALUES (?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET "
-            "name=excluded.name, avatar=excluded.avatar, data=excluded.data",
-            (aid, time.time(), platform, external_id, name, avatar, json.dumps(data)),
-        )
-    return get_account(aid)
-
-
-def update_account_data(aid: str, data: dict):
-    with conn() as c:
-        c.execute("UPDATE accounts SET data=? WHERE id=?", (json.dumps(data), aid))
-
-
-def get_account(aid: str):
-    with conn() as c:
-        return _row(c.execute("SELECT * FROM accounts WHERE id=?", (aid,)).fetchone())
-
-
-def list_accounts():
-    with conn() as c:
-        rows = c.execute("SELECT * FROM accounts ORDER BY platform, created_at").fetchall()
-    return [_row(r) for r in rows]
-
-
-def delete_account(aid: str):
-    with conn() as c:
-        c.execute("DELETE FROM accounts WHERE id=?", (aid,))
+        c.execute("DELETE FROM accounts")
+        c.execute("DELETE FROM settings WHERE key IN ('cfg.postiz', 'cfg.apps', 'cfg.public_url', 'scheduled_slots')")
 
 
 def save_brand(bid: str, name: str, data: dict):

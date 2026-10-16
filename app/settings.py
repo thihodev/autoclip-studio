@@ -7,17 +7,10 @@ DEFAULTS = {
                "designer_model": "opus", "designer_effort": "high"},
     "footage": {"provider": "pixabay", "pexels_api_key": "", "pixabay_api_key": ""},
     "voice": {"elevenlabs_api_key": "", "elevenlabs_voice_id": "", "elevenlabs_voice_name": "", "elevenlabs_model": ""},
-    "postiz": {"url": "", "api_key": ""},
     "github": {"token": "", "login": ""},
-    "apps": {
-        "youtube": {"client_id": "", "client_secret": ""},
-        "tiktok": {"client_key": "", "client_secret": ""},
-        "facebook": {"app_id": "", "app_secret": ""},
-    },
-    "public_url": "",
 }
 
-SECRET_KEYS = {"api_key", "pexels_api_key", "pixabay_api_key", "client_secret", "app_secret", "token", "elevenlabs_api_key"}
+SECRET_KEYS = {"api_key", "pexels_api_key", "pixabay_api_key", "token", "elevenlabs_api_key"}
 MASK = "••••"
 
 
@@ -81,4 +74,8 @@ def migrate():
             if fix:
                 db.set_setting("cfg.claude", {**saved, **fix})
         done.add("motion_quality_defaults")
+    if "drop_publishing" not in done:
+        # AutoClip no longer connects to social networks: forget the stored tokens and app secrets.
+        db.forget_publishing()
+        done.add("drop_publishing")
     db.set_setting("migrations", sorted(done))

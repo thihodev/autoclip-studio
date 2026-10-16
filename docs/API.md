@@ -6,15 +6,12 @@ The web UI uses this JSON API; you can script it too. Everything runs on the loc
 
 | Method | Path | |
 |---|---|---|
-| GET | `/api/status` | Claude / footage / voice / Claude Motion / accounts / Postiz status |
+| GET | `/api/status` | Claude / footage / voice / Claude Motion status |
 | GET, PUT | `/api/settings`, `/api/settings/{section}` | Connections settings (secrets are masked on read) |
 | GET, POST | `/api/claude`, `/api/claude/login/{start,code,cancel}`, `/api/claude/{source,logout}` | Claude connection |
 | POST, DELETE | `/api/claude/api-key` | Check and save an Anthropic API key `{key, use}` / remove it |
 | GET | `/api/claude/plan-usage?refresh=` | Plan limits: 5-hour session and weekly windows with reset times (cached 60 s) |
 | GET | `/api/models` | Models, effort levels and the defaults (scripts, Claude Motion, scene designers) |
-| GET | `/oauth/{youtube,tiktok,facebook}/start` | Connect a social account |
-| GET | `/api/channels` | Connected accounts + Postiz channels |
-| DELETE | `/api/accounts/{id}` | Disconnect a social account |
 | GET | `/api/voice`, `/api/voice/elevenlabs` | Voice-over status · the ElevenLabs account's voices |
 | GET, POST, DELETE | `/api/github`, `/api/github/repos`, `/api/github/refs?repo=` | GitHub connection, repositories, branches and tags |
 | GET, POST | `/api/motion`, `/api/motion/install` | Claude Motion status / one-click install |
@@ -23,7 +20,7 @@ The web UI uses this JSON API; you can script it too. Everything runs on the loc
 
 | Method | Path | |
 |---|---|---|
-| GET, POST | `/api/projects` | List / create `{topic, language, duration, format, engine, model, effort, hook, playbook_id, style_id, music, sfx, github_repo, style, voice, voice_rate, brand_id, context_ids, auto_publish, integrations, workspace_id}` |
+| GET, POST | `/api/projects` | List / create `{topic, language, duration, format, engine, model, effort, hook, playbook_id, style_id, music, sfx, github_repo, style, voice, voice_rate, brand_id, context_ids, workspace_id}` |
 | GET, PUT | `/api/composer` | The composer's remembered choices |
 | POST | `/api/hooks` | 3 opening hooks `{topic, language, playbook_id?, brand_id?}` |
 | GET | `/api/playbooks` | Video types (structure and pacing); posters under `/playbook-assets/` |
@@ -62,13 +59,11 @@ The web UI uses this JSON API; you can script it too. Everything runs on the loc
 | POST | `/api/projects/{id}/layers` | Export the latest version as layers (ZIP: scenes, transparent captions, audio stems, SRT, FCPXML) → `extra.layers.file` under `/videos/` |
 | GET | `/api/projects/{id}/activity` | Live steps and latest preview while a video is made |
 | GET | `/api/projects/{id}/usage` | Claude usage of this video |
-| POST, PUT | `/api/projects/{id}/post-copy` | Write (Claude) / save title, caption, hashtags, tags |
+| POST, PUT | `/api/projects/{id}/post-copy` | Write (Claude) / save the title, caption, hashtags and keywords |
 | POST, PUT | `/api/projects/{id}/covers`, `/api/projects/{id}/covers/{i}` | Make 3 covers `{text?}` / choose one |
-| POST | `/api/projects/{id}/publish` | `{integrations, publish_options}` |
 
 `voice`: an edge-tts voice name, `eleven:<voice_id>`, `none` (no voice-over: captions timed to reading speed, music turned up) or empty for the default.
 
-`publish_options`: `youtube_visibility` (`public|unlisted|private`), `tiktok_method` (`DIRECT_POST|UPLOAD`), `tiktok_privacy`, `schedule_at` (Postiz only).
 
 ## Brand kits and projects
 

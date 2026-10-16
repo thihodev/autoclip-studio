@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import activity, audio, brands, claude, connect, context, covers, db, editor, leftovers, playbooks, styles, motion, pipeline, platforms, postiz, render, settings, tts, usage
+from . import activity, audio, brands, claude, context, covers, db, editor, leftovers, playbooks, styles, motion, pipeline, render, settings, tts, usage
 from .config import DATA_DIR, ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -56,13 +56,6 @@ def _project(pid: str) -> dict:
 
 # ------------------------------------------------------------------ models
 
-class Channel(BaseModel):
-    id: str
-    provider: str
-    name: str | None = None
-    via: str = "native"  # native | postiz
-
-
 class ProjectIn(BaseModel):
     topic: str = Field(min_length=3)
     language: str = "English"
@@ -72,9 +65,6 @@ class ProjectIn(BaseModel):
     notes: str = ""
     voice: str = ""
     voice_rate: float = 1.0
-    auto_publish: bool = False
-    integrations: list[Channel] = []
-    publish_options: dict = {}
     brand_id: str | None = None
     context_ids: list[str] = []
     engine: str | None = None  # motion | classic (default: motion when available)
@@ -87,11 +77,6 @@ class ProjectIn(BaseModel):
     playbook_id: str | None = None  # video type: structure, beats, pacing ("framejam:<id>" or "autoclip:<id>")
     style_id: str | None = None  # visual style for Claude Motion ("framejam:<id>" or "hyperframes:<id>")
     github_repo: str | None = None  # owner/repo: Claude bases the video on it (README, description, latest release)
-
-
-class PublishIn(BaseModel):
-    integrations: list[Channel]
-    publish_options: dict = {}
 
 
 class IdeasIn(BaseModel):
@@ -110,16 +95,7 @@ class AutopilotIn(BaseModel):
     format: str = "shorts"
     style: str = ""
     voice: str = ""
-    auto_publish: bool = False
-    integrations: list[Channel] = []
-    publish_options: dict = {}
     brand_id: str | None = None
-    review: bool = True  # videos wait in a queue for approval before anything is posted
-    post_times: list[str] = ["11:30", "19:30"]  # daily posting times (this computer's clock) for scheduled posts
-
-
-class ReviewIn(BaseModel):
-    action: str  # approve (publish to the autopilot's accounts, at the next posting time when possible) | dismiss
 
 
 class TimelineIn(BaseModel):
@@ -161,31 +137,20 @@ class SourceIn(BaseModel):
 
 # ------------------------------------------------------------------ status & settings
 
-def _public_base(request: Request) -> str:
-    return (settings.get("public_url") or str(request.base_url)).rstrip("/")
-
-
 @app.get("/api/status")
 async def status():
-    claude_s, pz = await asyncio.gather(asyncio.to_thread(claude.auth_status), postiz.health())
-    accounts = db.list_accounts()
+    claude_s = await asyncio.to_thread(claude.auth_status)
     return {
         "claude": claude_s,
         "footage": render.footage_status(),
         "voice": tts.status(),
         "motion": motion.status(),
-        "postiz": pz,
-        "accounts": {"ok": bool(accounts) or postiz.configured(), "detail": f"{len(accounts)} account(s)"},
     }
 
 
 @app.get("/api/settings")
-def get_settings(request: Request):
-    base = _public_base(request)
-    return {
-        **settings.public(),
-        "platforms": [p.info(f"{base}/oauth/{k}/callback") for k, p in platforms.PLATFORMS.items()],
-    }
+def get_settings():
+    return settings.public()
 
 
 @app.put("/api/settings/{section}")
@@ -287,49 +252,7 @@ async def claude_logout():
     return {"ok": True}
 
 
-# ------------------------------------------------------------------ social accounts (OAuth)
-
-_oauth_states: dict[str, dict] = {}
-
-
-@app.get("/oauth/{platform}/start")
-def oauth_start(platform: str, request: Request):
-    p = platforms.PLATFORMS.get(platform)
-    if not p:
-        raise HTTPException(404)
-    state = secrets.token_urlsafe(24)
-    redirect_uri = f"{_public_base(request)}/oauth/{platform}/callback"
-    if p.via_connect():  # no developer app: sign in through AutoClip Connect with a one-time key
-        key, public = connect.new_key()
-        _oauth_states[state] = {"platform": platform, "redirect_uri": redirect_uri, "at": time.time(), "key": key}
-        return RedirectResponse(connect.start_url(platform, redirect_uri, public, state))
-    if not p.configured():
-        return RedirectResponse("/connections?" + urlencode({"error": f"Add the {p.label} app credentials first"}))
-    _oauth_states[state] = {"platform": platform, "redirect_uri": redirect_uri, "at": time.time()}
-    return RedirectResponse(p.auth_url(redirect_uri, state))
-
-
-@app.get("/oauth/{platform}/callback")
-async def oauth_callback(platform: str, request: Request):
-    q = request.query_params
-    st = _oauth_states.pop(q.get("state", ""), None)
-    if not st or st["platform"] != platform or time.time() - st["at"] > 900:
-        return RedirectResponse("/connections?" + urlencode({"error": "Sign-in expired, try again"}))
-    if q.get("error"):
-        return RedirectResponse("/connections?" + urlencode({"error": q.get("error_description") or q.get("error")}))
-    try:
-        if st.get("key"):  # AutoClip Connect sends the tokens sealed for this sign-in's key
-            tok = {**connect.open_sealed(q.get("sealed", ""), st["key"]), "via": "connect"}
-            accounts = await platforms.PLATFORMS[platform].accounts_for(tok)
-        else:
-            accounts = await platforms.PLATFORMS[platform].exchange(q.get("code", ""), st["redirect_uri"])
-        for a in accounts:
-            db.upsert_account(platform, a["external_id"], a["name"], a.get("avatar"), a["data"])
-    except Exception as e:
-        logging.exception("oauth %s failed", platform)
-        return RedirectResponse("/connections?" + urlencode({"error": str(e)[:200]}))
-    return RedirectResponse("/connections?" + urlencode({"connected": platforms.PLATFORMS[platform].label}))
-
+# ------------------------------------------------------------------ timeline editor & layers
 
 class EditIn(BaseModel):
     edit: dict
@@ -415,38 +338,6 @@ async def export_layers(pid: str):
     return db.get_project(pid)
 
 
-@app.get("/api/accounts/{aid}/tiktok-creator")
-async def tiktok_creator(aid: str):
-    """What the TikTok publish panel shows: the account and the choices TikTok allows it right now."""
-    account = db.get_account(aid)
-    if not account or account["platform"] != "tiktok":
-        raise HTTPException(404)
-    try:
-        return await platforms.PLATFORMS["tiktok"].creator_info(account)
-    except Exception as e:
-        raise HTTPException(502, str(e))
-
-
-@app.get("/api/channels")
-async def channels():
-    out = [
-        {"id": a["id"], "provider": a["platform"], "name": a["name"], "avatar": a.get("avatar"), "via": "native"}
-        for a in db.list_accounts()
-    ]
-    if postiz.configured():
-        try:
-            out += [{**i, "via": "postiz"} for i in await postiz.list_integrations() if not i.get("disabled")]
-        except Exception:
-            logging.warning("Postiz unreachable", exc_info=True)
-    return out
-
-
-@app.delete("/api/accounts/{aid}")
-def delete_account(aid: str):
-    db.delete_account(aid)
-    return {"ok": True}
-
-
 # ------------------------------------------------------------------ ideas & projects
 
 @app.post("/api/ideas")
@@ -480,7 +371,7 @@ def _require_setup():
 
 # The composer remembers its last choices (not the topic or files) for the next video.
 COMPOSER_KEYS = {"language", "format", "duration", "style", "style_id", "playbook_id", "music", "sfx", "voice", "voice_rate", "engine", "model", "effort",
-                 "channelIds", "auto_publish", "brand_id"}
+                 "brand_id"}
 
 
 # ------------------------------------------------------------------ hooks, post copy, covers
@@ -902,18 +793,6 @@ async def filmstrip(pid: str, file: str | None = None):
     return {"url": f"/videos/{out.name}", "count": count, "duration": dur}
 
 
-@app.post("/api/projects/{pid}/publish")
-async def publish(pid: str, body: PublishIn):
-    p = _project(pid)
-    if not p.get("video_path"):
-        raise HTTPException(400, "Video not ready")
-    try:
-        await pipeline.publish_project(pid, [c.model_dump() for c in body.integrations], body.publish_options)
-    except Exception as e:
-        raise HTTPException(502, str(e))
-    return db.get_project(pid)
-
-
 # ------------------------------------------------------------------ autopilot
 
 @app.get("/api/autopilot")
@@ -922,30 +801,7 @@ def get_autopilot():
     last = db.get_setting("autopilot_last_run", 0)
     every = max(1, float(cfg.get("every_hours", 24))) * 3600
     return {**cfg, "last_run": last or None, "next_run": (last + every if last else time.time()) if cfg.get("enabled") else None,
-            "last_error": db.get_setting("autopilot_last_error"), "next_slots": pipeline.next_slots(3)}
-
-
-@app.post("/api/projects/{pid}/autopilot-review")
-async def autopilot_review(pid: str, body: ReviewIn):
-    """Approve or dismiss an Autopilot video waiting in the review queue."""
-    p = _project(pid)
-    extra = pipeline._extra(p)
-    if body.action == "dismiss":
-        extra["review"] = "dismissed"
-        db.update_project(pid, extra=extra)
-        return db.get_project(pid)
-    if body.action != "approve":
-        raise HTTPException(400, "Unknown action")
-    if not p.get("video_path"):
-        raise HTTPException(400, "Video not ready")
-    extra["review"] = "approved"
-    db.update_project(pid, extra=extra)
-    if p["request"].get("integrations"):
-        try:
-            await pipeline.publish_project(pid)
-        except Exception as e:
-            raise HTTPException(502, str(e))
-    return db.get_project(pid)
+            "last_error": db.get_setting("autopilot_last_error")}
 
 
 @app.put("/api/autopilot")
@@ -954,8 +810,6 @@ def put_autopilot(body: AutopilotIn):
         if not body.niche.strip():
             raise HTTPException(400, "Enter a niche before enabling autopilot")
         _require_setup()
-        if body.auto_publish and not body.integrations:
-            raise HTTPException(400, "Pick at least one account to auto-publish to")
     db.set_setting("autopilot", body.model_dump())
     return get_autopilot()
 

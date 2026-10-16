@@ -1,0 +1,8 @@
+# The AutoClip Studio website: static files only (public/), served by Cloudflare Workers.
+# The name keeps the existing address: https://autoclip-connect.thihodev.workers.dev
+name = "autoclip-connect"
+compatibility_date = "2025-09-01"
+
+[assets]
+directory = "./public"
+not_found_handling = "404-page"

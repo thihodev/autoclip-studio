@@ -32,7 +32,7 @@ node -e "const s=require('fs').readFileSync('static/index.html','utf8');for(cons
 python3 -c "import json;json.load(open('static/locales/vi.json'))"
 ```
 
-Then try your change in the browser (both light and dark themes, English and Vietnamese, and a narrow window for layout changes). Changes that run Claude, render videos or publish should be tested end to end with your own accounts; say in the PR what you ran.
+Then try your change in the browser (both light and dark themes, English and Vietnamese, and a narrow window for layout changes). Changes that run Claude or render videos should be tested end to end with your own account; say in the PR what you ran.
 
 ## Conventions
 
@@ -54,7 +54,6 @@ Write the subject in the imperative, ≤ 72 characters ("Add music library", "Fi
 - **A language**: copy `static/locales/vi.json` to `static/locales/<code>.json`, translate the values, and add the language to the switcher in `static/index.html`.
 - **A visual style**: add a folder under `app/assets/styles/<source>/<id>/` with `style.json` (see the FrameJam ones for the fields) and a `poster.jpg`; include the license if it comes from another project.
 - **A video type (playbook)**: add `app/assets/playbooks/autoclip/<id>/` with `playbook.json` and a short `SKILL.md` recipe (hook, beats, pacing, ending).
-- **A publishing platform**: implement a `Platform` subclass in `app/platforms.py` (OAuth + publish) and register it.
 
 ## Reporting bugs and security issues
 

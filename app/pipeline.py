@@ -1,17 +1,15 @@
-"""Topic → Claude scenes → timeline → render → edit loop → publish."""
+"""Topic → Claude scenes → timeline → render → edit loop → export."""
 import asyncio
 import json
 import logging
 import random
-import re
 import shutil
 import tempfile
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import activity, brands, claude, context, db, editor, motion, playbooks, platforms, postiz, render, settings, tts, usage
+from . import activity, brands, claude, context, db, editor, motion, playbooks, render, settings, tts, usage
 from .config import DATA_DIR, VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
@@ -200,8 +198,6 @@ async def run_project(pid: str):
     if req.get("engine") == "motion":
         try:
             await _motion_version(pid, "First cut")
-            if req.get("auto_publish") and req.get("integrations"):
-                await publish_project(pid)
         except Exception as e:
             _fail(pid, e, status="ready" if db.get_project(pid).get("video_path") else "failed")
         return
@@ -224,8 +220,6 @@ async def run_project(pid: str):
             db.update_project(pid, script=meta, timeline=render.new_timeline(meta, req, brand))
             activity.add(pid, f"Script ready: “{meta['title']}” — {len(meta['scenes'])} scenes", "say")
         await _render_version(pid, "First cut")
-        if req.get("auto_publish") and req.get("integrations"):
-            await publish_project(pid)
     except Exception as e:
         _fail(pid, e)
 
@@ -474,99 +468,6 @@ async def apply_review(pid: str, model: str | None = None, effort: str | None = 
     return len(todo)
 
 
-# ---------- publishing ----------
-
-# ---------- posting times ----------
-
-DEFAULT_POST_TIMES = ["11:30", "19:30"]  # lunch and evening, when Vietnamese audiences scroll most
-
-
-def post_times() -> list[str]:
-    times = (db.get_setting("autopilot", {}) or {}).get("post_times") or DEFAULT_POST_TIMES
-    return sorted(t for t in times if re.fullmatch(r"([01]?\d|2[0-3]):[0-5]\d", t.strip()))
-
-
-def next_slots(n: int = 3) -> list[float]:
-    """The next posting times (epoch, this computer's clock), skipping ones a scheduled post already took."""
-    taken = set(db.get_setting("scheduled_slots", []) or [])
-    soon = time.time() + 15 * 60
-    day = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    out = []
-    for d in range(60):
-        for t in post_times() or DEFAULT_POST_TIMES:
-            h, m = map(int, t.split(":"))
-            ts = (day + timedelta(days=d, hours=h, minutes=m)).timestamp()
-            if ts > soon and int(ts) not in taken:
-                out.append(ts)
-                if len(out) == n:
-                    return out
-    return out
-
-
-def _take_slot(ts: float):
-    now = time.time()
-    db.set_setting("scheduled_slots", sorted({int(ts), *(s for s in db.get_setting("scheduled_slots", []) or [] if s > now)}))
-
-
-async def publish_project(pid: str, channels: list[dict] | None = None, opts: dict | None = None):
-    """channels: [{id, provider, name, via: native|postiz}].
-    opts.schedule: "next" (the next free posting time) or an epoch; only Postiz can schedule, the others post now."""
-    p = db.get_project(pid)
-    req = p["request"]
-    channels = channels or req.get("integrations") or []
-    opts = {"format": p["timeline"]["format"], **req.get("publish_options", {}), **(opts or {})}
-    slot = None
-    if opts.get("schedule") and any(c.get("via") == "postiz" for c in channels):
-        slot = next_slots(1)[0] if opts["schedule"] == "next" else float(opts["schedule"])
-        if slot > time.time():
-            opts["schedule_at"] = datetime.fromtimestamp(slot, timezone.utc).isoformat()
-        else:
-            slot = None
-    cv = _extra(p).get("covers") or {}
-    if cv.get("version") == p.get("version") and cv.get("items"):  # the chosen cover of this version
-        chosen = cv["items"][min(cv.get("chosen", 0), len(cv["items"]) - 1)]
-        if (VIDEOS_DIR / chosen["file"]).exists():
-            opts.update(cover_path=str(VIDEOS_DIR / chosen["file"]), cover_t=chosen["t"])
-    if not channels:
-        raise ValueError("No channels selected")
-    db.update_project(pid, status="publishing")
-    video = Path(p["video_path"])
-    try:
-        opts.setdefault("duration", await render.media_duration(video))  # TikTok checks it against the account's limit
-    except Exception:
-        pass
-    results, errors = [], []
-    for ch in [c for c in channels if c.get("via", "native") == "native"]:
-        account = db.get_account(ch["id"])
-        try:
-            if not account:
-                raise RuntimeError("account was disconnected")
-            res = await platforms.publish(account, video, p["script"], opts)
-            results.append({"channel": ch, "ok": True, "result": res})
-        except Exception as e:
-            log.exception("publish to %s failed", ch)
-            errors.append(f"{ch.get('provider')} {ch.get('name')}: {e}")
-            results.append({"channel": ch, "ok": False, "error": str(e)[:500]})
-    via_postiz = [c for c in channels if c.get("via") == "postiz"]
-    if via_postiz:
-        try:
-            res = await postiz.publish(video, p["script"], via_postiz, opts)
-            results.append({"channel": {"via": "postiz"}, "ok": True, "result": {**res, "scheduled_for": slot}})
-            if slot:
-                _take_slot(slot)
-        except Exception as e:
-            errors.append(f"Postiz: {e}")
-            results.append({"channel": {"via": "postiz"}, "ok": False, "error": str(e)[:500]})
-    ok = any(r["ok"] for r in results)
-    extra = _extra(db.get_project(pid))
-    if ok and extra.get("review") == "pending":
-        extra["review"] = "approved"
-    db.update_project(pid, status="published" if ok else "ready", publish_result=results, extra=extra,
-                      error="; ".join(errors)[:1000] or None)
-    if not ok:
-        raise RuntimeError("; ".join(errors))
-
-
 # ---------- Autopilot: niche → ideas → videos on a schedule ----------
 
 async def autopilot_loop():
@@ -595,7 +496,6 @@ async def _autopilot_run(cfg: dict):
     used = set(db.get_setting("autopilot_used_topics", []))
     fresh = [i for i in ideas if i.get("topic") and i["topic"] not in used] or ideas
     random.shuffle(fresh)
-    review = cfg.get("review", True)
     for idea in fresh[:count]:
         used.add(idea["topic"])
         p = db.create_project({
@@ -605,16 +505,9 @@ async def _autopilot_run(cfg: dict):
             "format": cfg.get("format", "shorts"),
             "style": cfg.get("style", ""),
             "voice": cfg.get("voice", ""),
-            # With review on, videos wait in the Autopilot queue until approved; either way they go out at the
-            # next posting time when Postiz can schedule them.
-            "auto_publish": cfg.get("auto_publish", False) and not review,
-            "integrations": cfg.get("integrations", []),
-            "publish_options": {**cfg.get("publish_options", {}), "schedule": "next"},
             "brand_id": cfg.get("brand_id"),
             "engine": cfg.get("engine") or default_engine(),
             "source": "autopilot",
         })
-        if review:
-            db.update_project(p["id"], extra={**_extra(p), "review": "pending"})
         await asyncio.wait([spawn(p["id"], run_project(p["id"]))])  # a delete may cancel it
     db.set_setting("autopilot_used_topics", list(used)[-500:])

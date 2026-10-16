@@ -13,16 +13,16 @@
   <a href="LICENSE">MIT</a>
 </p>
 
-**Open-source studio that turns a topic, a website or a GitHub repo into a finished short video — written, voiced, designed, animated and published by Claude — with a web UI for everything.**
+**Open-source studio that turns a topic, a website or a GitHub repo into a finished short video — written, voiced, designed and animated by Claude, then edited by you — with a web UI for everything.**
 
-Make YouTube Shorts, TikToks, Facebook Reels or 16:9 YouTube videos; review them frame by frame; let Claude apply your comments; publish with title, caption, hashtags and cover. It runs on your own computer and uses your own Claude account (subscription or API key). No `.env`, no Docker: every connection is made from the UI.
+Make YouTube Shorts, TikToks, Facebook Reels or 16:9 YouTube videos; review them frame by frame; let Claude apply your comments; fine-tune them on a timeline; export the video — or its layers for CapCut, Premiere and DaVinci — with a caption, hashtags and a cover. It runs on your own computer and uses your own Claude account (subscription or API key). No `.env`, no Docker: every connection is made from the UI.
 
 <p align="center">
-  <img src="services/connect/public/shots/composer.webp" alt="Describe the video: topic, engine, format, video type, style and sound" width="32%">
-  <img src="services/connect/public/shots/review.webp" alt="Review: comments pinned to frames, applied by Claude" width="32%">
-  <img src="services/connect/public/shots/publish.webp" alt="Publish to TikTok with TikTok's own choices" width="32%">
+  <img src="website/public/shots/composer.webp" alt="Describe the video: topic, engine, format, video type, style and sound" width="32%">
+  <img src="website/public/shots/review.webp" alt="Review: comments pinned to frames, applied by Claude" width="32%">
+  <img src="website/public/shots/edit.webp" alt="The timeline editor: titles, looks, music and clips" width="32%">
 </p>
-<p align="center"><sub>Describe it · review it frame by frame · post it — see the <a href="https://autoclip-connect.thihodev.workers.dev">website</a> for a tour.</sub></p>
+<p align="center"><sub>Describe it · review it frame by frame · edit and export it — see the <a href="https://autoclip-connect.thihodev.workers.dev">website</a> for a tour.</sub></p>
 
 ```
  topic · website · GitHub repo · your files
@@ -40,7 +40,7 @@ Make YouTube Shorts, TikToks, Facebook Reels or 16:9 YouTube videos; review them
  review: comment on a moment, a range or a spot ─► Claude applies the round ─► next version
         │
         ▼
- post copy + cover ─► YouTube · TikTok · Facebook · Postiz
+ timeline editor ─► export: MP4 · layers (CapCut, Premiere, DaVinci) · caption · cover
 ```
 
 ## Quick start
@@ -67,11 +67,7 @@ Connections is a short list; click a row for its settings.
 | Voice-over | | An [ElevenLabs](https://elevenlabs.io) key for natural voices in 70+ languages (incl. Vietnamese). Without it, free Microsoft voices (edge-tts). The key needs *Text to Speech* and *Voices → Read*. |
 | Music & sound effects | | A music library (upload tracks with a mood, or generate them with ElevenLabs Music) and AutoClip's built-in sound effects. |
 | Stock footage | | A free [Pixabay](https://pixabay.com/api/docs/) key (or an existing Pexels key) for real clips in Quick videos. Without it, animated backgrounds in your brand colors. |
-| TikTok (one click) | | Through [AutoClip Connect](services/connect/) — sign in to TikTok and approve, no developer app. It only completes the sign-in and renews access; nothing is stored there and videos upload from your computer. Runs at [autoclip-connect.thihodev.workers.dev](https://autoclip-connect.thihodev.workers.dev); the button appears by itself once its TikTok app is set up (`AUTOCLIP_CONNECT_URL` points AutoClip at another Connect, or `""` turns it off). |
-| Postiz | | The easiest way to post automatically: paste your [Postiz Cloud](https://postiz.com) API key and publish to TikTok, YouTube, Instagram, Facebook, LinkedIn, X, Threads… with no developer app (a self-hosted Postiz takes its URL too). |
-| YouTube · TikTok · Facebook | | Advanced: your own developer app per platform; the dialog shows the redirect URI to register. |
 | GitHub | | A fine-grained token with read-only *Contents* to use private repositories. Public repos work without it. |
-| Public URL | | A tunnel URL (e.g. `cloudflared tunnel --url http://localhost:8000`) — TikTok needs HTTPS redirects. |
 
 > ⚠️ Use a Claude subscription for **yourself only**. Agent SDK usage on subscription plans draws from your plan's monthly Agent SDK credit; for multi-user setups each person connects their own account or uses an API key. See the [authentication docs](https://code.claude.com/docs/en/authentication). Web sign-in drives `claude auth login` in a pseudo-terminal (macOS and Linux; on Windows use this computer's login or an API key).
 
@@ -84,7 +80,7 @@ In **Studio**, describe the video and choose:
 - **Video type** — the structure (hook, beats, pacing, ending), from 11 playbooks: AutoClip's *Top N list*, *Myth vs fact*, *Story / case study*, and [FrameJam](https://github.com/moritzkremb/framejam)'s faceless ones (*Explainer, How-to, Math animation, Motion showreel, Product launch, Launch teaser, Timeline, YouTube intro*).
 - **Visual style** (Claude Motion) — the look, from a gallery of 43: 30 FrameJam styles (palette, fonts, easing, transitions, text animations, pacing, with posters) and the 13 HyperFrames frame presets.
 - **Hook**: *Suggest hooks* gives 3 opening lines from different angles; pick one, and optionally make a **B version** with another hook to compare.
-- **Brand kit**, language, format (9:16, 16:9, 1:1), length, tone, voice (with ▶ preview — ElevenLabs voices when connected — or *no voice-over*: captions timed to reading speed, music turned up), **background music** and **sound effects**, publishing targets.
+- **Brand kit**, language, format (9:16, 16:9, 1:1), length, tone, voice (with ▶ preview — ElevenLabs voices when connected — or *no voice-over*: captions timed to reading speed, music turned up), **background music** and **sound effects**.
 - **Model & effort** for this video (a Claude-style menu next to *Create video*).
 
 The composer remembers its choices for the next video.
@@ -114,22 +110,18 @@ The **Scenes** and **Style** tabs (Quick engine) edit text, footage, captions, v
 
 The **Edit** tab is a CapCut-style timeline that works on any version, Claude Motion videos included: split (S), trim by dragging a clip's edges, reorder by dragging, delete, duplicate, speed (0.5–3×) and volume per clip, looks (Vivid, Warm, Faded, Film, Mono, Noir) with brightness, contrast and saturation; titles you drag into place on the video with size, color, outline/box/shadow and fade/pop/slide/typewriter animations; a music track from your library with volume and fades; undo/redo (⌘Z). The preview plays it live, the edit autosaves, and **Export** renders it with ffmpeg as a new version — the original is kept.
 
-To finish a video in another editor, **Publish → Layers for editing** makes a ZIP that CapCut, Premiere, DaVinci Resolve and Final Cut all import: each scene as its own clip without captions, the captions (and logo) on a transparent ProRes 4444 layer, voice / music / SFX as separate WAVs, the captions as SRT, and a `timeline.fcpxml` with everything in place (Claude Motion adds the whole video without captions). Quick videos are rebuilt in seconds; Claude Motion videos are re-rendered from their HyperFrames project, one composition per layer, in a few minutes — no Claude needed.
+To finish a video in another editor, **Export → Layers for editing** makes a ZIP that CapCut, Premiere, DaVinci Resolve and Final Cut all import: each scene as its own clip without captions, the captions (and logo) on a transparent ProRes 4444 layer, voice / music / SFX as separate WAVs, the captions as SRT, and a `timeline.fcpxml` with everything in place (Claude Motion adds the whole video without captions). Quick videos are rebuilt in seconds; Claude Motion videos are re-rendered from their HyperFrames project, one composition per layer, in a few minutes — no Claude needed.
 
-## Publish
+## Export
 
-The **Publish** tab:
+The **Export** tab:
 
-- **Post it yourself** — no connection needed: download the video and cover, copy a caption made for TikTok, YouTube Shorts (title + description), Instagram Reels or Facebook Reels, and open each app's upload page. On a phone, *Share to an app* sends the file straight to the TikTok, Instagram or YouTube app.
-- **Post copy** — Claude writes the title, caption, hashtags and YouTube tags from what the video actually says; edit and save.
-- **Cover image** — three covers from different moments with big text in the brand's font and accent color. The chosen one becomes the YouTube thumbnail (landscape videos; needs a verified channel) and its moment the TikTok cover.
-- **Publish automatically** through Postiz Cloud (just its API key, no developer app) or, with your own developer apps, straight to YouTube, TikTok (direct or as a draft), Facebook Pages (vertical videos as Reels) and Postiz channels. AI-generated content is labeled where supported (`containsSyntheticMedia`, `is_aigc`).
+- **Download** the video (and the chosen cover); on a phone, *Share* hands the file to any app.
+- **Layers for editing** — the ZIP described above, for CapCut, Premiere, DaVinci Resolve and Final Cut.
+- **Caption & hashtags** — Claude writes the title, caption, hashtags and keywords from what the video actually says; edit, save and copy them when you post.
+- **Cover image** — three covers from different moments with big text in the brand's font and accent color; pick one to download.
 
-| Platform | Developer app | Notes |
-|---|---|---|
-| YouTube | Google Cloud → YouTube Data API v3 → OAuth client (Web) | Unverified apps upload as private until Google audits the app. |
-| TikTok | developers.tiktok.com app with Login Kit + Content Posting API | HTTPS redirect (set a Public URL). Unaudited apps post privately only. |
-| Facebook | Meta app with Facebook Login for Business | `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`. |
+AutoClip doesn't connect to social networks or post for you: it focuses on making and editing the video, and you post it wherever you like.
 
 ## Brand kits
 
@@ -141,7 +133,7 @@ A brand kit is a design system for videos: description, voice and tone, audience
 ## Also included
 
 - **Projects** — group videos per product or channel with a shared website, brand kit, instructions and context files.
-- **Ideas** — topic suggestions for a niche, each with a hook. **Autopilot** — every N hours: ideas → render → optional auto-publish.
+- **Ideas** — topic suggestions for a niche, each with a hook. **Autopilot** — every N hours: ideas → videos, waiting in Studio for you.
 - **Live view** — what Claude is doing right now, with the latest frame it looked at; a corner dock tracks running videos.
 - **Usage** — on a Claude plan: the 5-hour session and weekly limits (as `/usage` in Claude Code shows them) plus tokens and time; with an API key: what you pay. Each video shows its own usage.
 - **Complete deletes** — deleting a video stops its job and removes every file it owns; leftovers from older versions can be reviewed and removed.
@@ -158,14 +150,14 @@ Everything lives in `data/` (`autoclip.db` for settings and projects, renders, b
 | Path | What's there |
 |---|---|
 | `app/main.py` | FastAPI routes ([API reference](docs/API.md)) |
-| `app/pipeline.py` | Video jobs: create, render versions, AI edits, review rounds, publishing, autopilot |
+| `app/pipeline.py` | Video jobs: create, render versions, AI edits, review rounds, timeline edits, layers, autopilot |
 | `app/claude.py` · `app/usage.py` | Claude via the Agent SDK (scripts, ideas, edits, hooks, post copy, sign-in) · usage metering and plan limits |
 | `app/motion.py` | Claude Motion engine (HyperFrames agent, voice-over tool, rules) |
 | `app/render.py` · `app/tts.py` · `app/audio.py` · `app/covers.py` | Quick engine (ffmpeg) · voices · music and sound effects · cover images |
 | `app/brands.py` · `app/styles.py` · `app/playbooks.py` | Brand kits and imports · visual styles · video types |
-| `app/platforms.py` · `app/postiz.py` | YouTube, TikTok, Facebook OAuth and publishing · Postiz |
+| `app/editor.py` · `app/layers.py` | The timeline editor's export · layers for other editors |
 | `static/index.html` · `static/locales/` | The whole UI (Alpine.js) · translations |
-| `services/connect/` | AutoClip Connect: a tiny Cloudflare Worker holding the TikTok app for one-click sign-in; it also serves the [website](https://autoclip-connect.thihodev.workers.dev) (`public/`) |
+| `website/` | The [website](https://autoclip-connect.thihodev.workers.dev): static files on Cloudflare Workers |
 | `app/assets/` | Bundled font, FrameJam styles and playbooks, GSAP skills (with their licenses), AutoClip playbooks |
 
 ## Contributing
@@ -175,12 +167,11 @@ Contributions are welcome — through pull requests; `main` is protected. Read [
 ## Roadmap ideas
 
 - More voices: [Kokoro](https://github.com/hexgrad/kokoro), [F5-TTS](https://github.com/SWivid/F5-TTS) (voice cloning); dubbing a video into other languages.
-- One video → several formats (9:16 ↔ 16:9 ↔ 1:1) and SRT export.
+- One video → several formats (9:16 ↔ 16:9 ↔ 1:1).
 - A brand's design system generated once and reused, for consistency and fewer tokens.
-- Platform analytics feeding back into Ideas and Autopilot.
 - AI-generated shots (ComfyUI + Wan / LTX-Video); clipping long videos into shorts.
 - Docker image; resuming jobs after a restart.
 
 ## License and credits
 
-[MIT](LICENSE). Bundled: [Be Vietnam Pro](app/assets/fonts/OFL.txt) (SIL OFL); [FrameJam](https://github.com/moritzkremb/framejam) styles and playbooks (MIT, `app/assets/*/framejam/LICENSE`), whose review page also inspired AutoClip's; GreenSock's [GSAP skills](https://github.com/greensock/gsap-skills) (MIT, `app/assets/skills/gsap/LICENSE`). Used from their own installs: [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0), the [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python), [edge-tts](https://github.com/rany2/edge-tts), FFmpeg via [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg). Postiz is used over its API and keeps its own license.
+[MIT](LICENSE). Bundled: [Be Vietnam Pro](app/assets/fonts/OFL.txt) (SIL OFL); [FrameJam](https://github.com/moritzkremb/framejam) styles and playbooks (MIT, `app/assets/*/framejam/LICENSE`), whose review page also inspired AutoClip's; GreenSock's [GSAP skills](https://github.com/greensock/gsap-skills) (MIT, `app/assets/skills/gsap/LICENSE`). Used from their own installs: [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0), the [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python), [edge-tts](https://github.com/rany2/edge-tts), FFmpeg via [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg).

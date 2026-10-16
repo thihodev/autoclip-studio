@@ -550,7 +550,7 @@
     <a class="nav" href="/ideas" :class="route.page==='ideas'&&'on'" @click.prevent="nav('/ideas')"><svg class="i"><use href="#i-zap"/></svg><span x-t>Ideas</span></a>
     <a class="nav" href="/brands" :class="(route.page==='brands'||route.page==='brand')&&'on'" @click.prevent="nav('/brands')"><svg class="i"><use href="#i-layers"/></svg><span x-t>Brand kits</span>
       <span class="count" x-show="brandList.length" x-text="brandList.length" style="background:var(--surface-2);color:var(--text-2)"></span></a>
-    <a class="nav" href="/autopilot" :class="route.page==='autopilot'&&'on'" @click.prevent="nav('/autopilot')"><svg class="i"><use href="#i-repeat"/></svg><span x-t>Autopilot</span><span class="count" x-show="reviewQueue().length" x-text="reviewQueue().length"></span>
+    <a class="nav" href="/autopilot" :class="route.page==='autopilot'&&'on'" @click.prevent="nav('/autopilot')"><svg class="i"><use href="#i-repeat"/></svg><span x-t>Autopilot</span>
       <span class="count" x-show="autopilot.enabled" style="background:var(--ok-soft);color:var(--ok)"><span x-t>on</span></span></a>
     <a class="nav" href="/usage" :class="route.page==='usage'&&'on'" @click.prevent="nav('/usage')"><svg class="i"><use href="#i-bar"/></svg><span x-t>Usage</span></a>
     <a class="nav" href="/connections" :class="route.page==='connections'&&'on'" @click.prevent="nav('/connections')"><svg class="i"><use href="#i-link"/></svg><span x-t>Connections</span>
@@ -558,7 +558,6 @@
     <div class="side-foot">
       <div class="row-s"><span class="dot" :class="status.claude?.ok?'ok':'err'"></span><span x-t>Claude</span></div>
       <div class="row-s"><span class="dot" :class="status.footage?.ok&&'ok'"></span><span x-t>Stock footage</span></div>
-      <div class="row-s"><span class="dot" :class="nativeAccounts().length&&'ok'"></span><span x-text="t(nativeAccounts().length===1 ? '{n} social account' : '{n} social accounts', {n: nativeAccounts().length})"></span></div>
       <div class="divider" style="margin:10px 0"></div>
       <div class="prefs">
         <select x-select :value="lang" @change="setLang($event.target.value)" :aria-label="t('Language')"><option value="en">English</option><option value="vi">Tiếng Việt</option></select>
@@ -767,21 +766,6 @@
             </div>
           </section>
 
-          <section class="csec">
-            <h3><span x-t>Publish to</span></h3>
-            <div>
-              <template x-if="!channels.length"><p class="small muted" style="margin:6px 0 0"><span x-t>Nothing to connect: when the video is ready, its Publish tab gives you the file and a ready caption for TikTok, YouTube, Instagram and Facebook.</span> <a href="/connections" @click.prevent="nav('/connections'); openConn('postiz')"><span x-t>Or post automatically with Postiz →</span></a></p></template>
-              <div class="pickchips">
-                <template x-for="c in channels" :key="c.id">
-                  <button type="button" class="pickchip" :class="form.channelIds.includes(c.id)&&'on'" @click="toggle(form.channelIds, c.id)">
-                    <span class="avatar"><img x-show="c.avatar" :src="c.avatar" alt=""><span x-show="!c.avatar" x-text="initial(c.name)"></span></span>
-                    <span x-text="c.name"></span><span class="small muted" x-text="platformLabel(c)"></span></button>
-                </template>
-              </div>
-              <label class="toggle small" style="margin-top:10px" x-show="channels.length" :style="{ opacity: form.channelIds.length ? 1 : .5 }">
-                <input type="checkbox" x-model="form.auto_publish" :disabled="!form.channelIds.length"> <span x-t>Publish automatically when the first render is ready</span></label>
-            </div>
-          </section>
         </fieldset>
       </div>
 
@@ -909,7 +893,7 @@
                       <span class="small muted" x-show="v.file===latestFile()"><span x-t>latest</span></span>
                     </div>
                   </template>
-                  <p class="hint" x-show="preview"><span x-t>Previewing an older version. Publishing and downloads use the latest.</span></p>
+                  <p class="hint" x-show="preview"><span x-t>Previewing an older version. Downloads and exports use the latest.</span></p>
                 </div>
               </div>
             </div>
@@ -1210,29 +1194,16 @@
 
               </div>
 
-              <!-- Publish -->
-              <div x-show="cur.timeline && route.sub==='publish'" class="pubcol">
-                <div class="card" :style="{order: channels.length ? 1 : 0}">
-                  <div class="card-head"><div class="grow"><h2><span x-t>Post it yourself</span></h2><p><span x-t>No connection needed: get the video and its caption, then post from each app.</span></p></div></div>
+              <!-- Export: the video, and everything to finish it in another editor or post it by hand -->
+              <div x-show="cur.timeline && route.sub==='export'" class="pubcol">
+                <div class="card">
+                  <div class="card-head"><div class="grow"><h2><span x-t>Export</span></h2><p x-text="cur.video_path ? t('Version {v}', {v: cur.version}) : t('Render the video first')"></p></div></div>
                   <div class="actions">
-                    <a class="btn" :class="!channels.length && 'primary'" :href="cur.video_path ? videoUrl(cur) : null" :aria-disabled="String(!cur.video_path)" download><svg class="i"><use href="#i-download"/></svg><span x-t>Download video</span></a>
+                    <a class="btn primary" :href="cur.video_path ? videoUrl(cur) : null" :aria-disabled="String(!cur.video_path)" download><svg class="i"><use href="#i-download"/></svg><span x-t>Download video</span></a>
                     <a class="btn" x-show="curCovers()" :href="curCovers() ? `/videos/${curCovers().items[curCovers().chosen || 0].file}` : null" download><svg class="i"><use href="#i-download"/></svg><span x-t>Download cover</span></a>
-                    <button class="btn" x-show="canShareFiles()" @click="shareVideo()" :disabled="!cur.video_path || sharing"><span class="spin" x-show="sharing"></span><svg class="i" x-show="!sharing"><use href="#i-send"/></svg><span x-t>Share to an app…</span></button>
+                    <button class="btn" x-show="canShareFiles()" @click="shareVideo()" :disabled="!cur.video_path || sharing"><span class="spin" x-show="sharing"></span><svg class="i" x-show="!sharing"><use href="#i-send"/></svg><span x-t>Share…</span></button>
                   </div>
-                  <div class="pubkit">
-                    <template x-for="pf in MANUAL_PLATFORMS" :key="pf.key">
-                      <div class="pubrow">
-                        <span class="ctile" x-text="pf.label[0]"></span>
-                        <span class="grow"><span class="t" x-text="pf.label"></span><span class="d" x-text="t(pf.note)"></span></span>
-                        <template x-if="pf.key==='youtube'"><span class="actions" style="gap:6px">
-                          <button class="btn sm" @click="copy(post.title)" :disabled="!post.title.trim()"><svg class="i"><use href="#i-copy"/></svg><span x-t>Title</span></button>
-                          <button class="btn sm" @click="copy(captionFor('youtube'))"><svg class="i"><use href="#i-copy"/></svg><span x-t>Description</span></button></span></template>
-                        <template x-if="pf.key!=='youtube'"><button class="btn sm" @click="copy(captionFor(pf.key))"><svg class="i"><use href="#i-copy"/></svg><span x-t>Copy caption</span></button></template>
-                        <a class="btn sm" :href="pf.url" target="_blank" rel="noopener"><span x-t>Open</span><svg class="i"><use href="#i-ext"/></svg></a>
-                      </div>
-                    </template>
-                  </div>
-                  <div class="pubkit" style="margin-top:10px">
+                  <div class="pubkit" style="margin-top:14px">
                     <div class="pubrow">
                       <span class="ctile"><svg class="i"><use href="#i-layers"/></svg></span>
                       <span class="grow"><span class="t" x-t>Layers for editing</span>
@@ -1242,90 +1213,28 @@
                           <button class="btn sm ghost" @click="exportLayers()" :disabled="isBusy(cur)" :title="t('Make them again')"><svg class="i"><use href="#i-retry"/></svg></button></span>
                       </template>
                       <template x-if="!layersReady()">
-                        <button class="btn sm" @click="exportLayers()" :disabled="isBusy(cur) || !cur.video_path"><span class="spin" x-show="cur.status==='rendering' && (cur.stage||'').length"></span><span x-text="t(isMotion(cur) ? 'Prepare layers (a few minutes)' : 'Prepare layers')"></span></button>
+                        <button class="btn sm" @click="exportLayers()" :disabled="isBusy(cur) || !cur.video_path"><span x-text="t(isMotion(cur) ? 'Prepare layers (a few minutes)' : 'Prepare layers')"></span></button>
                       </template>
                     </div>
                   </div>
-                  <p class="hint"><span x-t>The caption comes from Post copy below — write it with Claude first. On a phone, “Share to an app” sends the video straight to TikTok, Instagram or YouTube.</span></p>
                 </div>
                 <div class="card">
-                  <div class="card-head"><div class="grow"><h2><span x-t>Publish automatically</span></h2><p x-text="cur.video_path ? t('Version {v}', {v: cur.version}) : t('Render the video first')"></p></div></div>
-                  <template x-if="!channels.length">
-                    <div class="notice info"><div><span x-t>To post from AutoClip itself, connect Postiz once — no developer app needed.</span> <a href="/connections" @click.prevent="nav('/connections'); openConn('postiz')"><span x-t>Connect Postiz →</span></a></div></div>
-                  </template>
-                  <div class="pickchips">
-                    <template x-for="c in channels" :key="c.id">
-                      <button type="button" class="pickchip" :class="pubIds.includes(c.id)&&'on'" @click="toggle(pubIds, c.id)">
-                        <span class="avatar"><img x-show="c.avatar" :src="c.avatar" alt=""><span x-show="!c.avatar" x-text="initial(c.name)"></span></span>
-                        <span x-text="c.name"></span><span class="small muted" x-text="platformLabel(c)"></span></button>
-                    </template>
-                  </div>
-                  <div class="field" style="margin-top:14px;max-width:360px" x-show="pickedViaPostiz()"><label><span x-t>When (Postiz)</span></label>
-                    <select x-select x-model="pubOpts.schedule"><option value="" x-t>Now</option>
-                      <template x-for="ts in (autopilot.next_slots || [])" :key="ts"><option :value="String(ts)" x-text="t('At {when}', {when: when(ts)})"></option></template></select>
-                    <p class="hint"><span x-t>Posting times are set on the Autopilot page.</span></p></div>
-                  <div class="grid-2" style="margin-top:14px" x-show="selectedProviders().includes('youtube') || selectedProviders().includes('tiktok')">
-                    <div class="field" x-show="selectedProviders().includes('youtube')"><label><span x-t>YouTube visibility</span></label>
-                      <select x-select x-model="pubOpts.youtube_visibility"><option value="public" x-t>Public</option><option value="unlisted" x-t>Unlisted</option><option value="private" x-t>Private</option></select></div>
-                    <div class="field" x-show="selectedProviders().includes('tiktok')"><label><span x-t>TikTok</span></label>
-                      <select x-select x-model="pubOpts.tiktok_method"><option value="UPLOAD" x-t>Send to TikTok inbox as a draft</option><option value="DIRECT_POST" x-t>Post directly</option></select>
-                      <p class="hint" x-show="pubOpts.tiktok_method==='UPLOAD'"><span x-t>Recommended: open TikTok, add a trending sound (apps can't add those), then post.</span></p></div>
-                  </div>
-                  <!-- TikTok direct post: what TikTok's content sharing guidelines ask the user to see and choose -->
-                  <div class="ttpost" x-show="ttDirect()">
-                    <template x-for="a in ttAccounts()" :key="a.id">
-                      <div class="ttwho"><span class="avatar"><img x-show="tt.info[a.id]?.creator_avatar_url || a.avatar" :src="tt.info[a.id]?.creator_avatar_url || a.avatar" alt=""><span x-show="!(tt.info[a.id]?.creator_avatar_url || a.avatar)" x-text="initial(a.name)"></span></span>
-                        <span x-text="t('Posting to TikTok as {name}', {name: tt.info[a.id]?.creator_nickname || a.name})"></span>
-                        <span class="small" style="color:var(--err)" x-show="tt.err[a.id]" x-text="tt.err[a.id]"></span></div>
-                    </template>
-                    <div class="field"><label><span x-t>Caption</span> <span class="muted small" x-text="tt.caption.length + '/2200'"></span></label>
-                      <textarea x-model="tt.caption" maxlength="2200" rows="3"></textarea></div>
-                    <div class="field"><label><span x-t>Who can see this video</span></label>
-                      <select x-model="tt.privacy">
-                        <option value="" disabled x-t>Choose…</option>
-                        <template x-for="o in ttPrivacyOptions()" :key="o"><option :value="o" :disabled="o==='SELF_ONLY' && tt.branded" x-text="t(TT_PRIVACY[o] || o)" :title="o==='SELF_ONLY' && tt.branded ? t('Branded content visibility can\'t be set to private.') : ''"></option></template>
-                      </select></div>
-                    <div class="field"><label><span x-t>Allow users to</span></label>
-                      <div class="actions" style="gap:16px">
-                        <template x-for="k in ['comment','duet','stitch']" :key="k">
-                          <label class="toggle small" :style="ttDisabled(k) && 'opacity:.5'" :title="ttDisabled(k) ? t('Turned off in this account\'s TikTok settings') : ''">
-                            <input type="checkbox" x-model="tt[k]" :disabled="ttDisabled(k)"> <span x-text="t({comment:'Comment', duet:'Duet', stitch:'Stitch'}[k])"></span></label>
-                        </template></div></div>
-                    <div class="field">
-                      <label class="toggle"><input type="checkbox" x-model="tt.disclose" @change="if (!tt.disclose) { tt.yourBrand = false; tt.branded = false }"> <span style="font-weight:600" x-t>Disclose video content</span></label>
-                      <p class="hint"><span x-t>Turn on to disclose that this video promotes goods or services in exchange for something of value. Your video could promote yourself, a third party, or both.</span></p>
-                      <div x-show="tt.disclose" class="stack" style="gap:8px;margin-top:6px">
-                        <label class="toggle small"><input type="checkbox" x-model="tt.yourBrand"> <span><b x-t>Your brand</b> — <span x-t>You are promoting yourself or your own business. This video will be classified as Brand Organic.</span></span></label>
-                        <label class="toggle small"><input type="checkbox" x-model="tt.branded" @change="if (tt.branded && tt.privacy==='SELF_ONLY') tt.privacy=''"> <span><b x-t>Branded content</b> — <span x-t>You are promoting another brand or a third party. This video will be classified as Branded Content.</span></span></label>
-                        <p class="hint" x-show="tt.yourBrand || tt.branded" x-text="t(tt.branded ? 'Your video will be labeled as \u201cPaid partnership\u201d.' : 'Your video will be labeled as \u201cPromotional content\u201d.')"></p>
-                        <p class="hint" style="color:var(--warn)" x-show="!tt.yourBrand && !tt.branded"><span x-t>You need to indicate if your content promotes yourself, a third party, or both.</span></p>
-                      </div></div>
-                    <p class="hint" style="color:var(--warn)" x-show="ttTooLong()" x-text="t('This video is longer than this account can post ({n} s).', {n: ttMaxDuration()})"></p>
-                    <p class="small muted" style="margin:0"><span x-t>By posting, you agree to TikTok's</span>
-                      <template x-if="tt.branded"><span><a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noopener"><span x-t>Branded Content Policy</span></a> <span x-t>and</span> </span></template>
-                      <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener"><span x-t>Music Usage Confirmation</span></a>.</p>
-                  </div>
-                  <div class="actions" style="margin-top:14px;justify-content:flex-end" x-show="channels.length">
-                    <span class="small muted" x-show="ttDirect() && !ttReady()" x-text="t(!tt.privacy ? 'Choose who can see the TikTok video.' : 'Finish the TikTok settings.')"></span>
-                    <button class="btn primary" @click="publish()" :disabled="!pubIds.length || !cur.video_path || isBusy(cur) || dirty || (ttDirect() && !ttReady())"><svg class="i"><use href="#i-send"/></svg><span x-t>Publish</span></button>
-                  </div>
-                  <p class="hint" x-show="dirty"><span x-t>Save your edits first so the published video includes them.</span></p>
-                </div>
-                <div class="card">
-                  <div class="card-head"><div class="grow"><h2><span x-t>Post copy</span></h2><p><span x-t>Title, caption and tags used on every platform.</span></p></div>
+                  <div class="card-head"><div class="grow"><h2><span x-t>Caption &amp; hashtags</span></h2><p><span x-t>Written by Claude from what the video says — copy them when you post it.</span></p></div>
                     <button class="btn sm" @click="writePost()" :disabled="postBusy || !status.claude?.ok || !cur.timeline"><span class="spin" x-show="postBusy"></span><svg class="i" x-show="!postBusy"><use href="#i-star"/></svg><span x-t>Write with Claude</span></button></div>
                   <div class="stack">
                     <div class="field"><label><span x-t>Title</span> <span class="muted small" x-text="post.title.length + '/100'"></span></label><input x-model="post.title" maxlength="100"></div>
                     <div class="field"><label><span x-t>Description</span></label><textarea x-model="post.description" rows="3"></textarea></div>
                     <div class="grid-2">
                       <div class="field"><label><span x-t>Hashtags</span></label><input x-model="post.hashtags" placeholder="#shorts #tips"></div>
-                      <div class="field"><label><span x-t>YouTube tags</span></label><input x-model="post.youtube_tags" :placeholder="t('comma separated')"></div>
+                      <div class="field"><label><span x-t>Keywords</span></label><input x-model="post.youtube_tags" :placeholder="t('comma separated')"></div>
                     </div>
-                    <div class="actions" style="justify-content:flex-end"><button class="btn" @click="savePost()"><span x-t>Save</span></button></div>
+                    <div class="actions" style="justify-content:flex-end">
+                      <button class="btn" @click="copy(captionText())" :disabled="!captionText()"><svg class="i"><use href="#i-copy"/></svg><span x-t>Copy caption</span></button>
+                      <button class="btn" @click="savePost()"><span x-t>Save</span></button></div>
                   </div>
                 </div>
                 <div class="card">
-                  <div class="card-head"><div class="grow"><h2><span x-t>Cover image</span></h2><p><span x-t>Used as the YouTube thumbnail (landscape videos) and the TikTok cover frame.</span></p></div></div>
+                  <div class="card-head"><div class="grow"><h2><span x-t>Cover image</span></h2><p><span x-t>Three thumbnails from different moments, with big text in your brand's font. Pick one to download.</span></p></div></div>
                   <div class="actions" style="flex-wrap:nowrap">
                     <input x-model="coverText" :placeholder="t('Text on the cover (2–5 words)')" maxlength="80" style="flex:1">
                     <button class="btn" @click="makeCovers()" :disabled="coverBusy || !cur.video_path"><span class="spin" x-show="coverBusy"></span><span x-text="curCovers() ? t('Remake') : t('Make covers')"></span></button>
@@ -1335,17 +1244,6 @@
                       <button type="button" class="cover" :class="curCovers().chosen===i && 'on'" @click="chooseCover(i)"><img :src="`/videos/${c.file}?at=${curCovers().at || 0}`" alt=""></button>
                     </template>
                   </div>
-                </div>
-                <div class="card" x-show="(cur.publish_result||[]).length">
-                  <div class="card-head"><div class="grow"><h2 x-text="t('Results · version {v}', {v: cur.version})"></h2></div></div>
-                  <template x-for="r in (cur.publish_result||[])">
-                    <div class="acct-row">
-                      <span class="chip" :class="r.ok?'ok':'err'" x-text="r.ok?t('Published'):t('Failed')"></span>
-                      <div class="grow"><div x-text="(r.channel?.name || t('Postiz')) + (platformLabel(r.channel) ? t(' · ') + platformLabel(r.channel) : '')"></div>
-                        <div class="small" :style="!r.ok && 'color:var(--err)'" :class="r.ok&&'muted'" x-text="r.ok ? (r.result?.url || r.result?.publish_id || r.result?.video_id || '') : r.error"></div></div>
-                      <a class="btn sm" x-show="r.result?.url" :href="r.result?.url" target="_blank" rel="noopener"><svg class="i"><use href="#i-ext"/></svg></a>
-                    </div>
-                  </template>
                 </div>
               </div>
             </div>
@@ -1763,28 +1661,13 @@
 
     <!-- ===================================================== AUTOPILOT -->
     <section class="page" x-show="route.page==='autopilot'">
-      <div class="page-head"><div><h1><span x-t>Autopilot</span></h1><p class="sub"><span x-t>On a schedule, Claude comes up with ideas for your niche, renders them and can publish them.</span></p></div>
+      <div class="page-head"><div><h1><span x-t>Autopilot</span></h1><p class="sub"><span x-t>On a schedule, Claude comes up with ideas for your niche and makes the videos — they wait in Studio for you to review and export.</span></p></div>
         <span class="chip" :class="autopilot.enabled?'ok':''" x-text="autopilot.enabled?t('On'):t('Off')"></span></div>
       <div class="card" x-show="autopilot.enabled || autopilot.last_error">
         <div class="grid-3">
           <div><div class="lbl"><span x-t>Next run</span></div><div x-text="autopilot.next_run ? when(autopilot.next_run) : '—'"></div></div>
           <div><div class="lbl"><span x-t>Last run</span></div><div x-text="autopilot.last_run ? when(autopilot.last_run) : t('Never')"></div></div>
           <div><div class="lbl"><span x-t>Last result</span></div><div :style="autopilot.last_error&&'color:var(--err)'" x-text="autopilot.last_error || (autopilot.last_run ? t('OK') : '—')"></div></div>
-        </div>
-      </div>
-      <div class="card" x-show="reviewQueue().length">
-        <div class="card-head"><div class="grow"><h2 x-text="t('To review · {n}', {n: reviewQueue().length})"></h2>
-          <p x-text="(autopilot.integrations||[]).length ? t('Approve to publish at the next posting time ({at}), or dismiss.', {at: autopilot.next_slots?.[0] ? when(autopilot.next_slots[0]) : '—'}) : t('Watch each video, then post it from its Publish tab or dismiss it.')"></p></div></div>
-        <div class="rq">
-          <template x-for="p in reviewQueue()" :key="p.id">
-            <div class="rqrow">
-              <a class="rqth" :href="`/projects/${p.id}`" @click.prevent="nav(`/projects/${p.id}`)"><img x-show="projThumb(p)" :src="projThumb(p)" alt=""><svg class="i" x-show="!projThumb(p)"><use href="#i-play"/></svg></a>
-              <div class="grow"><a class="t" :href="`/projects/${p.id}`" @click.prevent="nav(`/projects/${p.id}`)" x-text="p.title || p.request.topic"></a>
-                <div class="small muted" x-text="when(p.created_at)"></div></div>
-              <button class="btn sm" @click="reviewAct(p, 'dismiss')"><span x-t>Dismiss</span></button>
-              <button class="btn sm primary" @click="reviewAct(p, 'approve')" :disabled="reviewing===p.id"><span class="spin" x-show="reviewing===p.id"></span><span x-text="(autopilot.integrations||[]).length ? t('Approve & publish') : t('Approve')"></span></button>
-            </div>
-          </template>
         </div>
       </div>
       <div class="card">
@@ -1802,23 +1685,6 @@
           </div>
           <div class="field" x-show="brandList.length"><label><span x-t>Brand kit</span></label>
             <select x-select x-model="autoForm.brand_id"><option value="" x-t>No brand</option><template x-for="b in brandList" :key="b.id"><option :value="b.id" x-text="b.name" :selected="autoForm.brand_id===b.id"></option></template></select></div>
-          <div class="field"><label><span x-t>Publish to</span></label>
-            <template x-if="!channels.length"><p class="small muted"><span x-t>No accounts connected — videos will be created but not published.</span></p></template>
-            <div class="pickchips">
-              <template x-for="c in channels" :key="c.id">
-                <button type="button" class="pickchip" :class="autoForm.channelIds.includes(c.id)&&'on'" @click="toggle(autoForm.channelIds, c.id)">
-                  <span class="avatar"><img x-show="c.avatar" :src="c.avatar" alt=""><span x-show="!c.avatar" x-text="initial(c.name)"></span></span>
-                  <span x-text="c.name"></span><span class="small muted" x-text="platformLabel(c)"></span></button>
-              </template>
-            </div>
-            <label class="toggle small" style="margin-top:10px" x-show="channels.length" :style="{ opacity: autoForm.channelIds.length ? 1 : .5 }">
-              <input type="checkbox" x-model="autoForm.auto_publish" :disabled="!autoForm.channelIds.length"> <span x-t>Publish automatically</span></label>
-          </div>
-          <label class="toggle small"><input type="checkbox" x-model="autoForm.review">
-            <span x-t>Let me review each video first (it waits in a queue here until you approve it)</span></label>
-          <div class="field"><label><span x-t>Posting times</span></label>
-            <input x-model="autoForm.post_times_text" placeholder="11:30, 19:30" style="max-width:260px">
-            <p class="hint"><span x-t>Daily times on this computer's clock. Postiz schedules each approved video for the next free one; other accounts post right away. 11:30 and 19:30 suit Vietnamese audiences.</span></p></div>
         </div>
         <div class="divider"></div>
         <div class="actions" style="justify-content:space-between">
@@ -1870,43 +1736,12 @@
           </div>
         </div>
         <div class="ccol">
-          <h3 class="chead"><span x-t>Publish videos</span></h3>
-          <p class="small muted" style="margin:-4px 0 10px"><span x-t>Optional. Without any connection, each video's Publish tab gives you the file and a ready caption to post yourself.</span></p>
-          <div class="clist">
-            <template x-for="pl in (cfg.platforms||[]).filter(p => p.connect)" :key="pl.key">
-              <button type="button" class="crow" @click="openConn('pl:' + pl.key)">
-                <span class="ctile" x-text="pl.label[0]"></span>
-                <span class="grow"><span class="t" x-text="t(pl.label)"></span><span class="d" x-text="accountsFor(pl.key).length ? accountsFor(pl.key).map(a => a.name).join(', ') : t('One click — no developer app')"></span></span>
-                <span class="dot" :class="{ok: accountsFor(pl.key).length}"></span><svg class="i chev"><use href="#i-right"/></svg>
-              </button>
-            </template>
-            <button type="button" class="crow" @click="openConn('postiz')">
-              <span class="ctile"><svg class="i"><use href="#i-send"/></svg></span>
-              <span class="grow"><span class="t">Postiz <span class="chip ok" style="margin-left:4px" x-show="!status.postiz?.ok"><span x-t>Easiest</span></span></span><span class="d" x-text="status.postiz?.ok ? status.postiz.detail : t('TikTok, YouTube, Instagram, Facebook, LinkedIn, X… — no developer app')"></span></span>
-              <span class="dot" :class="{ok: status.postiz?.ok}"></span><svg class="i chev"><use href="#i-right"/></svg>
-            </button>
-          </div>
-          <h3 class="chead"><span x-t>Advanced: your own developer app</span></h3>
-          <div class="clist">
-            <template x-for="pl in (cfg.platforms||[]).filter(p => !p.connect)" :key="pl.key">
-              <button type="button" class="crow" @click="openConn('pl:' + pl.key)">
-                <span class="ctile" x-text="pl.label[0]"></span>
-                <span class="grow"><span class="t" x-text="t(pl.label)"></span><span class="d" x-text="accountsFor(pl.key).length ? accountsFor(pl.key).map(a => a.name).join(', ') : (pl.configured ? t('Ready to connect') : t('Needs a developer app (one-time setup)'))"></span></span>
-                <span class="dot" :class="{ok: accountsFor(pl.key).length, warn: pl.configured && !accountsFor(pl.key).length}"></span><svg class="i chev"><use href="#i-right"/></svg>
-              </button>
-            </template>
-          </div>
           <h3 class="chead"><span x-t>Other</span></h3>
           <div class="clist">
             <button type="button" class="crow" @click="openConn('github')">
               <span class="ctile"><svg class="i"><use href="#i-github"/></svg></span>
               <span class="grow"><span class="t">GitHub</span><span class="d" x-text="github.connected ? github.login + ' · ' + t('private repositories too') : t('Public repositories work without connecting')"></span></span>
               <span class="dot" :class="{ok: github.connected}"></span><svg class="i chev"><use href="#i-right"/></svg>
-            </button>
-            <button type="button" class="crow" @click="openConn('url')">
-              <span class="ctile"><svg class="i"><use href="#i-link"/></svg></span>
-              <span class="grow"><span class="t"><span x-t>Public URL</span></span><span class="d" x-text="cfg.public_url || t('This page\'s address · set one for TikTok (HTTPS)')"></span></span>
-              <span class="dot" :class="{ok: !!cfg.public_url}"></span><svg class="i chev"><use href="#i-right"/></svg>
             </button>
           </div>
         </div>
@@ -2286,52 +2121,6 @@
               </div>
             </template>
       </div>
-      <template x-for="pl in (cfg.platforms||[]).filter(p => conn==='pl:' + p.key)" :key="pl.key">
-        <div>
-              <template x-for="a in accountsFor(pl.key)" :key="a.id">
-                <div class="acct-row">
-                  <span class="avatar"><img x-show="a.avatar" :src="a.avatar" alt=""><span x-show="!a.avatar" x-text="initial(a.name)"></span></span>
-                  <div class="grow" x-text="a.name"></div>
-                  <button class="btn ghost sm danger" @click="askDisconnect(a)"><span x-t>Disconnect</span></button>
-                </div>
-              </template>
-              <p class="small muted" style="margin-top:10px" x-show="pl.connect" x-text="t('Sign in to {name} and approve AutoClip — that\'s all. AutoClip Connect completes the sign-in and keeps nothing; your videos upload from this computer.', {name: pl.label})"></p>
-              <div class="actions" style="margin-top:10px" x-show="pl.configured || pl.connect">
-                <a class="btn" :class="!accountsFor(pl.key).length && 'primary'" :href="`/oauth/${pl.key}/start`"
-                   x-text="accountsFor(pl.key).length ? t('Connect another') : t('Connect {name}', {name: pl.label})"></a>
-              </div>
-              <details :open="!pl.connect" style="margin-top:20px"><summary class="chead" style="cursor:pointer" x-text="pl.connect ? t('Use my own developer app instead') : t('Developer app')"></summary>
-                <div class="stack" style="margin-top:10px">
-                  <p class="small muted" x-text="t(pl.notes)"></p>
-                  <div class="field"><label><span x-t>Redirect URI to register</span></label>
-                    <div class="copy"><code x-text="pl.redirect_uri"></code><button class="btn sm" :title="t('Copy')" @click="copy(pl.redirect_uri)"><svg class="i"><use href="#i-copy"/></svg></button></div></div>
-                  <template x-for="f in pl.fields"><div class="field"><label x-text="t(f.label)"></label><input x-model="cfg.apps[pl.key][f.key]" autocomplete="off"></div></template>
-                  <div class="actions"><button class="btn" @click="saveSection('apps')"><span x-t>Save</span></button><a class="btn ghost sm" :href="pl.docs" target="_blank" rel="noopener"><span x-t>Docs</span> <svg class="i"><use href="#i-ext"/></svg></a></div>
-                </div></details>
-        </div>
-      </template>
-      <div x-show="conn==='postiz'">
-              <div class="stack" style="margin-top:10px">
-                <p class="small muted"><span x-t>Postiz posts to TikTok, YouTube, Instagram, Facebook, LinkedIn, X, Threads and more with its own approved apps, so you only sign in to your accounts there.</span></p>
-                <ol class="small" style="margin:0;padding-left:18px;color:var(--text-2)">
-                  <li><span x-t>Create an account on</span> <a href="https://postiz.com" target="_blank" rel="noopener">postiz.com</a> <span x-t>and add your channels (TikTok, YouTube…).</span></li>
-                  <li><span x-t>In Postiz, open Settings and copy the Public API key.</span></li>
-                  <li><span x-t>Paste it below and save. Your channels then appear wherever you publish.</span></li>
-                </ol>
-                <div class="field"><label><span x-t>API key</span></label><input x-model="cfg.postiz.api_key" autocomplete="off"></div>
-                <details class="small"><summary class="muted" style="cursor:pointer"><span x-t>Self-hosted Postiz</span></summary>
-                  <div class="field" style="margin-top:8px"><label><span x-t>API URL</span></label><input x-model="cfg.postiz.url" placeholder="https://api.postiz.com"></div>
-                  <p class="hint"><span x-t>Leave empty for Postiz Cloud. A self-hosted Postiz needs its own developer apps for each network.</span></p></details>
-                <div class="actions"><button class="btn" @click="saveSection('postiz')"><span x-t>Save</span></button><span class="small muted" x-text="status.postiz?.detail"></span></div>
-                <template x-for="c in channels.filter(c=>c.via==='postiz')"><div class="acct-row"><span class="avatar" x-text="initial(c.name)"></span><div class="grow" x-text="`${c.name} · ${c.provider}`"></div></div></template>
-              </div>
-      </div>
-      <div x-show="conn==='url'">
-              <div class="stack" style="margin-top:10px">
-                <p class="small muted"><span x-t>Leave empty to use this page's address. TikTok needs HTTPS: run</span> <code>cloudflared tunnel --url http://localhost:8000</code> <span x-t>and paste the tunnel URL.</span></p>
-                <div class="actions" style="flex-wrap:nowrap"><input x-model="cfg.public_url" placeholder="https://my-tunnel.trycloudflare.com"><button class="btn" @click="saveSection('public_url')"><span x-t>Save</span></button></div>
-              </div>
-      </div>
     </div>
   </div>
 
@@ -2531,8 +2320,7 @@ function tr(key, vars) {
   return s;
 }
 
-const PLATFORM_LABELS = { youtube:'YouTube', tiktok:'TikTok', facebook:'Facebook' };
-const EDITOR_TABS = ['scenes', 'style', 'edit', 'review', 'publish'];
+const EDITOR_TABS = ['scenes', 'style', 'edit', 'review', 'export'];
 const ED_PAD = 44;  // timeline: left gutter for the track icons
 const ED_EMPTY = { pid:null, data:null, err:'', edit:{ clips:[], texts:[], music:null, audio:{ original:1 } }, t:0, ci:0, playing:false, zoom:40,
                    sel:null, undo:[], redo:[], drag:null, strip:null, stageH:0, saving:false, savedAt:0, exporting:false };
@@ -2546,11 +2334,11 @@ const VOICE_SAMPLES = {
   Italian: 'Ciao! Ecco come suonerà il tuo prossimo video.',
   Indonesian: 'Halo! Beginilah suara video Anda berikutnya.',
 };
-const COMPOSER_KEYS = ['language', 'format', 'duration', 'style', 'style_id', 'playbook_id', 'music', 'sfx', 'voice', 'voice_rate', 'engine', 'model', 'effort', 'channelIds', 'auto_publish', 'brand_id'];
+const COMPOSER_KEYS = ['language', 'format', 'duration', 'style', 'style_id', 'playbook_id', 'music', 'sfx', 'voice', 'voice_rate', 'engine', 'model', 'effort', 'brand_id'];
 
 function parseRoute(pathname) {
   const p = pathname.split('/').filter(Boolean);
-  if (p[0] === 'projects' && p[1]) return { page:'project', id:p[1], sub: EDITOR_TABS.includes(p[2]) ? p[2] : 'scenes' };
+  if (p[0] === 'projects' && p[1]) { const sub = p[2] === 'publish' ? 'export' : p[2]; return { page:'project', id:p[1], sub: EDITOR_TABS.includes(sub) ? sub : 'scenes' }; }
   if (p[0] === 'brands' && p[1]) return { page:'brand', id:p[1], sub:null };
   if (p[0] === 'w' && p[1]) return { page:'studio', id:p[1], sub:null };
   if (['ideas','autopilot','connections','brands','usage'].includes(p[0])) return { page:p[0], id:null, sub:null };
@@ -2561,24 +2349,15 @@ function app() {
   return {
     ready: false, route: { page:'studio', id:null, sub:null }, lang: 'en', theme: 'system',
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
-    status: {}, cl: {}, cfg: { claude:{}, footage:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
-    channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] }, reviewing: '',
-    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'', github_repo:'', style_id:'', playbook_id:'', hook:'', music:'', sfx:true },
+    status: {}, cl: {}, cfg: { claude:{}, footage:{} },
+    projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'' },
+    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', brand_id:null, context:[], engine:'motion', model:'', effort:'', github_repo:'', style_id:'', playbook_id:'', hook:'', music:'', sfx:true },
     models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, plan: {}, planLoading: false, showTable: false, hoverDay: null,
     projUsage: {}, editModel: '', editEffort: '',
     mp: { open:false, key:'form', sub:false, pos:{}, up:false, left:false, narrow:false },
     ghPick: { open:false, q:'', pos:{}, loading:false, current:'' },
     conn: '',
     hooks: { list:[], loading:false, ab:false, topic:'' }, post: { title:'', description:'', hashtags:'', youtube_tags:'' }, postBusy: false, coverText: '', coverBusy: false, sharing: false,
-    tt: { info:{}, err:{}, caption:'', privacy:'', comment:false, duet:false, stitch:false, disclose:false, yourBrand:false, branded:false },
-    TT_PRIVACY: { PUBLIC_TO_EVERYONE:'Everyone', MUTUAL_FOLLOW_FRIENDS:'Friends', FOLLOWER_OF_CREATOR:'Followers', SELF_ONLY:'Only me' },
-    // Posting by hand: each app's own upload page (no developer app, no connection).
-    MANUAL_PLATFORMS: [
-      { key:'tiktok', label:'TikTok', note:'Upload on tiktok.com or send it to the TikTok app', url:'https://www.tiktok.com/tiktokstudio/upload' },
-      { key:'youtube', label:'YouTube Shorts', note:'YouTube Studio: paste the title and description', url:'https://www.youtube.com/upload' },
-      { key:'instagram', label:'Instagram Reels', note:'Create → Reel on instagram.com or in the app', url:'https://www.instagram.com/' },
-      { key:'facebook', label:'Facebook Reels', note:'Create a reel on your profile or Page', url:'https://www.facebook.com/reels/create' },
-    ],
     musicList: [], sfxList: [], playing: '', musicUp: { mood:'', busy:false }, musicGen: { prompt:'', seconds:60, busy:false },
     styleList: [], styleOpen: false, styleQ: '', styleSrc: '', pbList: [], pbOpen: false,
     rv: { time:0, dur:0, playing:false, sel:null, pin:null, mode:'time', text:'', comments:[], film:null, sending:false, dragging:null },
@@ -2591,8 +2370,7 @@ function app() {
     creating: false, thinking: false, ideaForm: { niche:'', language:'English' },
     switching: false, claudeCode: '', apiKey: '', keyEdit: false, savingKey: false, footageEdit: false, footageKey: '', footageProvider: 'pixabay', savingFootage: false,
     cur: null, curMissing: false, tl: { captions:{}, scenes:[] }, baseTl: '', edTitle: '', baseTitle: '', preview: null, instruction: '',
-    pubIds: [], pubOpts: { youtube_visibility:'public', tiktok_method:'UPLOAD', schedule:'' },
-    editorTabs: [{key:'scenes',label:'Scenes'},{key:'style',label:'Style'},{key:'edit',label:'Edit'},{key:'review',label:'AI & review'},{key:'publish',label:'Publish'}],
+    editorTabs: [{key:'scenes',label:'Scenes'},{key:'style',label:'Style'},{key:'edit',label:'Edit'},{key:'review',label:'AI & review'},{key:'export',label:'Export'}],
     ed: JSON.parse(JSON.stringify(ED_EMPTY)),
     LOOK_NAMES: { none:'Original', vivid:'Vivid', warm:'Warm', fade:'Faded', film:'Film', mono:'Mono', noir:'Noir' },
     presets: [
@@ -2643,9 +2421,7 @@ function app() {
     confirm(title, body, confirm, action, extra = {}) { this.dialog = { open:true, title: this.t(title), body: this.t(body), confirm: this.t(confirm), action, ...extra }; },
     toggle(arr, id) { const i = arr.indexOf(id); i < 0 ? arr.push(id) : arr.splice(i, 1); },
     initial(s) { return (s || '?').trim().charAt(0).toUpperCase(); },
-    platformLabel(c) { if (!c || !c.provider) return ''; return c.via === 'postiz' ? this.t('{name} via Postiz', {name: c.provider}) : (PLATFORM_LABELS[c.provider] || c.provider); },
-    nativeAccounts() { return this.channels.filter(c => c.via === 'native'); },
-    accountsFor(key) { return this.channels.filter(c => c.via === 'native' && c.provider === key); },
+
     missingSetup() { return this.status.claude && !this.status.claude.ok ? [this.t('connect Claude')] : []; },
     sourceText(s) { return this.t({ app:'Signed in here', system:"This computer's Claude Code login", api_key:'Anthropic API key' }[s] || ''); },
     voiceLabel(v) { if (v.provider === 'elevenlabs') return [v.label, v.gender, v.accent].filter(Boolean).join(' · '); const n = v.name.split('-').slice(2).join('-').replace(/Neural$/, '').replace(/Multilingual$/, ' (multilingual)'); return `${n} · ${v.gender || ''} · ${v.locale}`; },
@@ -2682,25 +2458,7 @@ function app() {
     brandSummary(b) { const t = (k, v) => this.t(k, v); const parts = []; if (b.logo) parts.push(t('logo')); if (b.font) parts.push(b.font.family); if (b.intro) parts.push(t('intro')); if (b.outro) parts.push(t('outro')); if (b.music.length) parts.push(t(b.music.length > 1 ? '{n} tracks' : '{n} track', {n: b.music.length})); if (b.clips.length) parts.push(t(b.clips.length > 1 ? '{n} clips' : '{n} clip', {n: b.clips.length})); return parts.join(' · ') || t('No assets yet'); },
     brandFontFamily(b) { return b?.font ? `'bf-${b.id}', sans-serif` : 'inherit'; },
     brandFontCss() { return [...this.brandList, ...(this.brand ? [this.brand] : [])].filter(b => b.font).map(b => `@font-face{font-family:'bf-${b.id}';src:url('${this.brandUrl(b, b.font.file)}')}`).join(''); },
-    // TikTok direct posting (TikTok's content sharing guidelines): accounts, their allowed choices, readiness.
-    ttAccounts() { return this.channels.filter(c => this.pubIds.includes(c.id) && c.provider === 'tiktok' && c.via !== 'postiz'); },
-    ttDirect() { return this.pubOpts.tiktok_method === 'DIRECT_POST' && this.ttAccounts().length > 0; },
-    async ttLoad() {
-      for (const a of this.ttAccounts()) {
-        if (this.tt.info[a.id]) continue;
-        try { this.tt.info = { ...this.tt.info, [a.id]: await this.api(`/api/accounts/${a.id}/tiktok-creator`) }; this.tt.err = { ...this.tt.err, [a.id]: '' }; }
-        catch (e) { this.tt.err = { ...this.tt.err, [a.id]: e.message }; }
-      }
-      if (!this.tt.caption) this.tt.caption = this.captionFor('tiktok');
-    },
-    ttInfos() { return this.ttAccounts().map(a => this.tt.info[a.id]).filter(Boolean); },
-    ttPrivacyOptions() { const all = this.ttInfos().map(i => i.privacy_level_options || []); return all.length ? all.reduce((a, b) => a.filter(x => b.includes(x))) : []; },
-    ttDisabled(k) { return this.ttInfos().some(i => i[k + '_disabled']); },
-    ttMaxDuration() { const m = this.ttInfos().map(i => i.max_video_post_duration_sec).filter(Boolean); return m.length ? Math.min(...m) : 0; },
-    ttTooLong() { const d = this.cur?.timeline?.scenes?.at(-1)?.end; return !!(this.ttMaxDuration() && d && d > this.ttMaxDuration()); },
-    ttReady() { return !!this.tt.privacy && this.ttInfos().length === this.ttAccounts().length && (!this.tt.disclose || this.tt.yourBrand || this.tt.branded) && !this.ttTooLong(); },
-    selectedProviders() { return this.channels.filter(c => this.pubIds.includes(c.id)).map(c => c.provider); },
-    pick(ids) { return this.channels.filter(c => ids.includes(c.id)).map(({id,provider,name,via}) => ({id,provider,name,via})); },
+
     fmt(t) { t = +t || 0; return `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`; },
     duration(p) { const s = p.timeline?.scenes || []; return s.length && s[s.length-1].end != null ? this.fmt(s[s.length-1].end) : '—'; },
     positionLabel(v) { v = +v; return this.t(v < 0.35 ? 'top' : v > 0.65 ? 'bottom' : 'middle'); },
@@ -2728,13 +2486,10 @@ function app() {
       const ta = Object.assign(document.createElement('textarea'), { value: t, style: 'position:fixed;opacity:0' });  // plain http (e.g. a LAN address)
       document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done();
     },
-    // The post text for one app: YouTube gets the description (the title is copied on its own); the others a caption.
-    captionFor(pf) {
+    // The caption to paste when posting: the description (or the title) and the hashtags.
+    captionText() {
       const tags = (this.post.hashtags || '').split(/[\s,]+/).filter(Boolean).map(h => h.startsWith('#') ? h : '#' + h);
-      if (pf === 'youtube' && this.cur?.timeline?.format !== 'youtube' && !tags.some(h => h.toLowerCase() === '#shorts')) tags.push('#shorts');
-      const title = this.post.title.trim(), desc = this.post.description.trim();
-      const body = pf === 'youtube' ? desc : (desc || title);
-      return [body, tags.join(' ')].filter(Boolean).join('\n\n');
+      return [this.post.description.trim() || this.post.title.trim(), tags.join(' ')].filter(Boolean).join('\n\n');
     },
     // Layers are made from the latest version that wasn't flattened by the timeline editor.
     layersReady() { const l = this.cur?.extra?.layers, vs = (this.cur?.extra?.versions || []).filter(v => !v.edited); return !!(l && vs.length && l.version === vs[vs.length - 1].version); },
@@ -2753,7 +2508,7 @@ function app() {
           this._share = { id: this.cur.id + ':' + this.cur.version, file: new File([blob], name, { type: 'video/mp4' }) };
         } finally { this.sharing = false; }
       }
-      try { await navigator.share({ files: [this._share.file], text: this.captionFor('tiktok') }); }
+      try { await navigator.share({ files: [this._share.file], text: this.captionText() }); }
       catch (e) { if (e.name === 'NotAllowedError') this.say(this.t('Ready — tap “Share to an app…” again')); else if (e.name !== 'AbortError') this.say(e.message, true); }
     },
 
@@ -2784,7 +2539,7 @@ function app() {
       if (r.page === 'project' && (prev.page !== 'project' || prev.id !== r.id || !this.cur)) await this.openProject(r.id);
       if (r.page === 'project' && r.sub === 'review' && this.cur) this.enterReview();
       if (r.page === 'project' && r.sub === 'edit' && this.cur) this.edOpen(); else this.edPause();
-      if (r.page === 'project' && r.sub === 'publish' && this.cur) this.syncPost();
+      if (r.page === 'project' && r.sub === 'export' && this.cur) this.syncPost();
       this.conn = '';
       if (r.page === 'connections') this.loadConnections();
       if (r.page === 'autopilot') this.loadAutopilot();
@@ -2822,17 +2577,14 @@ function app() {
       });
       window.addEventListener('beforeunload', e => { if (this.dirty || this.brandDirty) { e.preventDefault(); e.returnValue = ''; } });
       await this.loadComposer();
-      await Promise.all([this.refreshStatus(), this.loadChannels(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers(), this.loadGithub(), this.loadStyles(), this.loadPlaybooks(), this.loadMusic(),
+      await Promise.all([this.refreshStatus(), this.loadProjects(), this.loadAutopilot(), this.loadVoices(this.form.language), this.loadBrands(), this.loadMotion(), this.loadModels(), this.loadUsage(), this.loadWorkspaces(), this.loadLeftovers(), this.loadGithub(), this.loadStyles(), this.loadPlaybooks(), this.loadMusic(),
         this.api('/api/settings').then(s => { if (s) this.cfg = s; }).catch(() => {})]);
       // Plan limits move while videos render: keep the Usage page current.
       setInterval(() => { if (this.route.page === 'usage' && !document.hidden && !this.planLoading) this.loadPlan(); }, 60000);
       if (['node','ffmpeg'].includes(this.motionInfo.code)) this.form.engine = 'classic';
       if (this.form.brand_id && !this.brandById(this.form.brand_id)) this.form.brand_id = null;
-      this.form.channelIds = this.form.channelIds.filter(id => this.channels.some(c => c.id === id));
       // Remember the composer's choices for the next video (saved shortly after each change).
       this.$watch('form', () => { clearTimeout(this._composerT); this._composerT = setTimeout(() => this.saveComposer(), 500); });
-      // TikTok direct post: load who's posting and what they may choose as soon as it's picked.
-      this.$watch('pubIds', () => this.ttDirect() && this.ttLoad()); this.$watch('pubOpts.tiktok_method', () => this.ttDirect() && this.ttLoad());
       this.ready = true;
       await this.onRoute();
       setInterval(() => { this.loadProjects(); this.loadLive(); }, 2500);
@@ -2871,11 +2623,11 @@ function app() {
       this.hooks.loading = false;
       if (r) { this.hooks.list = r; this.hooks.topic = this.form.topic; if (!r.some(h => h.text === this.form.hook)) this.form.hook = ''; }
     },
-    // ---- publish: post copy & covers
+    // ---- export: caption & hashtags, covers
     syncPost() { const s = this.cur?.script || {}; this.post = { title: s.title || '', description: s.description || '', hashtags: (s.hashtags || []).map(h => '#' + h).join(' '), youtube_tags: (s.youtube_tags || []).join(', ') }; this.coverText = this.cur?.extra?.covers?.text || s.thumbnail_text || ''; },
     async writePost() {
       this.postBusy = true;
-      const s = await this.run(() => this.api(`/api/projects/${this.cur.id}/post-copy`, { method:'POST' }), 'Written by Claude — review it before publishing');
+      const s = await this.run(() => this.api(`/api/projects/${this.cur.id}/post-copy`, { method:'POST' }), 'Written by Claude — review it before you post');
       this.postBusy = false;
       if (s) { this.cur = { ...this.cur, script: s }; this.syncPost(); }
     },
@@ -2933,10 +2685,6 @@ function app() {
     openConn(key) { if (key === 'audio') { this.loadMusic(); this.loadSfx(); } this.conn = key; this.switching = false; this.keyEdit = false; if (key === 'claude' && this.cl.state === 'connected') this.loadPlan(); },
     connInfo() {
       const k = this.conn;
-      if (k.startsWith('pl:')) {
-        const pl = (this.cfg.platforms || []).find(p => 'pl:' + p.key === k);
-        return { title: pl ? this.t(pl.label) : '', desc: this.t('Publish your videos straight from AutoClip.') };
-      }
       const info = {
         claude: ['Claude', 'Writes scripts, ideas and edits through the Claude Agent SDK.'],
         motion: ['Claude Motion', 'Claude animates each video as code with HyperFrames (open source). Runs on this computer.'],
@@ -2944,8 +2692,6 @@ function app() {
         audio: ['Music & sound effects', 'Background music and sound effects for your videos.'],
         footage: ['Stock footage', 'Real video clips behind each scene. Without a key, scenes use animated backgrounds in your brand colors.'],
         github: ['GitHub', 'Pick repositories when creating videos and import brand kits from them. Public repositories work without connecting.'],
-        postiz: ['Postiz', 'Post automatically everywhere, without a developer app.'],
-        url: ['Public URL', 'Where YouTube, TikTok and Facebook send you back after you sign in.'],
       }[k] || ['', ''];
       return { title: this.t(info[0]), desc: this.t(info[1]) };
     },
@@ -2972,7 +2718,6 @@ function app() {
       await this.api('/api/composer', { method:'PUT', body: JSON.parse(json) }).catch(() => {});
     },
     async refreshStatus() { this.status = await this.api('/api/status').catch(() => this.status); },
-    async loadChannels() { this.channels = await this.api('/api/channels').catch(() => []); },
     async loadVoices(lang) {
       if (!this.voices[lang]) { const v = await this.api(`/api/voices?language=${encodeURIComponent(lang)}`).catch(() => []); this.voices = { ...this.voices, [lang]: v }; }
       // A remembered voice from the other provider (or language) isn't offered: fall back to the default.
@@ -2997,16 +2742,14 @@ function app() {
         this.loadProjectUsage();
         if (fresh.error) this.say(fresh.error, true);
         else if (fresh.status === 'ready') this.say(this.t('Version {v} is ready', {v: fresh.version}));
-        else if (fresh.status === 'published') this.say('Published');
       }
     },
 
     // ------------------------------------------------ studio
     async create() {
       this.creating = true;
-      const { channelIds, ...f } = this.form;
-      const { context, ...rest } = f;
-      const body = { ...rest, topic: rest.topic.trim() || `A short video introducing the GitHub project ${rest.github_repo}`, github_repo: rest.github_repo || null, workspace_id: this.ws()?.id || null, model: rest.model || null, effort: rest.effort || null, context_ids: context.map(c => c.id), auto_publish: f.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) };
+      const { context, ...rest } = this.form;
+      const body = { ...rest, topic: rest.topic.trim() || `A short video introducing the GitHub project ${rest.github_repo}`, github_repo: rest.github_repo || null, workspace_id: this.ws()?.id || null, model: rest.model || null, effort: rest.effort || null, context_ids: context.map(c => c.id) };
       const p = await this.run(() => this.api('/api/projects', { method:'POST', body }));
       this.creating = false;
       if (p && this.hooks.ab && this.form.hook) {  // B version: same settings, the next hook
@@ -3045,7 +2788,7 @@ function app() {
         if (open) { this.loadTimeline(); this.cur = null; }
         await this.loadProjects();
         if (open) this.nav(p.workspace_id ? `/w/${p.workspace_id}` : '/');
-      }, { danger: true, items, note: this.t('Posts already published stay on YouTube, TikTok and Facebook, and Usage keeps the Claude usage this video consumed.') });
+      }, { danger: true, items, note: this.t('Usage keeps the Claude usage this video consumed.') });
     },
 
     // ------------------------------------------------ editor
@@ -3057,7 +2800,6 @@ function app() {
       this.live = {}; this.loadLive();
       this.projUsage = {}; this.loadProjectUsage();
       this.loadTimeline();
-      this.pubIds = (p.request.integrations || []).map(i => i.id).filter(i => this.channels.some(c => c.id === i));
       this.loadVoices(p.request.language || 'English');
     },
     loadTimeline() {
@@ -3443,16 +3185,6 @@ function app() {
       try { const clip = await this.api(`/api/projects/${this.cur.id}/upload`, { method:'POST', body: fd }); Object.assign(this.picker.scene, { clip, clip_start:0 }); this.picker.open = false; }
       catch (e) { this.picker.error = e.message; } finally { this.picker.loading = false; }
     },
-    async publish() {
-      this.cur = { ...this.cur, status:'publishing' };
-      const tiktok = this.ttDirect() ? { caption: this.tt.caption, privacy_level: this.tt.privacy, allow_comment: this.tt.comment, allow_duet: this.tt.duet,
-                                         allow_stitch: this.tt.stitch, brand_organic: this.tt.disclose && this.tt.yourBrand, brand_content: this.tt.disclose && this.tt.branded } : null;
-      const p = await this.run(() => this.api(`/api/projects/${this.cur.id}/publish`, { method:'POST', body:{ integrations: this.pick(this.pubIds), publish_options: { ...this.pubOpts, tiktok } } }));
-      if (p) this.tt = { ...this.tt, privacy:'', disclose:false, yourBrand:false, branded:false };  // TikTok asks for these every time
-      await this.loadProjects();
-      if (p) this.say(p.error ? 'Some accounts failed — see the results' : 'Published', !!p.error);
-    },
-
     // ------------------------------------------------ ideas & autopilot
     async getIdeas() {
       if (!this.ideaForm.niche.trim() || this.thinking || !this.status.claude?.ok) return;
@@ -3465,24 +3197,13 @@ function app() {
     async loadAutopilot() {
       const a = await this.api('/api/autopilot').catch(() => null); if (!a) return;
       this.autopilot = a;
-      this.autoForm = { ...a, review: a.review !== false, post_times_text: (a.post_times || ['11:30', '19:30']).join(', '), channelIds: (a.integrations || []).map(i => i.id).filter(i => this.channels.some(c => c.id === i)) };
+      this.autoForm = { ...a };
     },
     async saveAuto(enabled) {
-      const { channelIds, last_run, next_run, last_error, next_slots, post_times_text, ...a } = this.autoForm;
+      const { last_run, next_run, last_error, ...a } = this.autoForm;
       a.brand_id = a.brand_id || null;
-      a.post_times = (post_times_text || '').split(/[\s,;]+/).filter(x => /^([01]?\d|2[0-3]):[0-5]\d$/.test(x));
       const msg = enabled ? (this.autopilot.enabled ? 'Saved' : 'Autopilot is on') : (this.autopilot.enabled ? 'Autopilot is off' : 'Saved');
-      if (await this.run(() => this.api('/api/autopilot', { method:'PUT', body:{ ...a, enabled, auto_publish: !!a.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }), msg)) this.loadAutopilot();
-    },
-
-    pickedViaPostiz() { return this.pubIds.some(id => this.channels.find(c => c.id === id)?.via === 'postiz'); },
-    // Autopilot videos waiting for approval (ready, not yet approved or dismissed).
-    reviewQueue() { return this.projects.filter(p => p.request?.source === 'autopilot' && p.extra?.review === 'pending' && p.status === 'ready'); },
-    async reviewAct(p, action) {
-      this.reviewing = p.id;
-      const ok = await this.run(() => this.api(`/api/projects/${p.id}/autopilot-review`, { method:'POST', body:{ action } }), action === 'approve' ? 'Approved' : 'Dismissed');
-      this.reviewing = '';
-      if (ok) { this.loadProjects(); this.loadAutopilot(); }
+      if (await this.run(() => this.api('/api/autopilot', { method:'PUT', body:{ ...a, enabled } }), msg)) this.loadAutopilot();
     },
 
     // ------------------------------------------------ brand kits
@@ -3747,7 +3468,7 @@ function app() {
       if (s) { this.cfg = s; if (!this.footageEdit) this.footageProvider = s.footage.provider; }
       if (c) this.cl = c;
       if (c?.state === 'connected' && c.current.source !== 'api_key') this.loadPlan();
-      await Promise.all([this.loadChannels(), this.refreshStatus(), this.loadGithub(), this.loadMotion()]);
+      await Promise.all([this.refreshStatus(), this.loadGithub(), this.loadMotion()]);
       this.loadElevenVoices();
     },
     async saveSection(section) { if (await this.run(() => this.api(`/api/settings/${section}`, { method:'PUT', body: this.cfg[section] }), 'Saved')) this.loadConnections(); },
@@ -3797,11 +3518,6 @@ function app() {
       this.confirm('Remove the footage key?', 'New scenes will use animated backgrounds (or your brand b-roll) instead of stock clips.', 'Remove', async () => {
         const p = this.cfg.footage.provider;
         if (await this.run(() => this.api('/api/settings/footage', { method:'PUT', body:{ ...this.cfg.footage, [`${p}_api_key`]: '' } }), 'Removed')) this.loadConnections();
-      });
-    },
-    askDisconnect(a) {
-      this.confirm(this.t('Disconnect {name}?', {name: a.name}), 'You can connect it again at any time.', 'Disconnect', async () => {
-        if (await this.run(() => this.api(`/api/accounts/${a.id}`, { method:'DELETE' }), 'Disconnected')) this.loadConnections();
       });
     },
   };

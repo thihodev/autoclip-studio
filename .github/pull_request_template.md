@@ -8,7 +8,7 @@
 
 ## How it was tested
 
-<!-- Commands you ran, what you tried in the browser (light/dark, English/Vietnamese), videos rendered or published.
+<!-- Commands you ran, what you tried in the browser (light/dark, English/Vietnamese), videos rendered or exported.
      Add screenshots or a short recording for UI changes. -->
 
 ## Checklist
