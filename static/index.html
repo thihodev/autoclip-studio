@@ -499,6 +499,7 @@
   .idea { display:flex; flex-direction:column; gap:6px; padding:12px 14px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface-2); }
   .idea p { margin:0; } .idea .actions { align-items:center; gap:6px; } .idea .grow { flex:1; }
   .idea.skel .sk, .planc .sk { display:block; height:12px; border-radius:6px; background:var(--surface); animation:skpulse 1.2s ease-in-out infinite; }
+  .planc .sk { background:var(--surface-2); }  /* the card itself is --surface */
   @keyframes skpulse { 50% { opacity:.45; } }
   .planc { width:min(640px, 100%); max-height:88vh; overflow:auto; } .planc .actions .grow { flex:1; }
   .planchip { margin-left:4px; }
@@ -2296,7 +2297,9 @@
   <div class="modal" x-show="plan.open" x-transition.opacity @click.self="plan.open=false" @keydown.escape.window="plan.open && (plan.open=false)">
     <div class="card planc">
       <div class="lbl"><span x-text="t(plan.source === 'idea' ? 'Idea for {name}' : 'The idea', {name: ws()?.name || ''})"></span></div>
-      <template x-if="plan.loading"><div class="stack" style="margin-top:12px"><span class="sk" style="width:65%;height:22px"></span><span class="sk"></span><span class="sk" style="width:80%"></span><span class="sk" style="width:50%"></span></div></template>
+      <template x-if="plan.loading"><div class="stack" style="margin-top:12px" x-data="{ s: 0 }" x-init="const i = setInterval(() => { s++; if (!plan.loading) clearInterval(i) }, 1000)">
+        <div class="small muted" style="display:flex;gap:8px;align-items:center" role="status"><span class="spin"></span><span x-t>Claude is writing the idea: title, opening line and scenes</span><span x-show="s >= 3" x-text="s + 's'"></span></div>
+        <span class="sk" style="width:65%;height:22px"></span><span class="sk"></span><span class="sk" style="width:80%"></span><span class="sk" style="width:50%"></span></div></template>
       <template x-if="!plan.loading && plan.data">
         <div class="stack" style="margin-top:8px">
           <textarea class="h1edit" rows="2" style="font-size:21px;line-height:1.3;resize:none" x-model="plan.data.title" maxlength="120" :aria-label="t('Title')"></textarea>
