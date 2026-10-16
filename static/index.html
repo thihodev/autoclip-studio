@@ -144,6 +144,7 @@
   .copy code { flex:1; padding:6px 8px; }
   details > summary { cursor:pointer; color:var(--text-2); font-weight:600; font-size:13px; list-style:none; display:flex; align-items:center; gap:6px; }
   details > summary::-webkit-details-marker { display:none; }
+  details.brief { margin-top:6px; max-width:760px; } details.brief p { margin:6px 0 0; font-size:13px; color:var(--text-2); white-space:pre-wrap; overflow-wrap:anywhere; max-height:240px; overflow:auto; }
   details > summary::before { content:"▸"; transition:transform .15s; } details[open] > summary::before { transform:rotate(90deg); }
 
   /* studio */
@@ -788,7 +789,7 @@
               <button type="button" class="pdel" :title="t('Delete video')" :aria-label="t('Delete video')" @click.prevent.stop="askDelete(p)"><svg class="i"><use href="#i-trash"/></svg></button>
             </div>
             <div class="pbody">
-              <div class="ptitle" x-text="p.script?.title || p.request.topic"></div>
+              <div class="ptitle" x-text="projTitle(p)"></div>
               <div class="bar run" x-show="isBusy(p)"><i :style="`width:${Math.max(4,p.progress)}%`"></i></div>
               <div class="perr" x-show="p.status==='failed' && p.error" x-text="p.error"></div>
               <div class="small muted" x-text="ago(p.created_at) + (p.version ? ` · v${p.version}` : '')"></div>
@@ -811,7 +812,8 @@
           <div class="page-head">
             <div style="min-width:0">
               <a class="btn ghost sm" href="/" @click.prevent="nav('/')" style="margin-left:-10px"><svg class="i"><use href="#i-back"/></svg><span x-t>Studio</span></a>
-              <h1 style="margin-top:6px" x-text="cur.script?.title || cur.request.topic"></h1>
+              <h1 style="margin-top:6px" x-text="projTitle(cur)"></h1>
+              <details class="brief" x-show="(cur.request.topic || '').trim() !== projTitle(cur)"><summary x-t>Brief</summary><p x-text="cur.request.topic"></p></details>
               <div class="actions" style="margin-top:8px">
                 <span class="chip" :class="statusTone(cur)" x-text="statusText(cur)"></span>
                 <span class="small muted" x-show="cur.version" x-text="t('Version {v} · {n} scenes · {d}', {v: cur.version, n: (cur.timeline?.scenes||[]).length, d: duration(cur)})"></span>
@@ -833,7 +835,7 @@
               </div>
               <div style="min-width:0">
                 <div class="livehead">
-                  <strong x-text="cur.stage ? t(cur.stage.replace(/\d+ of \d+/, '{k} of {n}').replace(/^Reading (.+)$/, 'Reading {site}'), {...stageVars(cur.stage), site: (cur.stage.match(/^Reading (.+)$/)||[])[1]}) : busyText(cur)"></strong>
+                  <strong x-text="cur.stage ? t(cur.stage.replace(/\d+ of \d+/, '{k} of {n}').replace(/^Reading (?!the brief$|your request$)(.+)$/, 'Reading {site}'), {...stageVars(cur.stage), site: (cur.stage.match(/^Reading (.+)$/)||[])[1]}) : busyText(cur)"></strong>
                   <span class="elapsed" x-show="live.started" :title="t('Time so far')"><svg class="i"><use href="#i-clock"/></svg><span x-text="elapsed(live.started)"></span></span>
                   <span class="chip warn" x-text="statusText(cur)"></span>
                 </div>
@@ -1755,7 +1757,7 @@
     <template x-for="p in dockJobs()" :key="p.id">
       <a class="job" x-show="dockOpen" :href="`/projects/${p.id}`" @click.prevent="nav(`/projects/${p.id}`)">
         <span class="th"><img x-show="projThumb(p)" :src="projThumb(p)" alt=""><svg class="i" x-show="!projThumb(p)"><use href="#i-film"/></svg></span>
-        <span style="min-width:0"><div class="ti" x-text="p.script?.title || p.request.topic"></div>
+        <span style="min-width:0"><div class="ti" x-text="projTitle(p)"></div>
           <div class="st" x-text="statusText(p) + (p.stage ? ' · ' + t(p.stage.replace(/\d+ of \d+/, '{k} of {n}'), stageVars(p.stage)) : '')"></div>
           <div class="bar run" style="margin-top:6px"><i :style="`width:${Math.max(4,p.progress)}%`"></i></div></span>
       </a>
@@ -2782,7 +2784,7 @@ function app() {
         'Every version and its downloads', 'The script, scenes, voice-over and footage cache',
         "Claude Motion files and Claude's session logs for this video", 'Context files attached only to this video',
       ].map(x => this.t(x));
-      this.confirm('Delete this video permanently?', this.t('“{title}” and everything made for it is removed from this computer. This cannot be undone.', {title: p.script?.title || p.request.topic}), 'Delete permanently', async () => {
+      this.confirm('Delete this video permanently?', this.t('“{title}” and everything made for it is removed from this computer. This cannot be undone.', {title: projTitle(p)}), 'Delete permanently', async () => {
         if (!await this.run(() => this.api(`/api/projects/${p.id}`, { method:'DELETE' }), 'Video deleted')) return;
         const open = this.cur?.id === p.id;
         if (open) { this.loadTimeline(); this.cur = null; }
@@ -3321,6 +3323,14 @@ function app() {
       this.confirm(this.t('Remove {what}?', {what: m.name}), 'New videos in this project will no longer use it.', 'Remove', async () => {
         if (await this.run(() => this.api(`/api/workspaces/${this.route.id}/context/${m.id}`, { method:'DELETE' }))) this.loadWorkspaces();
       });
+    },
+    // The script's title, or a short name taken from the brief until Claude has written one
+    projTitle(p) {
+      if (p.script?.title) return p.script.title;
+      const s = (p.request?.topic || '').trim(), q = s.slice(0, 200).match(/["“«]([^"”»\n]{4,100})["”»]/);
+      if (q) return q[1].trim();
+      const first = s.split(/\n|(?<=[.!?])\s/)[0].trim();
+      return first.length > 90 ? first.slice(0, 90).replace(/\s+\S*$/, '') + '…' : first;
     },
     topicDomain() { const m = (this.form.topic || '').match(/(?<![@\w.-])(?:https?:\/\/)?((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:com\.vn|com|net|org|io|ai|app|co|dev|vn|edu|gov|xyz|me|tv|store|shop|tech|so|gg|studio|design|cloud|site|online|info|biz|us|uk|de|fr|jp|sg|id|in))\b/i); return m ? m[1].toLowerCase().replace(/^www\./, '') : ((this.ws()?.website || '').replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0] || null); },
     brandForDomain(d) { return this.brandList.find(b => b.site?.domain === d); },
