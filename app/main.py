@@ -549,6 +549,29 @@ class TemplatePatch(BaseModel):
 class EpisodesIn(BaseModel):
     episodes: list[str] = Field(min_length=1, max_length=templates.MAX_EPISODES)
     mode: str = Field("fill", pattern="^(fill|redraw)$")
+    workspace_id: str | None = None
+
+
+class EpisodeIdeasIn(BaseModel):
+    count: int = Field(5, ge=1, le=10)
+    hint: str = Field("", max_length=300)
+    workspace_id: str | None = None
+
+
+class PlanIn(BaseModel):
+    topic: str = Field(min_length=3, max_length=4000)
+    language: str = "English"
+    duration: int = Field(45, ge=10, le=600)
+    format: str = "shorts"
+    playbook_id: str | None = None
+    brand_id: str | None = None
+    workspace_id: str | None = None
+    context_ids: list[str] = []
+    avoid: list[str] = Field([], max_length=5)
+
+
+class MoveIn(BaseModel):
+    workspace_id: str | None = None
 
 
 def _template(tid: str) -> dict:
@@ -668,16 +691,176 @@ async def make_episodes(tid: str, body: EpisodesIn):
     briefs = [" ".join(b.split())[:500] for b in body.episodes if b.strip()]
     if not briefs:
         raise HTTPException(400, "Write what at least one episode is about")
+    if body.workspace_id and not db.get_workspace(body.workspace_id):
+        raise HTTPException(400, "That project no longer exists")
     made = []
     for brief in briefs:
         req = {"topic": brief, "engine": "motion", "template_id": tid, "template_mode": body.mode,
                "format": t["format"], "language": t["language"], "voice": t["voice"], "voice_rate": t["voice_rate"],
                "brand_id": t["brand_id"] if t["brand_id"] and brands.get(t["brand_id"]) else None,
                "music": t["music"], "sfx": t["sfx"], "duration": round(t["duration"])}
-        p = db.create_project(req, None)
+        p = db.create_project(req, body.workspace_id)
         pipeline.start(p["id"])
         made.append(p)
     return made
+
+
+@app.post("/api/templates/{tid}/ideas")
+async def episode_ideas(tid: str, body: EpisodeIdeasIn):
+    """Claude suggests the next episodes of a series, different from the ones already made."""
+    _require_setup()
+    t = _template(tid)
+    if t["status"] != "ready":
+        raise HTTPException(409, "The template is still being prepared")
+    done = [(p.get("script") or {}).get("title") or p["request"]["topic"] for p in db.template_projects(tid)]
+    ws = db.get_workspace(body.workspace_id) if body.workspace_id else None
+    try:
+        return {"ideas": await templates.suggest_episodes(t, [t["example"], *done], body.count, body.hint,
+                                                          (ws or {}).get("data", {}).get("notes", "") if ws else "")}
+    except Exception as e:
+        raise HTTPException(500, str(e)[:300])
+
+
+# ------------------------------------------------------------------ planning: the idea before the video
+
+class WsIdeasIn(BaseModel):
+    count: int = Field(3, ge=1, le=6)
+    hint: str = Field("", max_length=300)
+
+
+class IdeaIn(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    angle: str = Field("", max_length=400)
+    hook: str = Field("", max_length=200)
+    outline: list[str] = Field([], max_length=12)
+
+
+class MakeIdeaIn(IdeaIn):
+    mode: str = Field("redraw", pattern="^(fill|redraw)$")
+
+
+def _ws_or_404(wid: str) -> dict:
+    w = db.get_workspace(wid)
+    if not w:
+        raise HTTPException(404, "Project not found")
+    return w
+
+
+def _idea_brief(i: dict) -> str:
+    """An approved idea as the brief Claude works from."""
+    parts = [i["title"].strip()]
+    if i.get("angle", "").strip():
+        parts.append(i["angle"].strip())
+    if outline := [o.strip() for o in i.get("outline") or [] if o.strip()]:
+        parts.append("Scenes:\n" + "\n".join(f"{n}. {o}" for n, o in enumerate(outline, 1)))
+    return "\n\n".join(parts)
+
+
+@app.post("/api/workspaces/{wid}/ideas")
+async def workspace_ideas(wid: str, body: WsIdeasIn):
+    """Claude suggests the next videos of this project, knowing the videos and ideas it already has."""
+    _require_setup()
+    w = _ws_or_404(wid)
+    d = w["data"]
+    composer = db.get_setting("composer", {}) or {}
+    t = templates.get(d.get("template_id")) if d.get("template_id") else None
+    done = [(p.get("script") or {}).get("title") or p["request"]["topic"].split("\n")[0][:120]
+            for p in db.list_projects(limit=200, workspace_id=wid)]
+    done += [i["title"] for i in d.get("ideas") or [] if i.get("status") != "made"]
+    extra = []
+    if d.get("notes"):
+        extra.append(f"Project instructions: {d['notes'][:1500]}")
+    if t:
+        extra.append(f"Every video is an episode of the format \"{t['name']}\": {t.get('summary', '')}")
+    if (brand := brands.get(d.get("brand_id"))):
+        extra.append(brands.prompt_context(brand)[:1200])
+    if d.get("context"):
+        extra.append(context.prompt_block([m["id"] for m in d["context"]], "Source material for the series", budget=10_000))
+    language = (t or {}).get("language") or d.get("language") or composer.get("language") or "English"
+    duration = round((t or {}).get("duration") or composer.get("duration") or 45)
+    try:
+        found = await claude.series_ideas(w["name"], language, duration, d.get("format") or composer.get("format") or "shorts",
+                                          done, body.count, "\n".join(extra), body.hint)
+    except Exception as e:
+        raise HTTPException(500, str(e)[:300])
+    w = _ws_or_404(wid)  # re-read: Claude took a while
+    ideas = [{"id": uuid.uuid4().hex[:10], **i, "status": "new", "at": time.time()} for i in found]
+    db.save_workspace(wid, w["name"], {**w["data"], "ideas": ideas + list(w["data"].get("ideas") or [])}, w["created_at"])
+    return _workspace(wid)
+
+
+def _set_idea(wid: str, iid: str, **fields) -> dict:
+    w = _ws_or_404(wid)
+    ideas = list(w["data"].get("ideas") or [])
+    for i, idea in enumerate(ideas):
+        if idea["id"] == iid:
+            ideas[i] = {**idea, **fields}
+            db.save_workspace(wid, w["name"], {**w["data"], "ideas": ideas}, w["created_at"])
+            return ideas[i]
+    raise HTTPException(404, "That idea is no longer there")
+
+
+@app.put("/api/workspaces/{wid}/ideas/{iid}")
+def edit_idea(wid: str, iid: str, body: IdeaIn):
+    _set_idea(wid, iid, **body.model_dump())
+    return _workspace(wid)
+
+
+@app.delete("/api/workspaces/{wid}/ideas/{iid}")
+def dismiss_idea(wid: str, iid: str):
+    _set_idea(wid, iid, status="dismissed")
+    return _workspace(wid)
+
+
+@app.post("/api/workspaces/{wid}/ideas/{iid}/make")
+async def make_idea(wid: str, iid: str, body: MakeIdeaIn):
+    """Approve an idea: the video is made from it (an episode of the project's template, or a new video)."""
+    _require_setup()
+    w = _ws_or_404(wid)
+    idea = _set_idea(wid, iid, **body.model_dump(exclude={"mode"}))
+    if idea.get("project_id") and db.get_project(idea["project_id"]):
+        raise HTTPException(409, "A video is already being made from this idea")
+    t = templates.get(w["data"].get("template_id")) if w["data"].get("template_id") else None
+    brief = _idea_brief(idea)
+    if t:
+        made = await make_episodes(t["id"], EpisodesIn(episodes=[brief], mode=body.mode, workspace_id=wid))
+        p = made[0]
+    else:
+        composer = {k: v for k, v in (db.get_setting("composer", {}) or {}).items() if k in ProjectIn.model_fields}
+        p = await create_project(ProjectIn(**{**composer, "topic": brief, "hook": idea.get("hook") or None, "workspace_id": wid}))
+    _set_idea(wid, iid, status="made", project_id=p["id"])
+    return {"project": p, "workspace": _workspace(wid)}
+
+@app.post("/api/plan")
+async def plan(body: PlanIn):
+    """A concept to approve before making the video: title, angle, audience, opening line and scene outline."""
+    _require_setup()
+    extra = []
+    if (ws := db.get_workspace(body.workspace_id) if body.workspace_id else None):
+        if ws["data"].get("notes"):
+            extra.append(f"Project instructions: {ws['data']['notes'][:1500]}")
+    if (pb := playbooks.get(body.playbook_id)):
+        extra.append(f"Video type: {pb['name']} — {pb['tagline']}")
+    if (brand := brands.get(body.brand_id or ((ws or {}).get("data") or {}).get("brand_id"))):
+        extra.append(brands.prompt_context(brand)[:1500])
+    ids = [*body.context_ids, *[m["id"] for m in ((ws or {}).get("data") or {}).get("context") or []]]
+    if ids:
+        extra.append(context.prompt_block(ids, "Source material", budget=12_000))
+    try:
+        return await claude.plan_video(body.topic.strip(), body.language, body.duration, body.format, "\n".join(extra),
+                                       body.avoid)
+    except Exception as e:
+        raise HTTPException(500, str(e)[:300])
+
+
+@app.put("/api/projects/{pid}/workspace")
+def move_project(pid: str, body: MoveIn):
+    """Move a video into a project (or out of every project)."""
+    _project(pid)
+    if body.workspace_id and not db.get_workspace(body.workspace_id):
+        raise HTTPException(400, "That project no longer exists")
+    db.update_project(pid, workspace_id=body.workspace_id)
+    return db.get_project(pid)
 
 
 # ------------------------------------------------------------------ ideas & projects
@@ -713,7 +896,7 @@ def _require_setup():
 
 # The composer remembers its last choices (not the topic or files) for the next video.
 COMPOSER_KEYS = {"language", "format", "duration", "style", "style_id", "playbook_id", "music", "sfx", "voice", "voice_rate", "engine", "model", "effort",
-                 "brand_id"}
+                 "brand_id", "plan"}
 
 
 # ------------------------------------------------------------------ hooks, post copy, covers
@@ -1179,7 +1362,7 @@ def media(pid: str, name: str):
 
 # ------------------------------------------------------------------ projects (workspaces)
 
-WS_FIELDS = ("notes", "website", "brand_id", "language", "format")
+WS_FIELDS = ("notes", "website", "brand_id", "language", "format", "template_id")
 
 
 def _workspace(wid: str) -> dict:
@@ -1188,6 +1371,7 @@ def _workspace(wid: str) -> dict:
         raise HTTPException(404, "Project not found")
     return {"id": w["id"], "name": w["name"], "created_at": w["created_at"],
             **{k: w["data"].get(k, "") for k in WS_FIELDS}, "context": w["data"].get("context", []),
+            "ideas": [i for i in w["data"].get("ideas") or [] if i.get("status") != "dismissed"],
             "videos": len(db.list_projects(limit=100000, workspace_id=wid))}
 
 
@@ -1198,6 +1382,7 @@ class WorkspaceIn(BaseModel):
     brand_id: str | None = None
     language: str = ""
     format: str = ""
+    template_id: str | None = None  # the series this project makes: its composer makes episodes of it
 
 
 @app.get("/api/workspaces")
@@ -1224,6 +1409,8 @@ def update_workspace(wid: str, body: WorkspaceIn):
         raise HTTPException(404, "Project not found")
     if body.brand_id and not brands.get(body.brand_id):
         raise HTTPException(400, "That brand kit no longer exists")
+    if body.template_id and not templates.get(body.template_id):
+        raise HTTPException(400, "That template no longer exists")
     db.save_workspace(wid, body.name.strip(), {**w["data"], **body.model_dump(exclude={"name"})}, w["created_at"])
     return _workspace(wid)
 

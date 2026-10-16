@@ -375,7 +375,8 @@ async def make_episode(pid: str):
         db.update_project(pid, status="scripting", progress=5)
         STAGES[pid] = "Writing the episode"
         activity.add(pid, f"Claude is writing this episode of “{t['name']}”")
-        data = await templates.write_episode(t, req["topic"], pid)
+        ws = db.get_workspace(p["workspace_id"]) if p.get("workspace_id") else None
+        data = await templates.write_episode(t, req["topic"], pid, (ws or {}).get("data", {}).get("notes", "") if ws else "")
     title = str(data.get("title") or req["topic"])[:100]
     script = {**(p.get("script") or {}), "title": title,
               "script": " ".join(str(s.get("narration") or "") for s in data.get("scenes", []) if isinstance(s, dict))}

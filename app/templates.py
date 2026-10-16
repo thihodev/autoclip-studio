@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 import shutil
 import time
@@ -22,6 +23,8 @@ import uuid
 from pathlib import Path
 
 from . import claude, design, motion
+
+log = logging.getLogger("templates")
 from .config import DATA_DIR
 
 TEMPLATES_DIR = DATA_DIR / "templates"
@@ -262,21 +265,53 @@ def _check_episode(t: dict, data: dict) -> list[str]:
     return problems
 
 
-async def write_episode(t: dict, brief: str, project_id: str) -> dict:
-    """Claude writes the episode; one more try with the problems listed when it doesn't fit."""
+async def write_episode(t: dict, brief: str, project_id: str, notes: str = "") -> dict:
+    """Claude writes the episode; one more try with the problems listed when it doesn't fit. `notes`: the project's
+    instructions (audience, call to action, words to avoid)."""
     prompt = EPISODE_PROMPT.format(name=t["name"], summary=t.get("summary", ""), language=t["language"],
                                    example=t["example"], brief=brief.strip(),
                                    scenes="\n\n".join(_episode_block(s) for s in t["scenes"] if s["kind"] != "fixed"))
+    if notes.strip():
+        prompt = prompt.replace("\nWrite it scene by scene.", f"\nProject instructions: {notes.strip()[:1500]}\n\nWrite it scene by scene.", 1)
     data = await claude.ask_json(prompt, EPISODE_SYSTEM, kind="episode", project_id=project_id, effort="low")
     problems = _check_episode(t, data)
     if problems:
+        log.info("episode %s: first draft doesn't fit: %s", project_id, "; ".join(problems))
         retry = prompt + "\n\nYour last answer did not fit:\n- " + "\n- ".join(problems) + \
             "\nWrite it again so every scene fits."
-        data = await claude.ask_json(retry, EPISODE_SYSTEM, kind="episode", project_id=project_id, effort="low")
-        problems = _check_episode(t, data)
+        try:
+            again = await claude.ask_json(retry, EPISODE_SYSTEM, kind="episode", project_id=project_id, effort="low")
+        except RuntimeError:  # keep the first draft when it has every scene (lengths are fitted below)
+            log.warning("episode %s: the second draft failed", project_id, exc_info=True)
+            again = None
+        if again is not None and len(_check_episode(t, again)) <= len(problems):
+            data, problems = again, _check_episode(t, again)
     if any("missing" in p for p in problems):
         raise RuntimeError("Claude's episode didn't fill every scene: " + "; ".join(problems[:4]))
     return data
+
+
+IDEAS_PROMPT = """Format: "{name}" — {summary}
+Language: {language}. Its scenes: {scenes}
+Episodes already made: {done}
+{hint}
+Suggest {count} new episodes for this series: topics people in its audience search for and share, each different from
+the episodes already made, and each a good fit for the format's scenes. Write each as the short line someone would
+type to ask for the episode, in {language} (like "{example}").
+
+Reply with JSON: {{"ideas": ["..."]}}"""
+
+
+async def suggest_episodes(t: dict, done: list[str], count: int = 5, hint: str = "", notes: str = "") -> list[str]:
+    """Next episodes for a series, different from the ones already made (one small call)."""
+    scenes = "; ".join(f"{s['kind']}: {s['purpose']}" for s in t["scenes"])[:1500]
+    extra = "\n".join(x for x in [f"Wanted: {hint.strip()}" if hint.strip() else "",
+                                    f"Project instructions: {notes.strip()[:1500]}" if notes.strip() else ""] if x)
+    data = await claude.ask_json(IDEAS_PROMPT.format(name=t["name"], summary=t.get("summary", ""), language=t["language"],
+                                                     scenes=scenes, done="; ".join(done[:40]) or "none yet", hint=extra,
+                                                     count=count, example=t.get("example") or t.get("episode_prompt") or ""),
+                                 EPISODE_SYSTEM, kind="episode-ideas", effort="low")
+    return [" ".join(str(x).split())[:300] for x in data.get("ideas") or [] if str(x).strip()][:count]
 
 
 def _fit(text: str, slot: dict) -> str:

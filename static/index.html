@@ -493,6 +493,17 @@
   .filechip .x:hover { color:var(--err); background:var(--err-soft); }
 
   /* brand kits */
+  /* project idea board, plan dialog */
+  .iboard { margin-bottom:16px; } .iask { display:flex; gap:8px; } .iask input { flex:1; min-width:0; }
+  .ideas { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:10px; margin-top:12px; }
+  .idea { display:flex; flex-direction:column; gap:6px; padding:12px 14px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface-2); }
+  .idea p { margin:0; } .idea .actions { align-items:center; gap:6px; } .idea .grow { flex:1; }
+  .idea.skel .sk, .planc .sk { display:block; height:12px; border-radius:6px; background:var(--surface); animation:skpulse 1.2s ease-in-out infinite; }
+  @keyframes skpulse { 50% { opacity:.45; } }
+  .planc { width:min(640px, 100%); max-height:88vh; overflow:auto; } .planc .actions .grow { flex:1; }
+  .planchip { margin-left:4px; }
+  .eponly .csec { display:none; }
+  .pthumb .pmove { right:44px; color:var(--text-2); }
   /* templates */
   .tstrip { margin-bottom:16px; }
   .tstrip-head { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; flex-wrap:wrap; } .tstrip-head .t { font-weight:600; } .tstrip-head .grow { flex:1; }
@@ -522,7 +533,7 @@
   .tside { display:grid; gap:12px; padding:14px; } .tside video { width:100%; max-height:62vh; background:#000; border-radius:10px; object-fit:contain; }
   .tscene { display:flex; gap:10px; align-items:flex-start; }
   .tscene .n, .eprow .n { flex:none; width:24px; height:24px; border-radius:50%; background:var(--surface-2); color:var(--text-2); display:grid; place-items:center; font-size:12px; font-weight:600; }
-  .eprows { display:grid; gap:8px; } .eprow { display:flex; gap:8px; align-items:center; } .eprow input { flex:1; min-width:0; }
+  .eprows { display:grid; gap:8px; } .eprow { display:flex; gap:8px; align-items:center; } .eprow input, .eprow textarea { flex:1; min-width:0; }
   .eplist { display:grid; }
   .eprow2 { display:flex; gap:12px; align-items:center; padding:10px 4px; border-top:1px solid var(--border); text-decoration:none; color:inherit; }
   .eprow2:first-child { border-top:0; } .eprow2:hover .ti { color:var(--accent); }
@@ -594,6 +605,7 @@
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
   <symbol id="i-send" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></symbol>
   <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
   <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
   <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
   <symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></symbol>
@@ -660,6 +672,9 @@
                 <p class="hint"><span x-t>Without a brand kit, its design (colors, fonts, logo, product images) is read from this site automatically.</span></p></div>
               <div class="field"><label><span x-t>Brand kit</span></label>
                 <select x-select x-model="wsForm.brand_id"><option value="" x-t>From the website, or none</option><template x-for="b in brandList" :key="b.id"><option :value="b.id" x-text="b.name" :selected="b.id===wsForm.brand_id"></option></template></select></div>
+              <div class="field"><label><span x-t>Series template</span></label>
+                <select x-select x-model="wsForm.template_id"><option value="" x-t>None: every video gets its own design</option><template x-for="tm in readyTemplates()" :key="tm.id"><option :value="tm.id" x-text="tm.name" :selected="tm.id===wsForm.template_id"></option></template></select>
+                <p class="hint" x-text="t(readyTemplates().length ? 'New videos in this project become episodes of this template: same design, new topic, a few minutes each.' : 'Save a Claude Motion video as a template to make this project a series.')"></p></div>
               <div class="grid-2">
                 <div class="field"><label><span x-t>Language</span></label><select x-select x-model="wsForm.language"><option value="" x-t>Any</option><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===wsForm.language"></option></template></select></div>
                 <div class="field"><label><span x-t>Format</span></label><select x-select x-model="wsForm.format"><option value="" x-t>Any</option><option value="shorts" x-t>Vertical 9:16</option><option value="youtube" x-t>Landscape 16:9</option><option value="square" x-t>Square 1:1</option></select></div>
@@ -709,8 +724,40 @@
         <svg class="i" style="width:13px;height:13px;vertical-align:-2px"><use href="#i-grid"/></svg>
         <span x-t>Tip: open a Claude Motion video you like and choose “Save as template” to make a whole series in that design.</span></p>
 
+      <!-- The project's idea board: Claude suggests what the series covers next; an approved idea becomes the video -->
+      <div class="card iboard" x-show="ws()">
+        <div class="card-head"><div class="grow"><h2><span x-t>Next in this project</span></h2>
+          <p x-text="t('Ask Claude what this series should cover next, knowing the videos it already has. Review an idea, then approve it to make the video.')"></p></div></div>
+        <div class="iask">
+          <input x-model="ideaAsk.hint" maxlength="300" :placeholder="t('Optional: what you want next, e.g. the next rule: faults on the serve')" @keydown.enter="askIdeas()">
+          <button class="btn" @click="askIdeas()" :disabled="ideaAsk.busy || !status.claude?.ok"><span class="spin" x-show="ideaAsk.busy"></span><svg class="i" x-show="!ideaAsk.busy"><use href="#i-star"/></svg><span x-t>Ask Claude for ideas</span></button>
+        </div>
+        <div class="ideas" x-show="openIdeas().length || ideaAsk.busy">
+          <template x-if="ideaAsk.busy"><div class="idea skel"><span class="sk" style="width:70%"></span><span class="sk"></span><span class="sk" style="width:55%"></span></div></template>
+          <template x-for="i in openIdeas()" :key="i.id">
+            <div class="idea">
+              <strong x-text="i.title"></strong>
+              <p class="small muted" x-text="i.angle"></p>
+              <p class="small" x-show="i.hook">“<span x-text="i.hook"></span>”</p>
+              <div class="actions" style="margin-top:auto">
+                <button class="btn primary sm" @click="openPlan('idea', i)"><span x-t>Review &amp; make</span></button>
+                <span class="small muted grow" x-text="t('{n} scenes', {n: i.outline.length})"></span>
+                <button class="btn ghost icon sm" @click="dismissIdea(i)" :title="t('Dismiss')" :aria-label="t('Dismiss')"><svg class="i"><use href="#i-x"/></svg></button>
+              </div>
+            </div>
+          </template>
+        </div>
+        <p class="small muted" style="margin:10px 0 0" x-show="madeIdeas().length" x-text="t(madeIdeas().length === 1 ? '1 approved idea became a video.' : '{n} approved ideas became videos.', {n: madeIdeas().length})"></p>
+      </div>
+
+      <div class="notice info" style="margin-bottom:12px" x-show="wsTemplate()">
+        <svg class="i" style="margin-top:2px"><use href="#i-grid"/></svg>
+        <div style="flex:1"><span x-text="t('New videos in this project are episodes of “{name}”: same design, new topic.', {name: wsTemplate()?.name || ''})"></span>
+          <a href="#" @click.prevent="nav(`/templates/${wsTemplate().id}`)"> <span x-t>Open the template</span></a></div>
+      </div>
+
       <div class="card composer">
-        <fieldset :disabled="creating">
+        <fieldset :disabled="creating" :class="wsTemplate() && 'eponly'">
           <div class="cprompt">
             <textarea id="topic" x-model="form.topic" :aria-label="t('What is the video about?')" :placeholder="t('What is the video about? e.g. 5 surprising facts about the human brain — or “Turn the attached article into a 45-second explainer”')" @keydown.enter="($event.metaKey || $event.ctrlKey) && canCreate() && create()"></textarea>
             <div class="files" x-show="form.context.length || form.github_repo">
@@ -724,10 +771,11 @@
                 <input type="file" multiple :accept="contextAccept" @change="addFormContext($event)"></label>
               <button type="button" class="btn ghost sm" @click="suggestHooks()" :disabled="hooks.loading || form.topic.trim().length < 3 || !status.claude?.ok" :title="t('Claude suggests 3 opening lines')"><span class="spin" x-show="hooks.loading"></span><svg class="i" x-show="!hooks.loading"><use href="#i-star"/></svg><span x-t>Suggest hooks</span></button>
               <button type="button" class="btn ghost sm ghbtn" aria-haspopup="listbox" :aria-expanded="String(ghPick.open)" @click="ghOpen($el)"><svg class="i"><use href="#i-github"/></svg><span x-text="form.github_repo ? t('Change repository') : t('GitHub repository')"></span></button>
+              <label class="toggle small planchip" :title="t('Claude proposes the idea first (title, opening line, scene by scene); you approve it before anything is made')"><input type="checkbox" x-model="form.plan"><span x-t>Plan the idea first</span></label>
               <span class="grow"></span>
-              <button type="button" class="mpchip" aria-haspopup="menu" :aria-expanded="String(mp.open && mp.key==='form')" :title="t('Claude model and effort for this video')" @click="mpOpen('form', $el)"><span x-text="modelShort(mpModel('form'))"></span><span class="e" x-text="effortShort(mpEffort('form'))"></span><svg class="i"><use href="#i-down"/></svg></button>
+              <button type="button" class="mpchip" x-show="!wsTemplate()" aria-haspopup="menu" :aria-expanded="String(mp.open && mp.key==='form')" :title="t('Claude model and effort for this video')" @click="mpOpen('form', $el)"><span x-text="modelShort(mpModel('form'))"></span><span class="e" x-text="effortShort(mpEffort('form'))"></span><svg class="i"><use href="#i-down"/></svg></button>
               <button class="btn primary" @click="create()" :disabled="!canCreate()" :title="t('Create video') + ' (⌘/Ctrl + Enter)'">
-                <span class="spin" x-show="creating"></span><span x-text="creating ? t('Creating…') : t('Create video')"></span></button>
+                <span class="spin" x-show="creating"></span><span x-text="creating ? t('Creating…') : t(form.plan ? 'Plan the video' : (wsTemplate() ? 'Make episode' : 'Create video'))"></span></button>
             </div>
           </div>
           <p class="hint" x-show="missingSetup().length"><span x-t>Finish setup in Connections to create videos</span></p>
@@ -869,6 +917,7 @@
               <template x-if="!projThumb(p)"><svg class="i" style="width:28px;height:28px"><use href="#i-film"/></svg></template>
               <span class="chip" :class="statusTone(p)" x-text="statusText(p)"></span>
               <button type="button" class="pdel" :title="t('Delete video')" :aria-label="t('Delete video')" @click.prevent.stop="askDelete(p)"><svg class="i"><use href="#i-trash"/></svg></button>
+              <button type="button" class="pdel pmove" x-show="workspaces.length" :title="t('Move to a project')" :aria-label="t('Move to a project')" @click.prevent.stop="askMove(p)"><svg class="i"><use href="#i-folder"/></svg></button>
             </div>
             <div class="pbody">
               <div class="ptitle" x-text="projTitle(p)"></div>
@@ -904,7 +953,8 @@
               </div>
             </div>
             <div class="actions">
-              <button class="btn" x-show="isMotion(cur) && cur.video_path && !isBusy(cur)" @click="tplNew = { open:true, name: projTitle(cur), busy:false }" :title="t('Make new episodes in this design without designing them again')"><svg class="i"><use href="#i-grid"/></svg><span x-t>Save as template</span></button>
+              <button class="btn ghost" x-show="workspaces.length" @click="askMove(cur)" :title="t('Move to a project')"><svg class="i"><use href="#i-folder"/></svg><span x-text="workspaces.find(w => w.id === cur.workspace_id)?.name || t('No project')"></span></button>
+              <button class="btn" x-show="isMotion(cur) && cur.video_path && !isBusy(cur)" @click="tplNew = { open:true, name: projTitle(cur), busy:false, ws: cur.workspace_id && !workspaces.find(w => w.id === cur.workspace_id)?.template_id }" :title="t('Make new episodes in this design without designing them again')"><svg class="i"><use href="#i-grid"/></svg><span x-t>Save as template</span></button>
               <a class="btn" x-show="cur.video_path" :href="expUrl()" :download="expName()" :title="t('Version {v}', {v: expVer()?.version || cur.version})"><svg class="i"><use href="#i-download"/></svg><span x-text="versions().length > 1 ? t('Download v{n}', {n: expVer()?.version || cur.version}) : t('Download')"></span></a>
               <button class="btn" x-show="cur.status==='failed'" @click="retry(cur)" :disabled="missingSetup().length > 0"><svg class="i"><use href="#i-retry"/></svg><span x-t>Retry</span></button>
               <button class="btn ghost danger" :title="t('Delete video')" @click="askDelete(cur)"><svg class="i"><use href="#i-trash"/></svg></button>
@@ -2200,11 +2250,62 @@
     </div>
   </div>
 
+  <!-- The idea to approve before a video is made (composer "Plan the idea first", or an idea of a project) -->
+  <div class="modal" x-show="plan.open" x-transition.opacity @click.self="plan.open=false" @keydown.escape.window="plan.open && (plan.open=false)">
+    <div class="card planc">
+      <div class="lbl"><span x-text="t(plan.source === 'idea' ? 'Idea for {name}' : 'The idea', {name: ws()?.name || ''})"></span></div>
+      <template x-if="plan.loading"><div class="stack" style="margin-top:12px"><span class="sk" style="width:65%;height:22px"></span><span class="sk"></span><span class="sk" style="width:80%"></span><span class="sk" style="width:50%"></span></div></template>
+      <template x-if="!plan.loading && plan.data">
+        <div class="stack" style="margin-top:8px">
+          <textarea class="h1edit" rows="2" style="font-size:21px;line-height:1.3;resize:none" x-model="plan.data.title" maxlength="120" :aria-label="t('Title')"></textarea>
+          <div class="field"><label><span x-t>What it's about</span></label><textarea rows="2" x-model="plan.data.angle" maxlength="400"></textarea></div>
+          <div class="field"><label><span x-t>Opening line</span></label><input x-model="plan.data.hook" maxlength="200"></div>
+          <div class="field"><label><span x-t>Scene by scene</span></label>
+            <div class="eprows">
+              <template x-for="(o, n) in plan.data.outline" :key="n">
+                <div class="eprow"><span class="n" x-text="n + 1"></span><textarea rows="2" style="resize:vertical;min-height:0" x-model="plan.data.outline[n]" maxlength="300"></textarea>
+                  <button type="button" class="btn ghost icon sm" @click="plan.data.outline.splice(n, 1)" x-show="plan.data.outline.length > 1" :aria-label="t('Remove')"><svg class="i"><use href="#i-x"/></svg></button></div>
+              </template>
+              <button type="button" class="btn ghost sm" style="justify-self:start" x-show="plan.data.outline.length < 12" @click="plan.data.outline.push('')"><svg class="i"><use href="#i-plus"/></svg><span x-t>Add scene</span></button>
+            </div></div>
+          <div class="field" x-show="planTemplate() && planTemplateRedraw()">
+            <label><span x-t>Illustrations</span></label>
+            <div class="seg full">
+              <button type="button" :class="plan.mode==='redraw' && 'on'" @click="plan.mode='redraw'" x-text="t('Redraw for the topic') + ' · ' + epEtaFor(planTemplate(), 'redraw')"></button>
+              <button type="button" :class="plan.mode==='fill' && 'on'" @click="plan.mode='fill'" x-text="t('Keep them') + ' · ' + epEtaFor(planTemplate(), 'fill')"></button>
+            </div></div>
+          <p class="small muted" style="margin:0" x-text="planTemplate() ? t('Made as an episode of {name}.', {name: planTemplate().name}) : t('Nothing is made until you approve. A Claude Motion video then takes 10–20 minutes.')"></p>
+        </div>
+      </template>
+      <div class="actions" style="margin-top:16px;justify-content:flex-end">
+        <button class="btn ghost" x-show="plan.source === 'composer'" @click="replan()" :disabled="plan.loading || plan.busy"><svg class="i"><use href="#i-retry"/></svg><span x-t>Another idea</span></button>
+        <span class="grow"></span>
+        <button class="btn" @click="plan.open=false"><span x-t>Back</span></button>
+        <button class="btn primary" @click="approvePlan()" :disabled="plan.loading || plan.busy || !plan.data?.title?.trim()"><span class="spin" x-show="plan.busy"></span><span x-t>Approve and make it</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- move a video into a project -->
+  <div class="modal" x-show="moveDlg.open" x-transition.opacity @click.self="moveDlg.open=false" @keydown.escape.window="moveDlg.open && (moveDlg.open=false)">
+    <div class="card">
+      <h2><span x-t>Move to a project</span></h2>
+      <p class="muted" style="margin-top:6px" x-text="moveDlg.title"></p>
+      <div class="field" style="margin-top:12px"><select x-select x-model="moveDlg.to" :aria-label="t('Project')"><option value="" x-t>No project</option><template x-for="w in workspaces" :key="w.id"><option :value="w.id" x-text="w.name" :selected="w.id===moveDlg.to"></option></template></select></div>
+      <div class="actions" style="margin-top:16px;justify-content:flex-end">
+        <button class="btn" @click="moveDlg.open=false"><span x-t>Cancel</span></button>
+        <button class="btn primary" @click="moveVideo()"><span x-t>Move</span></button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" x-show="tplNew.open" x-transition.opacity @click.self="tplNew.open=false" @keydown.escape.window="tplNew.open && (tplNew.open=false)">
     <div class="card">
       <h2><span x-t>Save as template</span></h2>
       <p class="muted" style="margin-top:6px"><span x-t>New episodes keep this video's design, motion, voice and music; only what they say changes. Claude reads the scenes once to see what changes from one episode to the next.</span></p>
       <div class="field" style="margin-top:12px"><label><span x-t>Name</span></label><input x-model="tplNew.name" maxlength="80" @keydown.enter="saveTemplate()"></div>
+      <label class="toggle small" style="margin-top:10px" x-show="tplNew.ws"><input type="checkbox" x-model="tplNew.useForWs">
+        <span x-text="t('Use it for the project {name}: its new videos become episodes', {name: workspaces.find(w => w.id === cur?.workspace_id)?.name || ''})"></span></label>
       <div class="actions" style="margin-top:16px;justify-content:flex-end">
         <button class="btn" @click="tplNew.open=false"><span x-t>Cancel</span></button>
         <button class="btn primary" @click="saveTemplate()" :disabled="tplNew.busy"><span class="spin" x-show="tplNew.busy"></span><span x-t>Save template</span></button>
@@ -2688,6 +2789,11 @@ function tr(key, vars) {
 const EDITOR_TABS = ['scenes', 'style', 'design', 'edit', 'review', 'export'];
 const ED_PAD = 44;  // timeline: left gutter for the track icons
 const KIND_NAMES = { fixed:'Fixed', fill:'Fill in', redraw:'Redraw' };
+// An approved plan as the brief Claude works from (the same shape as app/main.py _idea_brief).
+function planBrief(d) {
+  const outline = (d.outline || []).map(o => o.trim()).filter(Boolean);
+  return [d.title.trim(), (d.angle || '').trim(), outline.length ? 'Scenes:\n' + outline.map((o, n) => `${n + 1}. ${o}`).join('\n') : ''].filter(Boolean).join('\n\n');
+}
 const MAX_EPISODES = 30;  // app/templates.py MAX_EPISODES
 const DZ_EMPTY = { pid:null, data:null, err:'', scene:0, focus:null, media:null, caption:null, t:0, hold:0, saving:false,
   fit:'keep', everywhere:false, warn:[], missing:{}, check:null, checking:false, last:null };
@@ -2704,7 +2810,7 @@ const VOICE_SAMPLES = {
   Italian: 'Ciao! Ecco come suonerà il tuo prossimo video.',
   Indonesian: 'Halo! Beginilah suara video Anda berikutnya.',
 };
-const COMPOSER_KEYS = ['language', 'format', 'duration', 'style', 'style_id', 'playbook_id', 'music', 'sfx', 'voice', 'voice_rate', 'engine', 'model', 'effort', 'brand_id'];
+const COMPOSER_KEYS = ['language', 'format', 'duration', 'style', 'style_id', 'playbook_id', 'music', 'sfx', 'voice', 'voice_rate', 'engine', 'model', 'effort', 'brand_id', 'plan'];
 
 function parseRoute(pathname) {
   const p = pathname.split('/').filter(Boolean);
@@ -2722,7 +2828,7 @@ function app() {
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
     status: {}, cl: {}, cfg: { claude:{}, footage:{} },
     projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'' },
-    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', brand_id:null, context:[], engine:'motion', model:'', effort:'', github_repo:'', style_id:'', playbook_id:'', hook:'', music:'', sfx:true },
+    form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', brand_id:null, context:[], engine:'motion', model:'', effort:'', github_repo:'', style_id:'', playbook_id:'', hook:'', music:'', sfx:true, plan:true },
     models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, plan: {}, planLoading: false, showTable: false, hoverDay: null,
     projUsage: {}, editModel: '', editEffort: '',
     mp: { open:false, key:'form', sub:false, pos:{}, up:false, left:false, narrow:false },
@@ -2746,6 +2852,8 @@ function app() {
     dz: { ...DZ_EMPTY },
     templateList: [], templatesLoaded: false, tpl: null, tplMissing: false, tplNew: { open:false, name:'', busy:false },
     tp: { rows: [''], mode: 'redraw', busy: false, for: null },
+    ideaAsk: { hint: '', busy: false }, plan: { open: false, source: 'composer', loading: false, busy: false, data: null, avoid: [], iid: null, mode: 'redraw' },
+    moveDlg: { open: false, pid: null, to: '', title: '' },
     LOOK_NAMES: { none:'Original', vivid:'Vivid', warm:'Warm', fade:'Faded', film:'Film', mono:'Mono', noir:'Noir' },
     presets: [
       {key:'bold', label:'Bold', cls:'b', demo:'This is <em>huge</em>'},
@@ -3135,10 +3243,15 @@ function app() {
     },
 
     // ------------------------------------------------ studio
-    async create() {
+    // `approved`: the plan the person approved (title, angle, hook, outline) when "Plan the idea first" is on.
+    async create(approved) {
+      if (this.form.plan && !approved) return this.openPlan('composer');
+      const tm = this.wsTemplate();
+      if (tm) return this.makeEpisode(tm, approved ? planBrief(approved) : this.form.topic.trim(), approved ? this.plan.mode : (tm.scenes.some(s => s.kind === 'redraw') ? 'redraw' : 'fill'));
       this.creating = true;
-      const { context, ...rest } = this.form;
-      const body = { ...rest, topic: rest.topic.trim() || `A short video introducing the GitHub project ${rest.github_repo}`, github_repo: rest.github_repo || null, workspace_id: this.ws()?.id || null, model: rest.model || null, effort: rest.effort || null, context_ids: context.map(c => c.id) };
+      const { context, plan, ...rest } = this.form;
+      const topic = approved ? `${rest.topic.trim()}\n\n${planBrief(approved)}` : rest.topic.trim();
+      const body = { ...rest, topic: topic || `A short video introducing the GitHub project ${rest.github_repo}`, hook: (approved?.hook || '').trim() || rest.hook || null, github_repo: rest.github_repo || null, workspace_id: this.ws()?.id || null, model: rest.model || null, effort: rest.effort || null, context_ids: context.map(c => c.id) };
       const p = await this.run(() => this.api('/api/projects', { method:'POST', body }));
       this.creating = false;
       if (p && this.hooks.ab && this.form.hook) {  // B version: same settings, the next hook
@@ -3165,6 +3278,65 @@ function app() {
       }, { danger: true });
     },
     async retry(p) { if (await this.run(() => this.api(`/api/projects/${p.id}/retry`, { method:'POST' }))) this.loadProjects(); },
+    async makeEpisode(tm, brief, mode) {
+      this.creating = true;
+      const made = await this.run(() => this.api(`/api/templates/${tm.id}/episodes`, { method: 'POST', body: { episodes: [brief], mode, workspace_id: this.ws()?.id || null } }));
+      this.creating = false;
+      if (made?.[0]) { this.form.topic = ''; this.plan.open = false; await this.loadProjects(); this.nav(`/projects/${made[0].id}`); }
+    },
+    // ---- planning: Claude proposes the idea, the person approves it before anything is made
+    wsTemplate() { const w = this.ws(); return w?.template_id ? this.templateList.find(t => t.id === w.template_id && t.status === 'ready') || null : null; },
+    openIdeas() { return (this.ws()?.ideas || []).filter(i => i.status !== 'made').slice(0, 9); },
+    madeIdeas() { return (this.ws()?.ideas || []).filter(i => i.status === 'made'); },
+    planTemplate() { return this.wsTemplate(); },
+    planTemplateRedraw() { return (this.planTemplate()?.scenes || []).some(s => s.kind === 'redraw'); },
+    epEtaFor(tm, mode) { const d = tm?.duration || 30, min = Math.max(2, Math.ceil(d * 5.2 / 60)) + (mode === 'redraw' ? 10 : 0); return this.t('~{n} min', {n: min}); },
+    async openPlan(source, idea) {
+      const mode = this.planTemplateRedraw() ? 'redraw' : 'fill';
+      if (source === 'idea') { this.plan = { open: true, source, loading: false, busy: false, data: JSON.parse(JSON.stringify(idea)), avoid: [], iid: idea.id, mode }; return; }
+      if (this.form.topic.trim().length < 3) return this.say(this.t('Write what the video is about first'), true);
+      this.plan = { open: true, source, loading: true, busy: false, data: null, avoid: [], iid: null, mode };
+      await this.fetchPlan();
+    },
+    async fetchPlan() {
+      this.plan.loading = true;
+      const { context } = this.form, tm = this.wsTemplate();
+      const d = await this.run(() => this.api('/api/plan', { method: 'POST', body: { topic: this.form.topic.trim(), language: tm?.language || this.form.language, duration: tm ? Math.round(tm.duration) : this.form.duration,
+        format: tm?.format || this.form.format, playbook_id: this.form.playbook_id || null, brand_id: this.form.brand_id || null, workspace_id: this.ws()?.id || null, context_ids: context.map(c => c.id), avoid: this.plan.avoid } }));
+      this.plan.loading = false;
+      if (d) this.plan.data = d; else if (!this.plan.data) this.plan.open = false;
+    },
+    replan() { if (this.plan.data?.title) this.plan.avoid = [...this.plan.avoid, this.plan.data.title].slice(-5); this.fetchPlan(); },
+    async approvePlan() {
+      const data = { ...this.plan.data, outline: this.plan.data.outline.map(o => o.trim()).filter(Boolean) };
+      if (this.plan.source === 'composer') { this.plan.busy = true; await this.create(data); this.plan.busy = false; this.plan.open = false; return; }
+      this.plan.busy = true;
+      const r = await this.run(() => this.api(`/api/workspaces/${this.ws().id}/ideas/${this.plan.iid}/make`, { method: 'POST', body: { ...data, mode: this.plan.mode } }));
+      this.plan.busy = false;
+      if (!r) return;
+      this.plan.open = false;
+      this.workspaces = this.workspaces.map(w => w.id === r.workspace.id ? r.workspace : w);
+      await this.loadProjects();
+      this.nav(`/projects/${r.project.id}`);
+    },
+    async askIdeas() {
+      this.ideaAsk.busy = true;
+      const w = await this.run(() => this.api(`/api/workspaces/${this.ws().id}/ideas`, { method: 'POST', body: { count: 3, hint: this.ideaAsk.hint } }));
+      this.ideaAsk.busy = false;
+      if (w) { this.workspaces = this.workspaces.map(x => x.id === w.id ? w : x); this.ideaAsk.hint = ''; }
+    },
+    async dismissIdea(i) {
+      const w = await this.run(() => this.api(`/api/workspaces/${this.ws().id}/ideas/${i.id}`, { method: 'DELETE' }));
+      if (w) this.workspaces = this.workspaces.map(x => x.id === w.id ? w : x);
+    },
+    askMove(p) { this.moveDlg = { open: true, pid: p.id, to: p.workspace_id || '', title: this.projTitle(p) }; },
+    async moveVideo() {
+      const p = await this.run(() => this.api(`/api/projects/${this.moveDlg.pid}/workspace`, { method: 'PUT', body: { workspace_id: this.moveDlg.to || null } }), 'Moved');
+      if (!p) return;
+      this.moveDlg.open = false;
+      if (this.cur?.id === p.id) this.cur = { ...this.cur, workspace_id: p.workspace_id };
+      await Promise.all([this.loadProjects(), this.loadWorkspaces()]);
+    },
     askDelete(p) {
       const items = [
         ...(this.isBusy(p) ? ['The job running now is stopped first'] : []),
@@ -3283,6 +3455,9 @@ function app() {
       if (!t) return;
       this.tplNew.open = false;
       this.templateList = [t, ...this.templateList];
+      const w = this.tplNew.ws && this.tplNew.useForWs && this.workspaces.find(x => x.id === this.cur.workspace_id);
+      if (w) await this.run(() => this.api(`/api/workspaces/${w.id}`, { method: 'PUT', body: { name: w.name, notes: w.notes || '', website: w.website || '', brand_id: w.brand_id || null, language: w.language || '', format: w.format || '', template_id: t.id } }));
+      if (w) this.loadWorkspaces();
       this.nav(`/templates/${t.id}`);
     },
     async renameTemplate(el) {
@@ -4035,7 +4210,7 @@ function app() {
     async loadWorkspaces() { this.workspaces = await this.api('/api/workspaces').catch(() => this.workspaces); this.syncWsForm(); },
     syncWsForm() {
       const w = this.ws(); if (!w) return;
-      this.wsForm = { name:w.name, website:w.website||'', brand_id:w.brand_id||'', language:w.language||'', format:w.format||'', notes:w.notes||'' };
+      this.wsForm = { name:w.name, website:w.website||'', brand_id:w.brand_id||'', language:w.language||'', format:w.format||'', notes:w.notes||'', template_id:w.template_id||'' };
       this.wsBase = JSON.stringify(this.wsForm);
       if (w.language) this.form.language = w.language;
       if (w.format) this.form.format = w.format;
@@ -4046,7 +4221,7 @@ function app() {
       if (w?.id) { this.newWs.open = false; await this.loadWorkspaces(); this.nav(`/w/${w.id}`); this.wsOpen = true; }
     },
     async saveWs() {
-      const w = await this.run(() => this.api(`/api/workspaces/${this.route.id}`, { method:'PUT', body:{ ...this.wsForm, brand_id: this.wsForm.brand_id || null } }), 'Project saved');
+      const w = await this.run(() => this.api(`/api/workspaces/${this.route.id}`, { method:'PUT', body:{ ...this.wsForm, brand_id: this.wsForm.brand_id || null, template_id: this.wsForm.template_id || null } }), 'Project saved');
       if (w?.id) await this.loadWorkspaces();
     },
     askDeleteWs() {

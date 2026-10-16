@@ -229,6 +229,73 @@ Reply with JSON:
   "thumbnail_text": "2-5 punchy words for the cover image, in {language}"}}"""
 
 
+CONCEPT_PROMPT = """Plan a short video before it is made, so the person can approve or change the idea first.
+
+What they asked for: {topic}
+Language: {language} · length: about {duration} seconds · format: {format}
+{extra}
+Find the strongest angle for this topic: the one promise the video makes, who it is for, the opening line that stops
+the scroll in the first second, and the beats that deliver on it (one per scene, at most {scenes}). Stay true to the
+request and to any source material; don't invent facts.{avoid}
+
+Reply with JSON:
+{{"title": "working title in {language}, max 80 characters",
+  "angle": "one sentence in {language}: the promise of the video and why it's worth watching",
+  "audience": "who it is for, in {language}, a few words",
+  "hook": "the first spoken line in {language}, max 14 words",
+  "outline": ["scene by scene, what is shown and said, one short line each in {language}"]}}"""
+
+
+async def plan_video(topic: str, language: str, duration: int, format: str, extra: str = "", avoid: list[str] | None = None,
+                     model: str | None = None) -> dict:
+    """A concept to approve before the video is made: title, angle, audience, hook and a scene outline."""
+    avoid_text = ("\nIt must be a clearly different idea from these, already proposed: " + "; ".join(avoid[:5])) if avoid else ""
+    data = await ask_json(CONCEPT_PROMPT.format(topic=topic, language=language, duration=duration, format=format, extra=extra,
+                                                scenes=max(3, min(10, round(duration / 6))), avoid=avoid_text),
+                          kind="concept", model=model, effort="low")
+    outline = [str(x).strip() for x in data.get("outline") or [] if str(x).strip()][:12]
+    if not data.get("title") or not outline:
+        raise RuntimeError("Claude didn't return a plan — try again")
+    return {"title": str(data["title"])[:120], "angle": str(data.get("angle") or "")[:400],
+            "audience": str(data.get("audience") or "")[:120], "hook": str(data.get("hook") or "")[:200], "outline": outline}
+
+
+SERIES_PROMPT = """You plan the next videos of a series of short videos.
+
+Series: {name}
+Language: {language} · each video about {duration} seconds · format: {format}
+{extra}
+Videos already made or planned in this series (don't repeat them; continue where they leave off):
+{done}
+{hint}
+Suggest the {count} best next videos for this series: what a viewer of the earlier ones would want next, in a sensible
+order, each one its own clear topic. Stay accurate; don't invent facts, rules or numbers.
+
+Reply with JSON:
+{{"ideas": [{{"title": "working title in {language}, max 80 characters",
+             "angle": "one sentence in {language}: what this video teaches or shows and why it's worth watching",
+             "hook": "the first spoken line in {language}, max 14 words",
+             "outline": ["scene by scene, what is shown and said, one short line each in {language}"]}}]}}"""
+
+
+def _plan_item(x: dict) -> dict | None:
+    outline = [str(o).strip() for o in x.get("outline") or [] if str(o).strip()][:12] if isinstance(x, dict) else []
+    if not isinstance(x, dict) or not x.get("title"):
+        return None
+    return {"title": str(x["title"])[:120], "angle": str(x.get("angle") or "")[:400], "hook": str(x.get("hook") or "")[:200],
+            "outline": outline}
+
+
+async def series_ideas(name: str, language: str, duration: int, format: str, done: list[str], count: int = 3,
+                       extra: str = "", hint: str = "") -> list[dict]:
+    """The next videos of a series (a project), different from the ones already made or planned."""
+    data = await ask_json(SERIES_PROMPT.format(name=name, language=language, duration=duration, format=format, extra=extra,
+                                               done="\n".join(f"- {d}" for d in done[:60]) or "- none yet",
+                                               hint=f"Wanted next: {hint.strip()}" if hint.strip() else "", count=count),
+                          kind="concept", effort="low")
+    return [i for i in (_plan_item(x) for x in data.get("ideas") or []) if i][:count]
+
+
 async def suggest_hooks(topic: str, language: str, extra: str = "", model: str | None = None) -> list[dict]:
     data = await ask_json(HOOKS_PROMPT.format(topic=topic, language=language, extra=extra), kind="hooks",
                           model=model, effort="low")

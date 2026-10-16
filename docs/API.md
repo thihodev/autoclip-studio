@@ -86,6 +86,19 @@ The web UI uses this JSON API; you can script it too. Everything runs on the loc
 
 An episode is a normal project whose `request` has `template_id` and `template_mode`; its quality check result is in `extra.quality` (`{issues, version}`).
 
+## Planning and project ideas
+
+| Method | Path | What it does |
+|---|---|---|
+| POST | `/api/plan` | `{topic, language, duration, format, playbook_id?, brand_id?, workspace_id?, context_ids?, avoid?}` → `{title, angle, audience, hook, outline}` to approve before making the video |
+| POST | `/api/workspaces/{id}/ideas` | `{count?, hint?}` — Claude's next ideas for the project (kept on its board) → the project |
+| PUT, DELETE | `/api/workspaces/{id}/ideas/{iid}` | Edit `{title, angle, hook, outline}` / dismiss an idea |
+| POST | `/api/workspaces/{id}/ideas/{iid}/make` | Approve `{title, angle, hook, outline, mode?}`: makes the video (an episode when the project has a template) → `{project, workspace}` |
+| PUT | `/api/projects/{id}/workspace` | `{workspace_id}` — move a video into a project (`null`: out of every project) |
+| POST | `/api/templates/{id}/ideas` | `{count?, hint?, workspace_id?}` → `{ideas}`: next episodes of a template |
+
+Projects (`/api/workspaces`) also take `template_id`, the series template.
+
 ## Brand kits and projects
 
 | Method | Path | |

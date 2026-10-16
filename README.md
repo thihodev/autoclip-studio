@@ -139,6 +139,12 @@ The **Export** tab works on the version you pick at its top (the one the player 
 
 AutoClip doesn't connect to social networks or post for you: it focuses on making and editing the video, and you post it wherever you like.
 
+## Plan first, then make
+
+With **Plan the idea first** on (the default), *Create video* doesn't start anything: Claude proposes the idea — a title, what it's about, the opening line and the video scene by scene (one small call). Edit any of it, ask for **another idea**, and **approve** it; only then is the video made, from the approved plan.
+
+Inside a **project**, **Next in this project** asks Claude what the series should cover next, knowing the videos and ideas the project already has (and its instructions, brand and source files) — e.g. a project of badminton rules gets the next rule, not one it has done. Ideas wait on the project's board until you review one and approve it, or dismiss it. Videos can be moved into or out of a project from their page or card.
+
 ## Templates: design once, make a series
 
 Claude designs a video once; **Save as template** turns it into a format for a series. Claude reads the scenes once (one small call) and marks each one:
@@ -148,6 +154,8 @@ Claude designs a video once; **Save as template** turns it into a format for a s
 - **Redraw** — the illustration belongs to the topic (a drawn brain for "your brain").
 
 Then pick it from **Templates** in the sidebar or from **Start from a template** above the Studio composer (a topic typed there becomes its next episode), and type what the next episodes are about, one per line (or paste a list). Episodes keep the template's language and voice. For each one Claude writes the narration and the on-screen texts, sized to the template's slots (one small call); the voice is recorded and the workflow's own scripts re-time the video — captions, assembly and transitions — without an agent run. With **Redraw for each topic** (the default when a template has such scenes) Claude Motion redraws only those scenes in the template's style; **Keep the illustrations** skips it. Every episode is checked with HyperFrames before it is ready, against the same check run once on the template, so only problems the new content brought in are reported (in the video's page and its Design tab). On a laptop a 30-second episode takes about 3 minutes without redrawing, about 13 when Claude Motion redraws four scenes.
+
+A **project** can have a series template (Project settings → Series template, or when saving the template): its composer and its approved ideas then make episodes of it, with the project's instructions.
 
 Episodes are ordinary videos: edit them in the Design tab, ask Claude for changes, export them, or save one as a new template.
 
