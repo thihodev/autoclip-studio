@@ -20,8 +20,8 @@ export default {
     try {
       switch (url.pathname) {
         case "/": return page("AutoClip Connect", home(env));
-        case "/privacy": return page("Privacy policy · AutoClip Connect", privacy(env));
-        case "/terms": return page("Terms of service · AutoClip Connect", terms(env));
+        case "/privacy": return page("Privacy policy · AutoClip Studio", privacy(env));
+        case "/terms": return page("Terms of service · AutoClip Studio", terms(env));
         case "/health": return json({ ok: true, tiktok: Boolean(env.TIKTOK_CLIENT_KEY && env.TIKTOK_CLIENT_SECRET) });
         case "/tiktok/start": return tiktokStart(url, env);
         case "/tiktok/callback": return await tiktokCallback(url, env);
@@ -141,7 +141,7 @@ const bad = (msg) => page("Can't connect", `<h1>Can't connect</h1><p>${esc(msg)}
 
 function page(title, body, status = 200) {
   return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(title)}</title><link rel="icon" href="/favicon.png">
+<title>${esc(title)}</title><link rel="icon" href="/favicon.png"><meta name="description" content="${esc(title)} — AutoClip Connect, the TikTok sign-in for AutoClip Studio.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700&family=Instrument+Serif:ital@1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/site.css"></head><body>

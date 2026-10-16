@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://autoclip-connect.thihodev.workers.dev/sitemap.xml

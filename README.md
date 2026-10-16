@@ -5,9 +5,24 @@
   </picture>
 </h1>
 
+<p align="center">
+  <a href="https://autoclip-connect.thihodev.workers.dev"><b>Website</b></a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="docs/API.md">API</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="LICENSE">MIT</a>
+</p>
+
 **Open-source studio that turns a topic, a website or a GitHub repo into a finished short video — written, voiced, designed, animated and published by Claude — with a web UI for everything.**
 
 Make YouTube Shorts, TikToks, Facebook Reels or 16:9 YouTube videos; review them frame by frame; let Claude apply your comments; publish with title, caption, hashtags and cover. It runs on your own computer and uses your own Claude account (subscription or API key). No `.env`, no Docker: every connection is made from the UI.
+
+<p align="center">
+  <img src="services/connect/public/shots/composer.webp" alt="Describe the video: topic, engine, format, video type, style and sound" width="32%">
+  <img src="services/connect/public/shots/review.webp" alt="Review: comments pinned to frames, applied by Claude" width="32%">
+  <img src="services/connect/public/shots/publish.webp" alt="Publish to TikTok with TikTok's own choices" width="32%">
+</p>
+<p align="center"><sub>Describe it · review it frame by frame · post it — see the <a href="https://autoclip-connect.thihodev.workers.dev">website</a> for a tour.</sub></p>
 
 ```
  topic · website · GitHub repo · your files
@@ -146,7 +161,7 @@ Everything lives in `data/` (`autoclip.db` for settings and projects, renders, b
 | `app/brands.py` · `app/styles.py` · `app/playbooks.py` | Brand kits and imports · visual styles · video types |
 | `app/platforms.py` · `app/postiz.py` | YouTube, TikTok, Facebook OAuth and publishing · Postiz |
 | `static/index.html` · `static/locales/` | The whole UI (Alpine.js) · translations |
-| `services/connect/` | AutoClip Connect: a tiny Cloudflare Worker holding the TikTok app for one-click sign-in |
+| `services/connect/` | AutoClip Connect: a tiny Cloudflare Worker holding the TikTok app for one-click sign-in; it also serves the [website](https://autoclip-connect.thihodev.workers.dev) (`public/`) |
 | `app/assets/` | Bundled font, FrameJam styles and playbooks, GSAP skills (with their licenses), AutoClip playbooks |
 
 ## Contributing
