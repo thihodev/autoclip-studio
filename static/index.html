@@ -266,6 +266,11 @@
   @media (prefers-reduced-motion: reduce) { .bar.run i, .live .shot.empty, .steps li.now .dot, .livebadge i { animation:none; } }
   @media (max-width: 560px) { .steps .l { display:none; } .steps li.now .l { display:block; position:absolute; top:24px; white-space:nowrap; } .steps { margin-bottom:28px; } }
   .feed { display:flex; flex-direction:column; gap:6px; max-height:260px; overflow:auto; }
+  .rq { display:grid; border:1px solid var(--border); border-radius:var(--radius-sm); }
+  .rqrow { display:flex; align-items:center; gap:12px; padding:10px 12px; } .rqrow + .rqrow { border-top:1px solid var(--border); }
+  .rqrow .grow { flex:1; min-width:0; } .rqrow .t { font-weight:600; color:var(--text); text-decoration:none; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rqth { width:40px; height:56px; flex:none; border-radius:6px; overflow:hidden; background:var(--surface-2); display:flex; align-items:center; justify-content:center; color:var(--text-3); }
+  .rqth img { width:100%; height:100%; object-fit:cover; }
   .pubcol { display:flex; flex-direction:column; gap:16px; } .pubcol > .card { margin:0; }
   .pubkit { display:grid; margin-top:14px; border:1px solid var(--border); border-radius:var(--radius-sm); }
   .pubrow { display:flex; align-items:center; gap:10px; padding:10px 12px; flex-wrap:wrap; } .pubrow + .pubrow { border-top:1px solid var(--border); }
@@ -495,7 +500,7 @@
     <a class="nav" href="/ideas" :class="route.page==='ideas'&&'on'" @click.prevent="nav('/ideas')"><svg class="i"><use href="#i-zap"/></svg><span x-t>Ideas</span></a>
     <a class="nav" href="/brands" :class="(route.page==='brands'||route.page==='brand')&&'on'" @click.prevent="nav('/brands')"><svg class="i"><use href="#i-layers"/></svg><span x-t>Brand kits</span>
       <span class="count" x-show="brandList.length" x-text="brandList.length" style="background:var(--surface-2);color:var(--text-2)"></span></a>
-    <a class="nav" href="/autopilot" :class="route.page==='autopilot'&&'on'" @click.prevent="nav('/autopilot')"><svg class="i"><use href="#i-repeat"/></svg><span x-t>Autopilot</span>
+    <a class="nav" href="/autopilot" :class="route.page==='autopilot'&&'on'" @click.prevent="nav('/autopilot')"><svg class="i"><use href="#i-repeat"/></svg><span x-t>Autopilot</span><span class="count" x-show="reviewQueue().length" x-text="reviewQueue().length"></span>
       <span class="count" x-show="autopilot.enabled" style="background:var(--ok-soft);color:var(--ok)"><span x-t>on</span></span></a>
     <a class="nav" href="/usage" :class="route.page==='usage'&&'on'" @click.prevent="nav('/usage')"><svg class="i"><use href="#i-bar"/></svg><span x-t>Usage</span></a>
     <a class="nav" href="/connections" :class="route.page==='connections'&&'on'" @click.prevent="nav('/connections')"><svg class="i"><use href="#i-link"/></svg><span x-t>Connections</span>
@@ -1038,6 +1043,10 @@
                         <span x-text="c.name"></span><span class="small muted" x-text="platformLabel(c)"></span></button>
                     </template>
                   </div>
+                  <div class="field" style="margin-top:14px;max-width:360px" x-show="pickedViaPostiz()"><label><span x-t>When (Postiz)</span></label>
+                    <select x-select x-model="pubOpts.schedule"><option value="" x-t>Now</option>
+                      <template x-for="ts in (autopilot.next_slots || [])" :key="ts"><option :value="String(ts)" x-text="t('At {when}', {when: when(ts)})"></option></template></select>
+                    <p class="hint"><span x-t>Posting times are set on the Autopilot page.</span></p></div>
                   <div class="grid-2" style="margin-top:14px" x-show="selectedProviders().includes('youtube') || selectedProviders().includes('tiktok')">
                     <div class="field" x-show="selectedProviders().includes('youtube')"><label><span x-t>YouTube visibility</span></label>
                       <select x-select x-model="pubOpts.youtube_visibility"><option value="public" x-t>Public</option><option value="unlisted" x-t>Unlisted</option><option value="private" x-t>Private</option></select></div>
@@ -1511,6 +1520,21 @@
           <div><div class="lbl"><span x-t>Last result</span></div><div :style="autopilot.last_error&&'color:var(--err)'" x-text="autopilot.last_error || (autopilot.last_run ? t('OK') : '—')"></div></div>
         </div>
       </div>
+      <div class="card" x-show="reviewQueue().length">
+        <div class="card-head"><div class="grow"><h2 x-text="t('To review · {n}', {n: reviewQueue().length})"></h2>
+          <p x-text="(autopilot.integrations||[]).length ? t('Approve to publish at the next posting time ({at}), or dismiss.', {at: autopilot.next_slots?.[0] ? when(autopilot.next_slots[0]) : '—'}) : t('Watch each video, then post it from its Publish tab or dismiss it.')"></p></div></div>
+        <div class="rq">
+          <template x-for="p in reviewQueue()" :key="p.id">
+            <div class="rqrow">
+              <a class="rqth" :href="`/projects/${p.id}`" @click.prevent="nav(`/projects/${p.id}`)"><img x-show="projThumb(p)" :src="projThumb(p)" alt=""><svg class="i" x-show="!projThumb(p)"><use href="#i-play"/></svg></a>
+              <div class="grow"><a class="t" :href="`/projects/${p.id}`" @click.prevent="nav(`/projects/${p.id}`)" x-text="p.title || p.request.topic"></a>
+                <div class="small muted" x-text="when(p.created_at)"></div></div>
+              <button class="btn sm" @click="reviewAct(p, 'dismiss')"><span x-t>Dismiss</span></button>
+              <button class="btn sm primary" @click="reviewAct(p, 'approve')" :disabled="reviewing===p.id"><span class="spin" x-show="reviewing===p.id"></span><span x-text="(autopilot.integrations||[]).length ? t('Approve & publish') : t('Approve')"></span></button>
+            </div>
+          </template>
+        </div>
+      </div>
       <div class="card">
         <div class="stack">
           <div class="field"><label><span x-t>Niche</span></label><input x-model="autoForm.niche" :placeholder="t('e.g. money tips for students')"></div>
@@ -1538,6 +1562,11 @@
             <label class="toggle small" style="margin-top:10px" x-show="channels.length" :style="{ opacity: autoForm.channelIds.length ? 1 : .5 }">
               <input type="checkbox" x-model="autoForm.auto_publish" :disabled="!autoForm.channelIds.length"> <span x-t>Publish automatically</span></label>
           </div>
+          <label class="toggle small"><input type="checkbox" x-model="autoForm.review">
+            <span x-t>Let me review each video first (it waits in a queue here until you approve it)</span></label>
+          <div class="field"><label><span x-t>Posting times</span></label>
+            <input x-model="autoForm.post_times_text" placeholder="11:30, 19:30" style="max-width:260px">
+            <p class="hint"><span x-t>Daily times on this computer's clock. Postiz schedules each approved video for the next free one; other accounts post right away. 11:30 and 19:30 suit Vietnamese audiences.</span></p></div>
         </div>
         <div class="divider"></div>
         <div class="actions" style="justify-content:space-between">
@@ -2270,7 +2299,7 @@ function app() {
     ready: false, route: { page:'studio', id:null, sub:null }, lang: 'en', theme: 'system',
     languages: ['English','Vietnamese','Spanish','Portuguese','French','German','Italian','Indonesian'],
     status: {}, cl: {}, cfg: { claude:{}, footage:{}, postiz:{}, apps:{youtube:{},tiktok:{},facebook:{}}, platforms:[], public_url:'' },
-    channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] },
+    channels: [], projects: [], voices: {}, ideas: [], autopilot: {}, autoForm: { niche:'', channelIds:[] }, reviewing: '',
     form: { topic:'', language:'English', format:'shorts', duration:45, voice_rate:1.0, style:'', voice:'', channelIds:[], auto_publish:false, brand_id:null, context:[], engine:'motion', model:'', effort:'', github_repo:'', style_id:'', playbook_id:'', hook:'', music:'', sfx:true },
     models: { models: [], efforts: [], defaults: {} }, usageInfo: {}, usageDays: 30, plan: {}, planLoading: false, showTable: false, hoverDay: null,
     projUsage: {}, editModel: '', editEffort: '',
@@ -2297,7 +2326,7 @@ function app() {
     creating: false, thinking: false, ideaForm: { niche:'', language:'English' },
     switching: false, claudeCode: '', apiKey: '', keyEdit: false, savingKey: false, footageEdit: false, footageKey: '', footageProvider: 'pixabay', savingFootage: false,
     cur: null, curMissing: false, tl: { captions:{}, scenes:[] }, baseTl: '', edTitle: '', baseTitle: '', preview: null, instruction: '',
-    pubIds: [], pubOpts: { youtube_visibility:'public', tiktok_method:'UPLOAD' },
+    pubIds: [], pubOpts: { youtube_visibility:'public', tiktok_method:'UPLOAD', schedule:'' },
     editorTabs: [{key:'scenes',label:'Scenes'},{key:'style',label:'Style'},{key:'review',label:'AI & review'},{key:'publish',label:'Publish'}],
     presets: [
       {key:'bold', label:'Bold', cls:'b', demo:'This is <em>huge</em>'},
@@ -2871,13 +2900,24 @@ function app() {
     async loadAutopilot() {
       const a = await this.api('/api/autopilot').catch(() => null); if (!a) return;
       this.autopilot = a;
-      this.autoForm = { ...a, channelIds: (a.integrations || []).map(i => i.id).filter(i => this.channels.some(c => c.id === i)) };
+      this.autoForm = { ...a, review: a.review !== false, post_times_text: (a.post_times || ['11:30', '19:30']).join(', '), channelIds: (a.integrations || []).map(i => i.id).filter(i => this.channels.some(c => c.id === i)) };
     },
     async saveAuto(enabled) {
-      const { channelIds, last_run, next_run, last_error, ...a } = this.autoForm;
+      const { channelIds, last_run, next_run, last_error, next_slots, post_times_text, ...a } = this.autoForm;
       a.brand_id = a.brand_id || null;
+      a.post_times = (post_times_text || '').split(/[\s,;]+/).filter(x => /^([01]?\d|2[0-3]):[0-5]\d$/.test(x));
       const msg = enabled ? (this.autopilot.enabled ? 'Saved' : 'Autopilot is on') : (this.autopilot.enabled ? 'Autopilot is off' : 'Saved');
       if (await this.run(() => this.api('/api/autopilot', { method:'PUT', body:{ ...a, enabled, auto_publish: !!a.auto_publish && channelIds.length > 0, integrations: this.pick(channelIds) } }), msg)) this.loadAutopilot();
+    },
+
+    pickedViaPostiz() { return this.pubIds.some(id => this.channels.find(c => c.id === id)?.via === 'postiz'); },
+    // Autopilot videos waiting for approval (ready, not yet approved or dismissed).
+    reviewQueue() { return this.projects.filter(p => p.request?.source === 'autopilot' && p.extra?.review === 'pending' && p.status === 'ready'); },
+    async reviewAct(p, action) {
+      this.reviewing = p.id;
+      const ok = await this.run(() => this.api(`/api/projects/${p.id}/autopilot-review`, { method:'POST', body:{ action } }), action === 'approve' ? 'Approved' : 'Dismissed');
+      this.reviewing = '';
+      if (ok) { this.loadProjects(); this.loadAutopilot(); }
     },
 
     // ------------------------------------------------ brand kits

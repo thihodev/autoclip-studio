@@ -114,6 +114,12 @@ class AutopilotIn(BaseModel):
     integrations: list[Channel] = []
     publish_options: dict = {}
     brand_id: str | None = None
+    review: bool = True  # videos wait in a queue for approval before anything is posted
+    post_times: list[str] = ["11:30", "19:30"]  # daily posting times (this computer's clock) for scheduled posts
+
+
+class ReviewIn(BaseModel):
+    action: str  # approve (publish to the autopilot's accounts, at the next posting time when possible) | dismiss
 
 
 class TimelineIn(BaseModel):
@@ -806,7 +812,30 @@ def get_autopilot():
     last = db.get_setting("autopilot_last_run", 0)
     every = max(1, float(cfg.get("every_hours", 24))) * 3600
     return {**cfg, "last_run": last or None, "next_run": (last + every if last else time.time()) if cfg.get("enabled") else None,
-            "last_error": db.get_setting("autopilot_last_error")}
+            "last_error": db.get_setting("autopilot_last_error"), "next_slots": pipeline.next_slots(3)}
+
+
+@app.post("/api/projects/{pid}/autopilot-review")
+async def autopilot_review(pid: str, body: ReviewIn):
+    """Approve or dismiss an Autopilot video waiting in the review queue."""
+    p = _project(pid)
+    extra = pipeline._extra(p)
+    if body.action == "dismiss":
+        extra["review"] = "dismissed"
+        db.update_project(pid, extra=extra)
+        return db.get_project(pid)
+    if body.action != "approve":
+        raise HTTPException(400, "Unknown action")
+    if not p.get("video_path"):
+        raise HTTPException(400, "Video not ready")
+    extra["review"] = "approved"
+    db.update_project(pid, extra=extra)
+    if p["request"].get("integrations"):
+        try:
+            await pipeline.publish_project(pid)
+        except Exception as e:
+            raise HTTPException(502, str(e))
+    return db.get_project(pid)
 
 
 @app.put("/api/autopilot")
