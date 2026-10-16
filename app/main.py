@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import activity, audio, brands, claude, connect, context, covers, db, leftovers, playbooks, styles, motion, pipeline, platforms, postiz, render, settings, tts, usage
+from . import activity, audio, brands, claude, connect, context, covers, db, editor, leftovers, playbooks, styles, motion, pipeline, platforms, postiz, render, settings, tts, usage
 from .config import DATA_DIR, ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -329,6 +329,72 @@ async def oauth_callback(platform: str, request: Request):
         logging.exception("oauth %s failed", platform)
         return RedirectResponse("/connections?" + urlencode({"error": str(e)[:200]}))
     return RedirectResponse("/connections?" + urlencode({"connected": platforms.PLATFORMS[platform].label}))
+
+
+class EditIn(BaseModel):
+    edit: dict
+
+
+async def _edit_state(p: dict) -> dict:
+    base = pipeline.edit_base(p)
+    if not base:
+        raise HTTPException(400, "Render the video first")
+    path = VIDEOS_DIR / base["file"]
+    dur = await render.media_duration(path)
+    w, h = await render._ffmpeg_probe_size(path)
+    saved = pipeline._extra(p).get("edit")
+    newer = [v for v in pipeline._extra(p)["versions"] if v["version"] > base["version"] and not v.get("edited")]
+    brand = brands.get((p.get("timeline") or {}).get("brand_id"))
+    font = {"family": brand["font"]["family"], "url": f"/brand-media/{brand['id']}/{brand['font']['file']}"} \
+        if brand and brand.get("font") else {"family": render.FONT_NAME, "url": "/app-fonts/" + render.FONT_PATH.name}
+    return {"edit": saved or editor.fresh(dur), "saved": bool(saved), "base": {**base, "duration": dur, "width": w, "height": h},
+            "newer": newer[-1]["version"] if newer else None, "font": font, "looks": editor.LOOKS}
+
+
+@app.get("/api/projects/{pid}/edit")
+async def get_edit(pid: str):
+    return await _edit_state(_project(pid))
+
+
+@app.put("/api/projects/{pid}/edit")
+async def put_edit(pid: str, body: EditIn):
+    """Save the timeline edit (the browser autosaves)."""
+    p = _project(pid)
+    base = pipeline.edit_base(p)
+    if not base:
+        raise HTTPException(400, "Render the video first")
+    clean = editor.clean(body.edit, await render.media_duration(VIDEOS_DIR / base["file"]))
+    extra = pipeline._extra(p)
+    extra["edit"] = {**clean, "base": base, "at": time.time()}
+    db.update_project(pid, extra=extra)
+    return {"edit": clean, "duration": editor.duration(clean)}
+
+
+@app.post("/api/projects/{pid}/edit/reset")
+async def reset_edit(pid: str):
+    """Start over from the latest version (drops the saved edit)."""
+    p = _project(pid)
+    extra = pipeline._extra(p)
+    extra.pop("edit", None)
+    db.update_project(pid, extra=extra)
+    return await _edit_state(db.get_project(pid))
+
+
+@app.post("/api/projects/{pid}/edit/export")
+async def export_edit(pid: str):
+    p = _project(pid)
+    if p["status"] in ("queued", "scripting", "designing", "editing", "rendering", "publishing"):
+        raise HTTPException(409, "This video is busy")
+    if not (pipeline._extra(p).get("edit") or {}).get("clips"):
+        raise HTTPException(400, "Nothing to export yet")
+
+    async def job():
+        try:
+            await pipeline.export_edit(pid)
+        except Exception as e:
+            pipeline._fail(pid, e, status="ready")
+    pipeline.spawn(pid, job())
+    return db.get_project(pid)
 
 
 @app.get("/api/accounts/{aid}/tiktok-creator")
@@ -797,12 +863,18 @@ async def apply_review(pid: str, body: dict = Body(default={})):
 
 
 @app.get("/api/projects/{pid}/filmstrip")
-async def filmstrip(pid: str):
-    """A strip of evenly spaced frames of the current version, for the review timeline."""
+async def filmstrip(pid: str, file: str | None = None):
+    """A strip of evenly spaced frames of the current version (or of `file`, one of its versions), for the review
+    timeline and the editor's clip thumbnails."""
     p = _project(pid)
-    if not p.get("video_path") or not Path(p["video_path"]).exists():
+    if file:
+        if Path(file).name not in {v["file"] for v in pipeline._extra(p)["versions"]} or not (VIDEOS_DIR / Path(file).name).exists():
+            raise HTTPException(404)
+        src = VIDEOS_DIR / Path(file).name
+    elif not p.get("video_path") or not Path(p["video_path"]).exists():
         raise HTTPException(404)
-    src = Path(p["video_path"])
+    else:
+        src = Path(p["video_path"])
     out = VIDEOS_DIR / f"{src.stem}_strip.jpg"
     dur = await render.media_duration(src)
     count = max(8, min(60, round(dur)))
@@ -1275,5 +1347,6 @@ def page(pid: str | None = None, section: str | None = None, bid: str | None = N
 
 
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
+app.mount("/app-fonts", StaticFiles(directory=render.FONT_PATH.parent), name="app-fonts")  # titles in the editor preview
 app.mount("/style-assets", StaticFiles(directory=styles.ASSETS), name="style-assets")
 app.mount("/playbook-assets", StaticFiles(directory=playbooks.ASSETS), name="playbook-assets")

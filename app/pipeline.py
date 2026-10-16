@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import activity, brands, claude, context, db, motion, playbooks, platforms, postiz, render, settings, tts, usage
+from . import activity, brands, claude, context, db, editor, motion, playbooks, platforms, postiz, render, settings, tts, usage
 from .config import DATA_DIR, VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
@@ -35,12 +35,13 @@ def _reporter(pid: str):
     return report
 
 
-def _save_version(pid: str, out: Path, tl: dict, note: str, model: str | None = None, effort: str | None = None) -> dict:
+def _save_version(pid: str, out: Path, tl: dict, note: str, model: str | None = None, effort: str | None = None,
+                  edited: bool = False) -> dict:
     p = db.get_project(pid)
     extra = _extra(p)
     version = (p.get("version") or 0) + 1
     extra["versions"].append({"version": version, "file": out.name, "note": note, "at": time.time(),
-                              "model": model, "effort": effort})
+                              "model": model, "effort": effort, **({"edited": True} if edited else {})})
     db.update_project(pid, timeline=tl, video_path=str(out), version=version, extra=extra,
                       status="ready", progress=100, error=None, publish_result=None)
     return db.get_project(pid)
@@ -352,6 +353,40 @@ async def manual_edit(pid: str, timeline: dict, title: str | None = None):
         await _render_version(pid, "Manual edit")
     except Exception as e:
         _fail(pid, e, status="ready")
+
+
+# ---------- timeline editor: CapCut-style edits on top of a version ----------
+
+def edit_base(p: dict) -> dict | None:
+    """The version the editor works on: the one the saved edit started from, else the latest non-edited version."""
+    vs = _extra(p)["versions"]
+    saved = _extra(p).get("edit") or {}
+    if saved.get("base") and (VIDEOS_DIR / saved["base"]["file"]).exists():
+        return saved["base"]
+    for v in reversed(vs):
+        if not v.get("edited") and (VIDEOS_DIR / v["file"]).exists():
+            return {"version": v["version"], "file": v["file"]}
+    return None
+
+
+async def export_edit(pid: str):
+    p = db.get_project(pid)
+    saved = _extra(p).get("edit") or {}
+    base = edit_base(p)
+    if not base or not saved.get("clips"):
+        raise ValueError("Nothing to export")
+    out = VIDEOS_DIR / f"{pid}_v{(p.get('version') or 0) + 1}.mp4"
+    brand = brands.get((p.get("timeline") or {}).get("brand_id"))
+    font = brands.asset_path(brand["id"], brand["font"]["file"]) if brand and brand.get("font") else None
+    activity.start(pid)
+    activity.add(pid, f"Exporting the edit of version {base['version']}")
+    db.update_project(pid, status="rendering", progress=10)
+    async with _render_lock:
+        await editor.export(VIDEOS_DIR / base["file"], saved, out, render.project_dir(pid) / "edit",
+                            family=brand["font"]["family"] if font and font.exists() else None,
+                            font=font if font and font.exists() else None)
+    await render.thumbnail(out)
+    return _save_version(pid, out, p["timeline"], f"Edited (from v{base['version']})", edited=True)
 
 
 # ---------- review: comments on the render, applied by Claude ----------

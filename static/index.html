@@ -273,6 +273,49 @@
   .rqth img { width:100%; height:100%; object-fit:cover; }
   .ttpost { display:grid; gap:12px; margin-top:14px; padding:14px; border:1px solid var(--border); border-radius:var(--radius-sm); }
   .ttwho { display:flex; align-items:center; gap:10px; font-weight:600; }
+  /* timeline editor (Edit tab) */
+  .editor.editing { grid-template-columns:minmax(0, 1fr); } .editor.editing > .left { display:none; }
+  .nle-top { display:grid; grid-template-columns:minmax(0, 1fr) 320px; gap:16px; align-items:start; }
+  .nle-stagecard { padding:12px; display:grid; gap:10px; }
+  .nle-stage { position:relative; margin:0 auto; background:#000; border-radius:10px; overflow:hidden; touch-action:none; }
+  .nle-stage video { width:100%; height:100%; object-fit:contain; display:block; }
+  .nle-title { position:absolute; font-family:'EdTitle', 'Be Vietnam Pro', sans-serif; font-weight:700; white-space:pre; line-height:normal; text-align:center; cursor:move; user-select:none; transform-origin:center; }
+  .nle-title.sel { outline:1.5px dashed rgba(255,255,255,.85); outline-offset:4px; }
+  .nle-transport { display:flex; align-items:center; gap:6px; } .nle-transport .grow { flex:1; }
+  .nle-transport .tc { font:13px ui-monospace, SFMono-Regular, Menlo, monospace; color:var(--text-2); font-variant-numeric:tabular-nums; }
+  .nle-insp { display:grid; gap:14px; position:sticky; top:16px; } .nle-h { margin:0; font-size:15px; display:flex; gap:8px; align-items:baseline; }
+  .nle-looks { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
+  .nle-looks button { display:grid; justify-items:center; gap:4px; padding:5px 3px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text-2); font:inherit; font-size:11px; cursor:pointer; }
+  .nle-looks button.on { border-color:var(--accent); color:var(--text); box-shadow:0 0 0 2px var(--accent-soft); }
+  .nle-looks .th { display:block; height:64px; max-width:100%; border-radius:5px; background-color:var(--surface-2); background-repeat:no-repeat; }
+  .nle-colors { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .nle-colors button { width:22px; height:22px; border-radius:50%; border:1px solid var(--border-strong); cursor:pointer; padding:0; }
+  .nle-colors button.on { box-shadow:0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+  .nle-colors input[type=color] { width:30px; height:24px; padding:0; border:0; background:none; }
+  .nle-export { display:flex; align-items:center; justify-content:space-between; gap:10px; border-top:1px solid var(--border); padding-top:12px; }
+  .nle-tlcard { margin-top:16px; padding:0; overflow:hidden; }
+  .nle-tools { display:flex; align-items:center; gap:4px; padding:8px 10px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .nle-tools .sep { width:1px; height:20px; background:var(--border); margin:0 4px; } .nle-tools .grow { flex:1; } .nle-tools .muted { color:var(--text-3); }
+  .nle-scroll { overflow-x:auto; overflow-y:hidden; }
+  .nle-canvas { position:relative; min-width:100%; user-select:none; }
+  .nle-ruler { position:relative; height:24px; border-bottom:1px solid var(--border); cursor:pointer; }
+  .nle-ruler span { position:absolute; top:0; bottom:0; padding:5px 0 0 4px; border-left:1px solid var(--border-strong); font:10px ui-monospace, Menlo, monospace; color:var(--text-3); }
+  .nle-track { position:relative; border-bottom:1px solid var(--border); }
+  .nle-track[data-kind=text] { height:72px; } .nle-track.video { height:66px; } .nle-track.music { height:40px; }
+  .nle-track .lbl { position:sticky; left:0; z-index:4; display:flex; align-items:center; justify-content:center; width:36px; height:100%; background:var(--surface); border-right:1px solid var(--border); color:var(--text-3); }
+  .nle-track .lbl .i { width:15px; height:15px; }
+  .blk { position:absolute; top:4px; bottom:4px; border-radius:7px; overflow:hidden; cursor:grab; border:2px solid transparent; box-sizing:border-box; }
+  .blk.sel { border-color:#fff; z-index:3; } .blk .h { position:absolute; top:0; bottom:0; width:9px; cursor:ew-resize; z-index:2; }
+  .blk .h.l { left:0; } .blk .h.r { right:0; } .blk.sel .h { background:rgba(255,255,255,.9); }
+  .blk.clip { background:#1d2128; } .blk.clip.dragging { opacity:.8; z-index:4; box-shadow:0 8px 20px rgba(0,0,0,.4); cursor:grabbing; }
+  .blk .thumbs { display:flex; height:100%; overflow:hidden; } .blk .thumbs i { flex:none; height:58px; background-repeat:no-repeat; }
+  .blk.clip .tag { position:absolute; left:10px; top:4px; font-size:10px; font-weight:700; color:#fff; background:rgba(0,0,0,.6); padding:1px 5px; border-radius:4px; }
+  .blk.text { bottom:auto; height:20px; display:flex; align-items:center; padding:0 11px; background:#7c5cff; color:#fff; font-size:11px; white-space:nowrap; }
+  .blk.text span, .blk.music span { overflow:hidden; text-overflow:ellipsis; }
+  .blk.music { display:flex; align-items:center; padding:0 11px; background:linear-gradient(90deg, #12805c, #1fa774); color:#fff; font-size:11px; white-space:nowrap; }
+  .nle-head { position:absolute; top:0; bottom:0; width:2px; margin-left:-1px; background:var(--accent); z-index:6; cursor:ew-resize; }
+  .nle-head::before { content:""; position:absolute; top:0; left:-5px; border:6px solid transparent; border-top:8px solid var(--accent); }
+  @media (max-width: 980px) { .nle-top { grid-template-columns:minmax(0, 1fr); } .nle-insp { position:static; } }
   .pubcol { display:flex; flex-direction:column; gap:16px; } .pubcol > .card { margin:0; }
   .pubkit { display:grid; margin-top:14px; border:1px solid var(--border); border-radius:var(--radius-sm); }
   .pubrow { display:flex; align-items:center; gap:10px; padding:10px 12px; flex-wrap:wrap; } .pubrow + .pubrow { border-top:1px solid var(--border); }
@@ -474,6 +517,11 @@
   <symbol id="i-down" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
   <symbol id="i-right" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></symbol>
+  <symbol id="i-type" viewBox="0 0 24 24"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></symbol>
+  <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/></symbol>
+  <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M8 11h6M11 8v6"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></symbol>
   <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
@@ -493,7 +541,7 @@
   <symbol id="i-retry" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></symbol>
 </svg>
 
-<div class="shell" x-data="app()" x-init="init()" x-cloak>
+<div class="shell" x-data="app()" x-cloak>
   <style x-text="brandFontCss()"></style>
   <!-- ======================================================= sidebar -->
   <aside class="side">
@@ -832,7 +880,7 @@
               <a href="/connections" x-show="/Connections/.test(cur.error||'')" @click.prevent="nav('/connections')"> <span x-t>Open Connections →</span></a></div>
           </div>
 
-          <div class="editor" :class="route.sub==='review' && 'reviewing'">
+          <div class="editor" :class="{reviewing: route.sub==='review', editing: route.sub==='edit'}" @resize.window="route.sub==='edit' && edMeasure()">
             <div class="left">
               <div class="card">
                 <template x-if="cur.video_path">
@@ -872,6 +920,159 @@
                   <a :href="`/projects/${cur.id}/${tab.key}`" :class="route.sub===tab.key&&'on'" @click.prevent="nav(`/projects/${cur.id}/${tab.key}`)" x-text="t(tab.label)"></a>
                 </template>
               </nav>
+
+              <!-- Edit: a CapCut-style timeline on top of a version (any engine); exports a new version -->
+              <div x-show="route.sub==='edit'" class="nle">
+                <template x-if="!ed.data && !ed.err"><div class="card empty small"><span class="spin"></span></div></template>
+                <template x-if="ed.err"><div class="card empty small" x-text="ed.err"></div></template>
+                <template x-if="ed.data">
+                  <div>
+                    <div class="notice info" style="margin-bottom:12px;align-items:center" x-show="ed.data.newer">
+                      <svg class="i"><use href="#i-alert"/></svg>
+                      <div style="flex:1" x-text="t('Version {n} was made after this edit started from version {b}.', {n: ed.data.newer, b: ed.data.base.version})"></div>
+                      <button class="btn sm" @click="edReset()" x-text="t('Start over from v{n}', {n: ed.data.newer})"></button>
+                    </div>
+                    <div class="nle-top">
+                      <div class="card nle-stagecard">
+                        <div class="nle-stage" x-ref="nstage" :style="edStageStyle()" @pointerdown="edSel(null)">
+                          <video x-ref="nv" :src="'/videos/' + ed.data.base.file" playsinline preload="auto" :style="`filter:${edCss(edClip())}`" @loadedmetadata="edSeek(ed.t)"></video>
+                          <template x-for="tx in ed.edit.texts" :key="tx.id">
+                            <div class="nle-title" x-show="ed.t >= tx.start && ed.t < tx.end" :class="['st-' + tx.style, ed.sel?.id===tx.id && 'sel']"
+                                 :style="edTitleStyle(tx)" @pointerdown.stop="edTitleDown($event, tx)" @dblclick="edSel('text', tx.id); $nextTick(() => edEl('text')?.focus())" x-html="edTitleHtml(tx)"></div>
+                          </template>
+                        </div>
+                        <audio x-ref="nm" :src="ed.edit.music ? `/api/music/${encodeURIComponent(ed.edit.music.file)}/audio` : ''" preload="auto"></audio>
+                        <div class="nle-transport">
+                          <button type="button" class="btn icon" @click="edToggle()" :aria-label="t(ed.playing ? 'Pause' : 'Play')"><svg class="i"><use :href="ed.playing ? '#i-pause' : '#i-play'"/></svg></button>
+                          <span class="tc" x-text="fmtT(ed.t) + ' / ' + fmtT(edDur())"></span>
+                          <span class="grow"></span>
+                          <button type="button" class="btn ghost icon" :title="t('Undo') + ' (⌘Z)'" @click="edUndo()" :disabled="!ed.undo.length"><svg class="i"><use href="#i-undo"/></svg></button>
+                          <button type="button" class="btn ghost icon" :title="t('Redo') + ' (⇧⌘Z)'" @click="edRedo()" :disabled="!ed.redo.length"><svg class="i" style="transform:scaleX(-1)"><use href="#i-undo"/></svg></button>
+                        </div>
+                      </div>
+
+                      <div class="card nle-insp">
+                        <!-- nothing selected -->
+                        <template x-if="!ed.sel">
+                          <div class="stack">
+                            <h3 class="nle-h" x-t>Edit</h3>
+                            <p class="small muted" style="margin:0"><span x-t>Click a clip, a title or the music on the timeline to change it. Space plays, S splits at the playhead, Delete removes.</span></p>
+                            <div class="actions"><button class="btn" @click="edAddText()"><svg class="i"><use href="#i-type"/></svg><span x-t>Add title</span></button>
+                              <button class="btn" @click="edAddMusic()" :disabled="!musicList.length" :title="musicList.length ? '' : t('Add tracks in Connections → Music & sound effects')"><svg class="i"><use href="#i-music"/></svg><span x-t>Add music</span></button></div>
+                            <div class="field"><label><span x-t>Original sound</span> <span class="muted" x-text="Math.round(ed.edit.audio.original * 100) + '%'"></span></label>
+                              <input type="range" min="0" max="2" step="0.05" x-model.number="ed.edit.audio.original" @pointerdown="edSnap()" @input="edChanged()"></div>
+                          </div>
+                        </template>
+                        <!-- clip -->
+                        <template x-if="ed.sel?.kind==='clip' && edSelClip()">
+                          <div class="stack">
+                            <h3 class="nle-h"><span x-t>Clip</span> <span class="muted small" x-text="fmtT(edSelClip().in) + ' – ' + fmtT(edSelClip().out)"></span></h3>
+                            <div class="field"><label><span x-t>Speed</span> <span class="muted" x-text="edSelClip().speed + '×'"></span></label>
+                              <div class="seg full"><template x-for="sp in [0.5, 1, 1.5, 2, 3]" :key="sp"><button type="button" :class="edSelClip().speed===sp && 'on'" @click="edSnap(); edSelClip().speed=sp; edChanged()" x-text="sp + '×'"></button></template></div></div>
+                            <div class="field"><label><span x-t>Volume</span> <span class="muted" x-text="Math.round(edSelClip().volume * 100) + '%'"></span></label>
+                              <input type="range" min="0" max="2" step="0.05" x-model.number="edSelClip().volume" @pointerdown="edSnap()" @input="edChanged()"></div>
+                            <div class="field"><label><span x-t>Look</span></label>
+                              <div class="nle-looks"><template x-for="lk in Object.keys(ed.data.looks)" :key="lk">
+                                <button type="button" :class="edSelClip().look===lk && 'on'" @click="edSnap(); edSelClip().look=lk; edChanged()">
+                                  <span class="th" :style="edThumbStyle(edSelClip(), lk)"></span><span x-text="t(LOOK_NAMES[lk] || lk)"></span></button>
+                              </template></div></div>
+                            <template x-for="k in ['brightness','contrast','saturation']" :key="k">
+                              <div class="field"><label><span x-text="t({brightness:'Brightness', contrast:'Contrast', saturation:'Saturation'}[k])"></span> <span class="muted" x-text="Math.round(edSelClip().adjust[k] * 100) + '%'"></span></label>
+                                <input type="range" :min="k==='saturation' ? 0 : 0.5" :max="k==='saturation' ? 2 : 1.5" step="0.02" x-model.number="edSelClip().adjust[k]" @pointerdown="edSnap()" @input="edChanged()" @dblclick="edSnap(); edSelClip().adjust[k]=1; edChanged()"></div>
+                            </template>
+                            <div class="actions"><button class="btn sm" @click="edSplit()"><span x-t>Split</span></button><button class="btn sm" @click="edDuplicate()"><span x-t>Duplicate</span></button>
+                              <button class="btn sm danger" @click="edDelete()" :disabled="ed.edit.clips.length < 2"><span x-t>Delete</span></button></div>
+                          </div>
+                        </template>
+                        <!-- title -->
+                        <template x-if="ed.sel?.kind==='text' && edSelText()">
+                          <div class="stack">
+                            <h3 class="nle-h" x-t>Title</h3>
+                            <textarea x-ref="edtext" rows="2" x-model="edSelText().text" @focus="edSnap()" @input="edChanged()" maxlength="300"></textarea>
+                            <div class="field"><label><span x-t>Size</span></label>
+                              <input type="range" min="0.025" max="0.16" step="0.005" x-model.number="edSelText().size" @pointerdown="edSnap()" @input="edChanged()"></div>
+                            <div class="field"><label><span x-t>Color</span></label>
+                              <div class="nle-colors"><template x-for="c in edColors()" :key="c"><button type="button" :class="edSelText().color.toLowerCase()===c && 'on'" :style="`background:${c}`" @click="edSnap(); edSelText().color=c; edChanged()" :aria-label="c"></button></template>
+                                <input type="color" :value="edSelText().color" @input="edSelText().color=$event.target.value; edChanged()" @focus="edSnap()"></div></div>
+                            <div class="field"><label><span x-t>Style</span></label>
+                              <div class="seg full"><template x-for="st in ['plain','outline','box','shadow']" :key="st"><button type="button" :class="edSelText().style===st && 'on'" @click="edSnap(); edSelText().style=st; edChanged()" x-text="t({plain:'Plain', outline:'Outline', box:'Box', shadow:'Shadow'}[st])"></button></template></div></div>
+                            <div class="field"><label><span x-t>Animation</span></label>
+                              <div class="seg full"><template x-for="an in ['none','fade','pop','slide','type']" :key="an"><button type="button" :class="edSelText().anim===an && 'on'" @click="edSnap(); edSelText().anim=an; edChanged(); edSeek(edSelText().start)" x-text="t({none:'None', fade:'Fade', pop:'Pop', slide:'Slide', type:'Type'}[an])"></button></template></div></div>
+                            <div class="actions"><button class="btn sm" @click="edDuplicate()"><span x-t>Duplicate</span></button><button class="btn sm danger" @click="edDelete()"><span x-t>Delete</span></button></div>
+                          </div>
+                        </template>
+                        <!-- music -->
+                        <template x-if="ed.sel?.kind==='music' && ed.edit.music">
+                          <div class="stack">
+                            <h3 class="nle-h" x-t>Music</h3>
+                            <select x-select @change="edSnap(); const m = musicList.find(x => x.file === $event.target.value); ed.edit.music = { ...ed.edit.music, file: m.file, name: m.name, in: 0, length: null }; edChanged()">
+                              <template x-for="m in musicList" :key="m.file"><option :value="m.file" x-text="m.name" :selected="m.file===ed.edit.music.file"></option></template></select>
+                            <div class="field"><label><span x-t>Volume</span> <span class="muted" x-text="Math.round(ed.edit.music.volume * 100) + '%'"></span></label>
+                              <input type="range" min="0" max="1.5" step="0.05" x-model.number="ed.edit.music.volume" @pointerdown="edSnap()" @input="edChanged()"></div>
+                            <div class="grid-2" style="gap:10px">
+                              <div class="field"><label><span x-t>Fade in</span> <span class="muted" x-text="ed.edit.music.fade_in + 's'"></span></label><input type="range" min="0" max="5" step="0.25" x-model.number="ed.edit.music.fade_in" @pointerdown="edSnap()" @input="edChanged()"></div>
+                              <div class="field"><label><span x-t>Fade out</span> <span class="muted" x-text="ed.edit.music.fade_out + 's'"></span></label><input type="range" min="0" max="5" step="0.25" x-model.number="ed.edit.music.fade_out" @pointerdown="edSnap()" @input="edChanged()"></div>
+                            </div>
+                            <p class="hint" style="margin:0"><span x-t>Drag the music on the timeline to move it; drag its edges to trim.</span></p>
+                            <div class="actions"><button class="btn sm danger" @click="edDelete()"><span x-t>Remove music</span></button></div>
+                          </div>
+                        </template>
+                        <div class="nle-export">
+                          <span class="small muted" x-text="ed.saving ? t('Saving…') : (ed.savedAt ? t('Saved') : '')"></span>
+                          <button class="btn primary" @click="edExport()" :disabled="isBusy(cur) || ed.exporting"><span class="spin" x-show="ed.exporting || cur.status==='rendering'"></span><span x-t>Export as a new version</span></button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="card nle-tlcard">
+                      <div class="nle-tools">
+                        <button type="button" class="btn sm ghost" @click="edSplit()" :title="t('Split at the playhead') + ' (S)'"><svg class="i"><use href="#i-scissors"/></svg><span x-t>Split</span></button>
+                        <button type="button" class="btn sm ghost" @click="edDuplicate()" :disabled="!ed.sel || ed.sel.kind==='music'"><span x-t>Duplicate</span></button>
+                        <button type="button" class="btn sm ghost" @click="edDelete()" :disabled="!ed.sel || (ed.sel.kind==='clip' && ed.edit.clips.length < 2)"><svg class="i"><use href="#i-trash"/></svg><span x-t>Delete</span></button>
+                        <span class="sep"></span>
+                        <button type="button" class="btn sm ghost" @click="edAddText()" :title="t('Add title') + ' (T)'"><svg class="i"><use href="#i-type"/></svg><span x-t>Title</span></button>
+                        <button type="button" class="btn sm ghost" @click="edAddMusic()" :disabled="!musicList.length || !!ed.edit.music"><svg class="i"><use href="#i-music"/></svg><span x-t>Music</span></button>
+                        <span class="grow"></span>
+                        <svg class="i muted"><use href="#i-zoom"/></svg>
+                        <input type="range" min="8" max="200" step="1" x-model.number="ed.zoom" style="width:120px" :aria-label="t('Zoom')">
+                      </div>
+                      <div class="nle-scroll" x-ref="nscroll">
+                        <div class="nle-canvas" :style="`width:${edPx(edDur()) + 160}px`">
+                          <div class="nle-ruler" @pointerdown="edScrub($event)">
+                            <template x-for="s in edTicks()" :key="s"><span :style="`left:${edPx(s)}px`" x-text="fmtT(s).replace(/\.\d$/, '')"></span></template>
+                          </div>
+                          <div class="nle-track" data-kind="text">
+                            <span class="lbl"><svg class="i"><use href="#i-type"/></svg></span>
+                            <template x-for="tx in ed.edit.texts" :key="tx.id">
+                              <div class="blk text" :class="ed.sel?.id===tx.id && 'sel'" :style="`left:${edPx(tx.start)}px;width:${tx.end * ed.zoom - tx.start * ed.zoom}px;top:${edTextLane(tx) * 22 + 3}px`"
+                                   @pointerdown.stop="edDown($event, 'text', tx.id, 'move')"><i class="h l" @pointerdown.stop="edDown($event, 'text', tx.id, 'l')"></i><span x-text="tx.text"></span><i class="h r" @pointerdown.stop="edDown($event, 'text', tx.id, 'r')"></i></div>
+                            </template>
+                          </div>
+                          <div class="nle-track video">
+                            <span class="lbl"><svg class="i"><use href="#i-film"/></svg></span>
+                            <template x-for="(c, i) in ed.edit.clips" :key="c.id">
+                              <div class="blk clip" :class="[ed.sel?.id===c.id && 'sel', ed.drag?.id===c.id && ed.drag.mode==='move' && 'dragging']" :style="edClipStyle(c, i)"
+                                   @pointerdown.stop="edDown($event, 'clip', c.id, 'move')">
+                                <div class="thumbs" :style="`filter:${edCss(c)}`"><template x-for="(th, j) in edThumbs(c)" :key="j"><i :style="th"></i></template></div>
+                                <span class="tag" x-show="c.speed !== 1" x-text="c.speed + '×'"></span>
+                                <i class="h l" @pointerdown.stop="edDown($event, 'clip', c.id, 'l')"></i><i class="h r" @pointerdown.stop="edDown($event, 'clip', c.id, 'r')"></i></div>
+                            </template>
+                          </div>
+                          <div class="nle-track music">
+                            <span class="lbl"><svg class="i"><use href="#i-music"/></svg></span>
+                            <template x-if="ed.edit.music">
+                              <div class="blk music" :class="ed.sel?.kind==='music' && 'sel'" :style="`left:${edPx(ed.edit.music.start)}px;width:${edMusicLen() * ed.zoom}px`"
+                                   @pointerdown.stop="edDown($event, 'music', 'music', 'move')"><i class="h l" @pointerdown.stop="edDown($event, 'music', 'music', 'l')"></i>
+                                <span x-text="ed.edit.music.name || ed.edit.music.file"></span><i class="h r" @pointerdown.stop="edDown($event, 'music', 'music', 'r')"></i></div>
+                            </template>
+                          </div>
+                          <div class="nle-head" :style="`left:${edPx(ed.t)}px`" @pointerdown.stop="edScrub($event)"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
 
               <template x-if="!cur.timeline">
                 <div class="card empty small" x-text="isBusy(cur) ? (isMotion(cur) ? t('Claude is designing the video — scenes appear here when it is rendered.') : t('Claude is writing the scenes…')) : t('This video has no scenes yet. Retry to generate them.')"></div>
@@ -2317,7 +2518,10 @@ function tr(key, vars) {
 }
 
 const PLATFORM_LABELS = { youtube:'YouTube', tiktok:'TikTok', facebook:'Facebook' };
-const EDITOR_TABS = ['scenes', 'style', 'review', 'publish'];
+const EDITOR_TABS = ['scenes', 'style', 'edit', 'review', 'publish'];
+const ED_PAD = 44;  // timeline: left gutter for the track icons
+const ED_EMPTY = { pid:null, data:null, err:'', edit:{ clips:[], texts:[], music:null, audio:{ original:1 } }, t:0, ci:0, playing:false, zoom:40,
+                   sel:null, undo:[], redo:[], drag:null, strip:null, stageH:0, saving:false, savedAt:0, exporting:false };
 const VOICE_SAMPLES = {
   English: 'Hi! This is how your next video will sound.',
   Vietnamese: 'Xin chào! Đây là giọng đọc cho video tiếp theo của bạn.',
@@ -2374,7 +2578,9 @@ function app() {
     switching: false, claudeCode: '', apiKey: '', keyEdit: false, savingKey: false, footageEdit: false, footageKey: '', footageProvider: 'pixabay', savingFootage: false,
     cur: null, curMissing: false, tl: { captions:{}, scenes:[] }, baseTl: '', edTitle: '', baseTitle: '', preview: null, instruction: '',
     pubIds: [], pubOpts: { youtube_visibility:'public', tiktok_method:'UPLOAD', schedule:'' },
-    editorTabs: [{key:'scenes',label:'Scenes'},{key:'style',label:'Style'},{key:'review',label:'AI & review'},{key:'publish',label:'Publish'}],
+    editorTabs: [{key:'scenes',label:'Scenes'},{key:'style',label:'Style'},{key:'edit',label:'Edit'},{key:'review',label:'AI & review'},{key:'publish',label:'Publish'}],
+    ed: JSON.parse(JSON.stringify(ED_EMPTY)),
+    LOOK_NAMES: { none:'Original', vivid:'Vivid', warm:'Warm', fade:'Faded', film:'Film', mono:'Mono', noir:'Noir' },
     presets: [
       {key:'bold', label:'Bold', cls:'b', demo:'This is <em>huge</em>'},
       {key:'box', label:'Box', cls:'x', demo:'This is huge'},
@@ -2557,6 +2763,7 @@ function app() {
       if (r.page === 'brand' && (prev.page !== 'brand' || prev.id !== r.id || !this.brand)) this.loadBrand(r.id);
       if (r.page === 'project' && (prev.page !== 'project' || prev.id !== r.id || !this.cur)) await this.openProject(r.id);
       if (r.page === 'project' && r.sub === 'review' && this.cur) this.enterReview();
+      if (r.page === 'project' && r.sub === 'edit' && this.cur) this.edOpen(); else this.edPause();
       if (r.page === 'project' && r.sub === 'publish' && this.cur) this.syncPost();
       this.conn = '';
       if (r.page === 'connections') this.loadConnections();
@@ -2584,6 +2791,7 @@ function app() {
         this.onRoute();
       });
       window.addEventListener('keydown', e => {
+        if (this.route.page === 'project' && this.route.sub === 'edit' && this.ed.data) return this.edKey(e);
         if (this.route.page !== 'project' || this.route.sub !== 'review' || !this.cur?.video_path) return;
         if (e.target.closest('input, textarea, select, [contenteditable]') || this.dialog.open || this.conn || e.metaKey || e.ctrlKey) return;
         const step = e.shiftKey ? 1 : 1 / 30;
@@ -2762,6 +2970,7 @@ function app() {
       const newVersion = fresh.version !== this.cur.version;
       this.cur = fresh;
       if (newVersion && this.route.sub === 'review') this.enterReview();
+      if (newVersion && this.route.sub === 'edit' && this.ed.data) this.api(`/api/projects/${fresh.id}/edit`).then(d => { this.ed.data.newer = d.newer; }).catch(() => {});
       if (gotTimeline || (finished && !this.dirty)) this.loadTimeline();
       if (finished) {
         this.preview = null;
@@ -2821,7 +3030,7 @@ function app() {
 
     // ------------------------------------------------ editor
     async openProject(id) {
-      this.cur = null; this.curMissing = false; this.preview = null; this.instruction = '';
+      this.cur = null; this.curMissing = false; this.preview = null; this.instruction = ''; this.edPause(); this.ed.pid = null;
       const p = this.projects.find(x => x.id === id) || await this.api(`/api/projects/${id}`).catch(() => null);
       if (!p) { this.curMissing = true; return; }
       this.cur = p;
@@ -2853,6 +3062,273 @@ function app() {
     async loadReview() { if (!this.cur?.video_path) { this.rv.comments = []; return; } const r = await this.api(`/api/projects/${this.cur.id}/review`).catch(() => null); if (r) this.rv.comments = r.comments; },
     async loadFilmstrip() { this.rv.film = null; if (this.cur?.video_path) this.rv.film = await this.api(`/api/projects/${this.cur.id}/filmstrip`).catch(() => null); },
     enterReview() { this.preview = null; Object.assign(this.rv, { sel:null, pin:null, mode:'time' }); this.loadReview(); this.loadFilmstrip(); },
+    // ------------------------------------------------ editor (Edit tab): a CapCut-style timeline on a version
+    // The preview plays the base video clip by clip (speed, look as CSS filters) with titles and music on top,
+    // timed exactly like the ffmpeg export in app/editor.py.
+    async edOpen() {
+      if (!this.cur?.video_path) { this.ed = { ...this.ed, err: this.t('Render the video first.') }; return; }
+      if (this.ed.pid === this.cur.id && this.ed.data) return;
+      this.edPause();
+      this.ed = { ...ED_EMPTY, pid: this.cur.id, undo: [], redo: [] };
+      try {
+        const d = await this.api(`/api/projects/${this.cur.id}/edit`);
+        this.ed.data = d; this.ed.edit = d.edit; this.ed.t = 0;
+        const W = d.base.width, H = d.base.height;
+        this.ed.zoom = Math.max(14, Math.min(80, Math.round(900 / Math.max(1, this.edDur()))));
+        this.api(`/api/projects/${this.cur.id}/filmstrip?file=${encodeURIComponent(d.base.file)}`).then(s => { this.ed.strip = { ...s, tw: Math.round(90 * W / H) }; }).catch(() => {});
+        try { const f = new FontFace('EdTitle', `url(${d.font.url})`, { weight: '700' }); document.fonts.add(f); f.load(); } catch {}
+        this.$nextTick(() => this.edMeasure());
+      } catch (e) { this.ed.err = e.message; }
+    },
+    // The editor lives inside x-if templates, which $refs can't reach from shortcuts and timers: look elements up directly.
+    edEl(k) { return document.querySelector({ video: '.nle-stage video', audio: '.nle audio', stage: '.nle-stage', scroll: '.nle-scroll', text: '.nle-insp textarea' }[k]); },
+    edMeasure() { const s = this.edEl('stage'); if (s) this.ed.stageH = s.clientHeight; },
+    edStageStyle() { const b = this.ed.data?.base; return b ? `aspect-ratio:${b.width}/${b.height};width:min(100%, calc(50vh * ${b.width / b.height}))` : ''; },
+    edDur() { return (this.ed.edit?.clips || []).reduce((a, c) => a + (c.out - c.in) / c.speed, 0); },
+    edStarts() { let t = 0; return this.ed.edit.clips.map(c => { const s = t; t += (c.out - c.in) / c.speed; return s; }); },
+    edIndexAt(T) { const st = this.edStarts(); let i = 0; while (i + 1 < st.length && T >= st[i + 1]) i++; return i; },
+    edClip() { return this.ed.edit?.clips?.[this.edIndexAt(this.ed.t)]; },
+    edPx(t) { return ED_PAD + t * this.ed.zoom; },
+    edTicks() { const d = this.edDur(), z = this.ed.zoom, step = z >= 90 ? 1 : z >= 40 ? 2 : z >= 18 ? 5 : 10; const out = []; for (let s = 0; s <= d + 0.001; s += step) out.push(+s.toFixed(2)); return out; },
+    edCss(c) {
+      if (!c) return 'none';
+      const f = [...(this.ed.data?.looks?.[c.look] || []), ['brightness', c.adjust.brightness], ['contrast', c.adjust.contrast], ['saturate', c.adjust.saturation]]
+        .filter(([n, v]) => Math.abs(v - (['sepia', 'grayscale'].includes(n) ? 0 : 1)) > 0.001).map(([n, v]) => `${n}(${v})`);
+      return f.length ? f.join(' ') : 'none';
+    },
+    // ---- playback
+    edSeek(T) {
+      const v = this.edEl('video'); T = Math.max(0, Math.min(this.edDur(), T)); this.ed.t = T;
+      if (!v || !this.ed.edit.clips.length) return;
+      const i = this.edIndexAt(T), c = this.ed.edit.clips[i];
+      this.ed.ci = i;
+      const src = Math.min(c.out - 0.001, c.in + (T - this.edStarts()[i]) * c.speed);
+      if (Math.abs(v.currentTime - src) > 0.01) v.currentTime = src;
+      v.playbackRate = c.speed; v.volume = Math.min(1, c.volume * this.ed.edit.audio.original);
+      this.edMusicSync(true);
+    },
+    edToggle() { this.ed.playing ? this.edPause() : this.edPlay(); },
+    edPlay() {
+      const v = this.edEl('video'); if (!v) return;
+      if (this.ed.t >= this.edDur() - 0.05) this.edSeek(0); else this.edSeek(this.ed.t);
+      this.ed.playing = true; v.play().catch(() => {});
+      const loop = () => {
+        if (!this.ed.playing) return;
+        const clips = this.ed.edit.clips; let i = this.ed.ci, c = clips[i];
+        if (v.currentTime >= c.out - 0.02 || v.ended) {
+          if (i + 1 >= clips.length) { this.ed.t = this.edDur(); return this.edPause(); }
+          i = ++this.ed.ci; c = clips[i]; v.currentTime = c.in; v.playbackRate = c.speed; v.volume = Math.min(1, c.volume * this.ed.edit.audio.original);
+        }
+        this.ed.t = this.edStarts()[i] + Math.max(0, v.currentTime - c.in) / c.speed;
+        this.edMusicSync(false);
+        this.edFollow();
+        requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+    },
+    edPause() { this.ed.playing = false; this.edEl('video')?.pause(); this.edEl('audio')?.pause(); },
+    edMusicLen() { const m = this.ed.edit?.music; if (!m) return 0; const tr = this.musicList.find(x => x.file === m.file); const avail = Math.max(0.1, (tr?.duration || 600) - m.in);
+      return Math.max(0.1, Math.min(m.length || avail, avail, this.edDur() - m.start)); },
+    edMusicSync(seek) {
+      const a = this.edEl('audio'), m = this.ed.edit.music; if (!a || !m) return;
+      const len = this.edMusicLen(), local = this.ed.t - m.start;
+      if (local < 0 || local >= len) { a.pause(); return; }
+      const fade = Math.min(1, m.fade_in ? local / m.fade_in : 1, m.fade_out ? (len - local) / m.fade_out : 1);
+      a.volume = Math.max(0, Math.min(1, m.volume * fade));
+      if (seek || Math.abs(a.currentTime - (m.in + local)) > 0.3) a.currentTime = m.in + local;
+      if (this.ed.playing && a.paused) a.play().catch(() => {});
+    },
+    edFollow() { const sc = this.edEl('scroll'); if (!sc) return; const x = this.edPx(this.ed.t); if (x > sc.scrollLeft + sc.clientWidth - 60 || x < sc.scrollLeft) sc.scrollLeft = x - 60; },
+    // ---- titles (same timing as the ASS export)
+    edTitleAnim(tx) {
+      const H = this.ed.stageH || 400, local = this.ed.t - tx.start, left = tx.end - this.ed.t;
+      let op = 1, sc = 1, dy = 0;
+      if (tx.anim === 'fade') op = Math.min(1, local / 0.25, left / 0.2);
+      if (tx.anim === 'pop') { op = Math.min(1, local / 0.12, left / 0.15); sc = local < 0.18 ? 0.4 + 0.68 * local / 0.18 : local < 0.26 ? 1.08 - 0.08 * (local - 0.18) / 0.08 : 1; }
+      if (tx.anim === 'slide') { op = Math.min(1, local / 0.2, left / 0.15); dy = local < 0.28 ? 0.04 * H * (1 - local / 0.28) : 0; }
+      return { op: Math.max(0, op), sc, dy };
+    },
+    edTitleStyle(tx) {
+      const H = this.ed.stageH || 400, px = tx.size * H, a = this.edTitleAnim(tx);
+      const st = tx.style === 'outline' ? `-webkit-text-stroke:${2 * Math.max(1, Math.round(px * 0.07))}px #000;paint-order:stroke fill;`
+        : tx.style === 'box' ? `background:rgba(0,0,0,.65);padding:${Math.max(2, Math.round(px * 0.18))}px;`
+        : tx.style === 'shadow' ? `text-shadow:${Math.max(1, Math.round(px * 0.06))}px ${Math.max(1, Math.round(px * 0.06))}px 0 rgba(0,0,0,.6);` : '';
+      return `left:${tx.x * 100}%;top:${tx.y * 100}%;font-size:${px}px;color:${tx.color};opacity:${a.op};transform:translate(-50%,-50%) translateY(${a.dy}px) scale(${a.sc});${st}`;
+    },
+    edTitleHtml(tx) {
+      const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+      if (tx.anim !== 'type') return esc(tx.text);
+      const n = tx.text.length, per = Math.max(1, Math.round(Math.min(1, 0.04 * n) * 100 / Math.max(1, n))) / 100;
+      const shown = Math.min(n, Math.floor((this.ed.t - tx.start) / per) + 1);
+      return esc(tx.text.slice(0, shown)) + `<span style="visibility:hidden">${esc(tx.text.slice(shown))}</span>`;
+    },
+    edTextLane(tx) { const ts = this.ed.edit.texts; const i = ts.indexOf(tx); let lane = 0;
+      for (let j = 0; j < i; j++) if (ts[j].start < tx.end && tx.start < ts[j].end) lane = Math.max(lane, this.edTextLane(ts[j]) + 1); return Math.min(lane, 2); },
+    edColors() { const b = this.brandById?.(this.cur?.timeline?.brand_id); return [...new Set(['#ffffff', '#000000', '#ffe14d', '#ff4d6d', '#3ccf91', '#4da3ff', ...(b ? [b.colors.primary, b.colors.accent].map(c => c.toLowerCase()) : [])])]; },
+    // ---- thumbnails from the base filmstrip
+    edThumbs(c) {
+      const s = this.ed.strip; if (!s) return [];
+      const w = (c.out - c.in) / c.speed * this.ed.zoom, tw = s.tw * 56 / 90, n = Math.max(1, Math.ceil(w / tw));
+      return Array.from({ length: Math.min(n, 80) }, (_, j) => {
+        const src = Math.min(c.out, c.in + (j * tw / this.ed.zoom) * c.speed), k = Math.min(s.count - 1, Math.floor(src / s.duration * s.count));
+        return `width:${tw}px;background-image:url(${s.url});background-size:${s.count * tw}px 56px;background-position:${-k * tw}px 0`;
+      });
+    },
+    edThumbStyle(c, look) {
+      const s = this.ed.strip; if (!s) return '';
+      const k = Math.min(s.count - 1, Math.floor((c.in + c.out) / 2 / s.duration * s.count)), tw = s.tw * 64 / 90;
+      return `width:${tw}px;background-image:url(${s.url});background-size:${s.count * tw}px 64px;background-position:${-k * tw}px 0;filter:${this.edCss({ ...c, look })}`;
+    },
+    edClipStyle(c, i) {
+      const st = this.edStarts(), d = this.ed.drag;
+      let left = this.edPx(st[i]);
+      if (d && d.id === c.id && d.mode === 'move') left += d.dx;
+      return `left:${left}px;width:${(c.out - c.in) / c.speed * this.ed.zoom}px`;
+    },
+    // ---- selection & editing
+    edSel(kind, id) { this.ed.sel = kind ? { kind, id } : null; },
+    edSelClip() { return this.ed.sel?.kind === 'clip' ? this.ed.edit.clips.find(c => c.id === this.ed.sel.id) : null; },
+    edSelText() { return this.ed.sel?.kind === 'text' ? this.ed.edit.texts.find(t => t.id === this.ed.sel.id) : null; },
+    edSnap() { this.ed.undo.push(JSON.stringify(this.ed.edit)); if (this.ed.undo.length > 100) this.ed.undo.shift(); this.ed.redo = []; },
+    edUndo() { if (!this.ed.undo.length) return; this.ed.redo.push(JSON.stringify(this.ed.edit)); this.ed.edit = JSON.parse(this.ed.undo.pop()); this.edAfterChange(); },
+    edRedo() { if (!this.ed.redo.length) return; this.ed.undo.push(JSON.stringify(this.ed.edit)); this.ed.edit = JSON.parse(this.ed.redo.pop()); this.edAfterChange(); },
+    edAfterChange() {
+      if (this.ed.sel && !(this.ed.sel.kind === 'music' ? this.ed.edit.music : (this.ed.sel.kind === 'clip' ? this.ed.edit.clips : this.ed.edit.texts).some(x => x.id === this.ed.sel.id))) this.ed.sel = null;
+      this.ed.t = Math.min(this.ed.t, this.edDur()); this.edChanged(); if (!this.ed.playing) this.edSeek(this.ed.t);
+    },
+    edChanged() {
+      clearTimeout(this._edSave); this.ed.savedAt = 0;
+      this._edSave = setTimeout(() => this.edSave(), 700);
+    },
+    async edSave() {
+      if (!this.ed.data || !this.cur) return;
+      this.ed.saving = true;
+      try { await this.api(`/api/projects/${this.cur.id}/edit`, { method: 'PUT', body: { edit: this.ed.edit } }); this.ed.savedAt = Date.now(); } catch (e) { this.say(e.message, true); }
+      this.ed.saving = false;
+    },
+    edUid() { return Math.random().toString(36).slice(2, 10); },
+    edSplit() {
+      const T = this.ed.t, i = this.edIndexAt(T), c = this.ed.edit.clips[i], st = this.edStarts()[i];
+      const at = c.in + (T - st) * c.speed;
+      if (at - c.in < 0.1 || c.out - at < 0.1) return this.say(this.t('Move the playhead inside a clip to split it'));
+      this.edSnap();
+      const b = { ...JSON.parse(JSON.stringify(c)), id: this.edUid(), in: +at.toFixed(3) };
+      c.out = +at.toFixed(3); this.ed.edit.clips.splice(i + 1, 0, b); this.edSel('clip', b.id); this.edChanged();
+    },
+    edDuplicate() {
+      const s = this.ed.sel; if (!s) return; this.edSnap();
+      if (s.kind === 'clip') { const i = this.ed.edit.clips.findIndex(c => c.id === s.id); const c = { ...JSON.parse(JSON.stringify(this.ed.edit.clips[i])), id: this.edUid() }; this.ed.edit.clips.splice(i + 1, 0, c); this.edSel('clip', c.id); }
+      if (s.kind === 'text') { const tx = this.edSelText(); const len = tx.end - tx.start; const n = { ...tx, id: this.edUid(), start: Math.min(tx.end, this.edDur() - 0.2), end: Math.min(this.edDur(), tx.end + len) }; this.ed.edit.texts.push(n); this.edSel('text', n.id); }
+      this.edChanged();
+    },
+    edDelete() {
+      const s = this.ed.sel; if (!s) return;
+      if (s.kind === 'clip' && this.ed.edit.clips.length < 2) return;
+      this.edSnap();
+      if (s.kind === 'clip') this.ed.edit.clips = this.ed.edit.clips.filter(c => c.id !== s.id);
+      if (s.kind === 'text') this.ed.edit.texts = this.ed.edit.texts.filter(t => t.id !== s.id);
+      if (s.kind === 'music') this.ed.edit.music = null;
+      this.ed.sel = null; this.edAfterChange();
+    },
+    edAddText() {
+      this.edSnap();
+      const start = Math.min(this.ed.t, Math.max(0, this.edDur() - 0.5));
+      const tx = { id: this.edUid(), text: this.t('Your title'), start, end: Math.min(this.edDur(), start + 2.5), x: 0.5, y: 0.25, size: 0.06, color: '#ffffff', style: 'outline', anim: 'pop' };
+      this.ed.edit.texts.push(tx); this.edSel('text', tx.id); this.edChanged();
+      this.$nextTick(() => { this.edEl('text')?.focus(); this.edEl('text')?.select(); });
+    },
+    edAddMusic() {
+      if (!this.musicList.length || this.ed.edit.music) return;
+      this.edSnap(); const m = this.musicList[0];
+      this.ed.edit.music = { file: m.file, name: m.name, start: 0, in: 0, length: null, volume: 0.35, fade_in: 0.5, fade_out: 1.5 };
+      this.edSel('music', 'music'); this.edChanged();
+    },
+    async edReset() {
+      this.edPause(); this.ed.data = null;
+      try { const d = await this.api(`/api/projects/${this.cur.id}/edit/reset`, { method: 'POST' }); this.ed = { ...ED_EMPTY, pid: this.cur.id, data: d, edit: d.edit, undo: [], redo: [], zoom: this.ed.zoom };
+        this.api(`/api/projects/${this.cur.id}/filmstrip?file=${encodeURIComponent(d.base.file)}`).then(s => { this.ed.strip = { ...s, tw: Math.round(90 * d.base.width / d.base.height) }; }).catch(() => {}); }
+      catch (e) { this.ed.err = e.message; }
+    },
+    async edExport() {
+      this.edPause(); clearTimeout(this._edSave); await this.edSave();
+      this.ed.exporting = true;
+      const p = await this.run(() => this.api(`/api/projects/${this.cur.id}/edit/export`, { method: 'POST' }), 'Exporting — the new version appears in a moment');
+      this.ed.exporting = false;
+      if (p) { this.cur = { ...this.cur, status: 'rendering', progress: 10 }; this.loadProjects(); }
+    },
+    // ---- dragging on the timeline and the preview
+    edScrub(e) {
+      this.edPause();
+      const sc = this.edEl('scroll'), r = sc.getBoundingClientRect();
+      const at = ev => this.edSeek((ev.clientX - r.left + sc.scrollLeft - ED_PAD) / this.ed.zoom);
+      at(e);
+      const mv = ev => at(ev), up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); };
+      addEventListener('pointermove', mv); addEventListener('pointerup', up);
+    },
+    edDown(e, kind, id, mode) {
+      this.edPause(); this.edSel(kind, id);
+      const before = JSON.stringify(this.ed.edit);
+      const item = kind === 'clip' ? this.ed.edit.clips.find(c => c.id === id) : kind === 'text' ? this.ed.edit.texts.find(t => t.id === id) : this.ed.edit.music;
+      const o = JSON.parse(JSON.stringify(item)), x0 = e.clientX, z = this.ed.zoom, dur = this.edDur(), baseDur = this.ed.data.base.duration;
+      this.ed.drag = { id, mode, dx: 0 };
+      let moved = false;
+      const mv = ev => {
+        const dx = ev.clientX - x0, dt = dx / z; if (Math.abs(dx) > 2) moved = true; if (!moved) return;
+        if (kind === 'clip') {
+          if (mode === 'move') this.ed.drag.dx = dx;
+          if (mode === 'l') item.in = +Math.max(0, Math.min(o.out - 0.1, o.in + dt * o.speed)).toFixed(3);
+          if (mode === 'r') item.out = +Math.min(baseDur, Math.max(o.in + 0.1, o.out + dt * o.speed)).toFixed(3);
+        } else if (kind === 'text') {
+          const len = o.end - o.start;
+          if (mode === 'move') { item.start = +Math.max(0, Math.min(dur - len, o.start + dt)).toFixed(3); item.end = +(item.start + len).toFixed(3); }
+          if (mode === 'l') item.start = +Math.max(0, Math.min(o.end - 0.2, o.start + dt)).toFixed(3);
+          if (mode === 'r') item.end = +Math.min(dur, Math.max(o.start + 0.2, o.end + dt)).toFixed(3);
+        } else {
+          if (mode === 'move') item.start = +Math.max(0, Math.min(dur - 0.5, o.start + dt)).toFixed(3);
+          if (mode === 'l') { const d = Math.max(-o.in, Math.min(dt, (o.length || 600) - 0.5)); item.in = +(o.in + d).toFixed(3); item.start = +Math.max(0, o.start + d).toFixed(3); if (o.length) item.length = +(o.length - d).toFixed(3); }
+          if (mode === 'r') { const cur = o.length || this.edMusicLen(); item.length = +Math.max(0.5, cur + dt).toFixed(3); }
+        }
+      };
+      const up = ev => {
+        removeEventListener('pointermove', mv); removeEventListener('pointerup', up);
+        if (kind === 'clip' && mode === 'move' && moved) {  // drop: reorder by the clip's new middle
+          const clips = this.ed.edit.clips, from = clips.findIndex(c => c.id === id), st = this.edStarts();
+          const mid = st[from] + (o.out - o.in) / o.speed / 2 + this.ed.drag.dx / z;
+          const rest = clips.filter(c => c.id !== id); let to = 0, t = 0;
+          for (const c of rest) { const len = (c.out - c.in) / c.speed; if (mid > t + len / 2) to++; t += len; }
+          if (to !== from) { const [c] = clips.splice(from, 1); clips.splice(to, 0, c); }
+        }
+        this.ed.drag = null;
+        if (moved && JSON.stringify(this.ed.edit) !== before) { this.ed.undo.push(before); this.ed.redo = []; this.edAfterChange(); }
+        else if (!moved && kind === 'clip') this.edSeek(this.edStarts()[this.ed.edit.clips.findIndex(c => c.id === id)]);
+      };
+      addEventListener('pointermove', mv); addEventListener('pointerup', up);
+    },
+    edTitleDown(e, tx) {
+      this.edPause(); this.edSel('text', tx.id);
+      const r = this.edEl('stage').getBoundingClientRect(), o = { x: tx.x, y: tx.y }, x0 = e.clientX, y0 = e.clientY, before = JSON.stringify(this.ed.edit);
+      const mv = ev => { tx.x = +Math.max(0, Math.min(1, o.x + (ev.clientX - x0) / r.width)).toFixed(4); tx.y = +Math.max(0, Math.min(1, o.y + (ev.clientY - y0) / r.height)).toFixed(4); };
+      const up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up);
+        if (JSON.stringify(this.ed.edit) !== before) { this.ed.undo.push(before); this.ed.redo = []; this.edChanged(); } };
+      addEventListener('pointermove', mv); addEventListener('pointerup', up);
+    },
+    edKey(e) {
+      if (e.target.closest('input, textarea, select, [contenteditable]') || this.dialog.open || this.conn) return;
+      const mod = e.metaKey || e.ctrlKey;
+      // A focused button would also take Space/Enter as a click on key-up (e.g. play, then pause right away).
+      if (e.target.closest('button')) e.target.closest('button').blur();
+      if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); return e.shiftKey ? this.edRedo() : this.edUndo(); }
+      if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); return this.edDuplicate(); }
+      if (mod) return;
+      const step = e.shiftKey ? 1 : 1 / 30;
+      if (e.key === ' ') { e.preventDefault(); this.edToggle(); }
+      else if (e.key === 's' || e.key === 'S') { e.preventDefault(); this.edSplit(); }
+      else if (e.key === 't' || e.key === 'T') { e.preventDefault(); this.edAddText(); }
+      else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); this.edDelete(); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); this.edPause(); this.edSeek(this.ed.t - step); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); this.edPause(); this.edSeek(this.ed.t + step); }
+      else if (e.key === 'Escape') this.edSel(null);
+    },
     fmtT(s) { s = Math.max(0, +s || 0); return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`; },
     rvSceneAt(t) { const sc = this.cur?.timeline?.scenes || []; const i = sc.findIndex(s => s.start != null && t >= s.start && t < s.end + 0.01); return i >= 0 ? i + 1 : (sc.length && t >= (sc.at(-1).end || 0) ? sc.length : null); },
     rvWhere(c) {
