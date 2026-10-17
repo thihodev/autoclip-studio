@@ -85,6 +85,8 @@ def describe_tool(name: str, inp: dict) -> str | None:
         return f"Started a designer for: {inp.get('description', 'a scene')}"
     if name == "mcp__autoclip__voiceover":
         return f"Recording the voice-over for {len(inp.get('lines') or [])} scene(s)"
+    if name == "mcp__autoclip__compose_music":
+        return "Rendering the music Claude composed"
     if name in ("Write", "Edit", "MultiEdit"):
         f = Path(inp.get("file_path", "")).name
         labels = {"STORYBOARD.md": "the storyboard", "SCRIPT.md": "the script", "BRIEF.md": "the brief",

@@ -2629,17 +2629,17 @@
       </div>
       <div x-show="conn==='audio'">
         <h3 class="chead" style="margin-top:0"><span x-t>Automatic music</span></h3>
-        <p class="small muted" style="margin:0 0 8px"><span x-t>Claude names the music each video needs. AutoClip uses the brand kit's music, else a library track with that mood. When none fits:</span></p>
+        <p class="small muted" style="margin:0 0 8px"><span x-t>Music for videos set to Automatic, when the brand kit has none:</span></p>
         <div class="seg full" role="radiogroup" :aria-label="t('Automatic music')">
-          <template x-for="o in ['free','elevenlabs','off']" :key="o"><button type="button" role="radio" :aria-checked="String((cfg.music?.auto || 'free')===o)" :class="(cfg.music?.auto || 'free')===o && 'on'" @click="setMusicAuto(o)" x-text="t({free:'Find free music', elevenlabs:'Generate with ElevenLabs', off:'No music'}[o])"></button></template></div>
-        <p class="hint" x-text="t({free:'Looks up an instrumental track on Openverse (CC0 or CC BY, from Jamendo), adds it to the library and puts its credit in the caption. No key needed.', elevenlabs:'Makes a track of the right length (uses ElevenLabs credits); without a key it looks up a free one instead.', off:'Videos get music only from the brand kit or a track you pick.'}[cfg.music?.auto || 'free'])"></p>
+          <template x-for="o in ['compose','free','elevenlabs','off']" :key="o"><button type="button" role="radio" :aria-checked="String((cfg.music?.auto || 'compose')===o)" :class="(cfg.music?.auto || 'compose')===o && 'on'" @click="setMusicAuto(o)" x-text="t({compose:'Claude composes it', free:'Library or free music', elevenlabs:'Generate with ElevenLabs', off:'No music'}[o])"></button></template></div>
+        <p class="hint" x-text="t({compose:'Claude writes an instrumental score for each video, timed to its scenes, and AutoClip renders it on this computer. Original, no licenses or credits; Claude Motion composes inside its run, Quick uses one small extra Claude call. Needs Claude Motion installed.', free:'A library track with the mood Claude names, else an instrumental track from Openverse (CC0 or CC BY, from Jamendo), added to the library with its credit in the caption. No key needed.', elevenlabs:'Makes a track of the right length (uses ElevenLabs credits); without a key it looks up a free one instead.', off:'Videos get music only from the brand kit or a track you pick.'}[cfg.music?.auto || 'compose'])"></p>
         <h3 class="chead"><span x-t>Music library</span></h3>
         <template x-if="!musicList.length"><p class="small muted"><span x-t>No tracks yet. Add music you have the rights to, or generate it with ElevenLabs.</span></p></template>
         <div class="stack">
           <template x-for="m in musicList" :key="m.file">
             <div class="acct-row">
               <button type="button" class="btn icon" @click="playTrack(m.file)" :aria-label="t('Listen')"><svg class="i"><use :href="playing===m.file ? '#i-pause' : '#i-play'"/></svg></button>
-              <div class="grow"><div x-text="m.name"></div><div class="small muted"><span x-text="[m.mood, fmtDur(m.duration), m.source==='elevenlabs' ? 'ElevenLabs' : m.source==='openverse' ? 'Openverse · ' + (m.license || '') : ''].filter(Boolean).join(' · ')"></span>
+              <div class="grow"><div x-text="m.name"></div><div class="small muted"><span x-text="[m.mood, fmtDur(m.duration), m.source==='elevenlabs' ? 'ElevenLabs' : m.source==='composed' ? t('Composed by Claude') : m.source==='openverse' ? 'Openverse · ' + (m.license || '') : ''].filter(Boolean).join(' · ')"></span>
                 <a x-show="m.link" :href="m.link" target="_blank" rel="noopener" x-t>Source</a></div></div>
               <button class="btn ghost icon danger" @click="removeTrack(m)" :aria-label="t('Remove')"><svg class="i"><use href="#i-trash"/></svg></button>
             </div>
@@ -4503,7 +4503,7 @@ function app() {
       this.mpClose();
     },
     effortLabel(e) { return this.t({ '':'Model default', low:'Low effort', medium:'Medium effort', high:'High effort', xhigh:'Extra-high effort', max:'Max effort' }[e] ?? e); },
-    kindLabel(k) { return this.t({ script:'Script', ideas:'Ideas', edit:'AI edit', motion:'Claude Motion', 'motion-edit':'Claude Motion edit', 'brand-import':'Brand import', template:'Template', episode:'Template episode' }[k] || k); },
+    kindLabel(k) { return this.t({ script:'Script', ideas:'Ideas', edit:'AI edit', motion:'Claude Motion', 'motion-edit':'Claude Motion edit', 'brand-import':'Brand import', template:'Template', episode:'Template episode', music:'Music', reference:'Reference video', plan:'Idea' }[k] || k); },
     async loadPlan(refresh = false) {
       this.planLoading = true;
       this.plan = await this.api(`/api/claude/plan-usage${refresh ? '?refresh=true' : ''}`).catch(e => ({ error: e.message }));

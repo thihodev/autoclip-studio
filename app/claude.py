@@ -247,6 +247,20 @@ Reply with JSON:
   "outline": ["scene by scene, what is shown and said, one short line each in {language}"]}}"""
 
 
+COMPOSE_SYSTEM = """You compose instrumental background music for short videos, as Tone.js code that is rendered offline.
+Reply with ONE JSON object only: {"code": "<the whole score.js>"} — no markdown fences, no commentary."""
+
+
+async def compose_score(brief: str, project_id: str | None = None, model: str | None = None,
+                        effort: str | None = None) -> str:
+    """Quick engine: the score for a video, in one call (Claude Motion composes inside its own run)."""
+    data = await ask_json(brief, COMPOSE_SYSTEM, kind="music", project_id=project_id, model=model, effort=effort)
+    code = str(data.get("code") or "")
+    if "function compose" not in code:
+        raise RuntimeError("Claude didn't write a score")
+    return code
+
+
 async def plan_video(topic: str, language: str, duration: int, format: str, extra: str = "", avoid: list[str] | None = None,
                      model: str | None = None) -> dict:
     """A concept to approve before the video is made: title, angle, audience, hook and a scene outline."""

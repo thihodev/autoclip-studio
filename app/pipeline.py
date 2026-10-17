@@ -9,7 +9,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import activity, audio, brands, claude, context, db, design, editor, motion, references, playbooks, render, settings, tts, usage
+from . import activity, audio, brands, claude, compose, context, db, design, editor, motion, references, playbooks, render, settings, tts, usage
 from .config import DATA_DIR, VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
@@ -231,7 +231,15 @@ async def run_project(pid: str):
             )
             tl = render.new_timeline(meta, req, brand)
             mood = str(meta.get("music") or "") or tl.get("music_mood") or req.get("style", "")
-            if not tl["music"] and (m := await audio.pick_auto("", brand, pid, mood, float(req.get("duration", 45)))) \
+            m = None
+            if not tl["music"] and audio.composes("", brand):
+                activity.add(pid, "Claude is composing the music")
+                try:
+                    m = await compose.for_quick({**meta, "music": mood}, req, pid)
+                except Exception as e:
+                    activity.add(pid, f"Couldn't compose the music ({str(e)[:120]}); using the library", "warn")
+                m = {"file": m["file"]} if m else None
+            if not tl["music"] and (m or (m := await audio.pick_auto("", brand, pid, mood, float(req.get("duration", 45))))) \
                     and m.get("file"):  # a new track for this video: the timeline names it, so edits keep it
                 tl["music"] = m["file"]
                 if (c := audio.credit(m["file"])):

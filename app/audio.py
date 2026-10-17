@@ -246,6 +246,15 @@ async def pick_auto(choice: str | None, brand: dict | None, pid: str, mood: str,
     return pick(choice, brand, pid, mood)
 
 
+def composes(choice: str | None, brand: dict | None) -> bool:
+    """"Automatic" music, no brand music, and Connections → Music says Claude composes it (and the browser that renders
+    scores is installed)."""
+    from . import compose  # only needed here
+
+    return (choice in ("", None, "auto") and not (brand and brand.get("music"))
+            and settings.get("music")["auto"] == "compose" and compose.chrome() is not None)
+
+
 def credit(file: str | None) -> str:
     """The credit line a library track needs (CC BY), or ""."""
     return next((m.get("credit") or "" for m in music_list() if file and m["file"] == Path(file).name), "")

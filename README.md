@@ -78,7 +78,7 @@ Connections is a short list; click a row for its settings.
 | **Claude** | yes | Sign in with Claude here (a separate login stored in `data/claude/`), use this computer's Claude Code login, or an Anthropic API key. Several can be saved and switched without signing in again. The app never picks an account by itself. |
 | Claude Motion | | One-click install of [HyperFrames](https://github.com/heygen-com/hyperframes) for the motion engine. |
 | Voice-over | | An [ElevenLabs](https://elevenlabs.io) key for natural voices in 70+ languages (incl. Vietnamese). Without it, free Microsoft voices (edge-tts). The key needs *Text to Speech* and *Voices → Read*. |
-| Music & sound effects | | A music library (upload tracks with a mood, generate them with ElevenLabs Music, or let AutoClip find free ones), what *Automatic* music does when no track fits, and AutoClip's built-in sound effects. |
+| Music & sound effects | | What *Automatic* music does (Claude composes it, a library or free track, ElevenLabs, or none), a music library (upload, generate with ElevenLabs Music, found or composed tracks) and AutoClip's built-in sound effects. |
 | Stock footage | | A free [Pixabay](https://pixabay.com/api/docs/) key (or an existing Pexels key) for real clips in Quick videos. Without it, animated backgrounds in your brand colors. |
 | GitHub | | A fine-grained token with read-only *Contents* to use private repositories. Public repos work without it. |
 
@@ -94,7 +94,7 @@ In **Studio**, describe the video and choose:
 - **Like this video** — a reference video you've had Claude study (see below): same format, your content.
 - **Visual style** (Claude Motion) — the look, from a gallery of 43: 30 FrameJam styles (palette, fonts, easing, transitions, text animations, pacing, with posters) and the 13 HyperFrames frame presets.
 - **Hook**: *Suggest hooks* gives 3 opening lines from different angles; pick one, and optionally make a **B version** with another hook to compare.
-- **Brand kit**, language, format (9:16, 16:9, 1:1), length, tone, voice (with ▶ preview — ElevenLabs voices when connected — or *no voice-over*: captions timed to reading speed, music turned up), **background music** and **sound effects**. *Automatic* music fits the video: Claude names the mood it needs (genre, energy, tempo), and AutoClip uses the brand kit's music, else a library track with that mood, else finds an instrumental CC0 / CC BY track on [Openverse](https://openverse.org) (no key; its credit goes into the caption) or — if you choose so in Connections → Music — generates one with ElevenLabs. New tracks join the library.
+- **Brand kit**, language, format (9:16, 16:9, 1:1), length, tone, voice (with ▶ preview — ElevenLabs voices when connected — or *no voice-over*: captions timed to reading speed, music turned up), **background music** and **sound effects**. *Automatic* music fits the video: the brand kit's music if it has some, else — by default — **Claude composes an original instrumental score for the video**, timed to its scenes, as [Tone.js](https://tonejs.github.io) code that AutoClip renders on your computer in Claude Motion's headless browser (no samples, licenses or credits; Claude Motion composes inside its run and checks each render's loudness and spectrogram, Quick uses one small extra Claude call). Connections → Music can instead use a library track with the mood Claude names, else an instrumental CC0 / CC BY track found on [Openverse](https://openverse.org) (no key; its credit goes into the caption), or generate one with ElevenLabs.
 - **Model & effort** for this video (a Claude-style menu next to *Create video*).
 
 The composer remembers its choices for the next video.
@@ -203,7 +203,7 @@ Everything lives in `data/` (`autoclip.db` for settings and projects, renders, b
 | `app/pipeline.py` | Video jobs: create, render versions, AI edits, review rounds, design and timeline edits, layers, autopilot |
 | `app/claude.py` · `app/usage.py` | Claude via the Agent SDK (scripts, ideas, edits, hooks, post copy, sign-in) · usage metering and plan limits |
 | `app/motion.py` | Claude Motion engine (HyperFrames agent, voice-over tool, rules) |
-| `app/render.py` · `app/tts.py` · `app/audio.py` · `app/covers.py` | Quick engine (ffmpeg) · voices · music and sound effects · cover images |
+| `app/render.py` · `app/tts.py` · `app/audio.py` · `app/compose.py` · `app/covers.py` | Quick engine (ffmpeg) · voices · music and sound effects · music Claude composes (Tone.js, rendered offline) · cover images |
 | `app/brands.py` · `app/styles.py` · `app/playbooks.py` | Brand kits and imports · visual styles · video types |
 | `app/design.py` · `app/editor.py` · `app/layers.py` | Direct edits to Claude Motion projects · the timeline editor's export · layers for other editors |
 | `app/templates.py` | Templates: a Claude Motion video as a series format, and its episodes |
@@ -226,4 +226,4 @@ Contributions are welcome — through pull requests; `main` is protected. Read [
 
 ## License and credits
 
-[MIT](LICENSE). Bundled: [Be Vietnam Pro](app/assets/fonts/OFL.txt) (SIL OFL); [FrameJam](https://github.com/moritzkremb/framejam) styles and playbooks (MIT, `app/assets/*/framejam/LICENSE`), whose review page also inspired AutoClip's; GreenSock's [GSAP skills](https://github.com/greensock/gsap-skills) (MIT, `app/assets/skills/gsap/LICENSE`). Used from their own installs: [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0), the [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python), [edge-tts](https://github.com/rany2/edge-tts), [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense), FFmpeg via [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg).
+[MIT](LICENSE). Bundled: [Be Vietnam Pro](app/assets/fonts/OFL.txt) (SIL OFL); [FrameJam](https://github.com/moritzkremb/framejam) styles and playbooks (MIT, `app/assets/*/framejam/LICENSE`), whose review page also inspired AutoClip's; GreenSock's [GSAP skills](https://github.com/greensock/gsap-skills) (MIT, `app/assets/skills/gsap/LICENSE`); [Tone.js](https://github.com/Tonejs/Tone.js) 15.1.22 (MIT, `app/assets/tone/LICENSE.md`). Used from their own installs: [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0), the [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python), [edge-tts](https://github.com/rany2/edge-tts), [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense), FFmpeg via [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg).

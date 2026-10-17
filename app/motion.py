@@ -28,7 +28,7 @@ from claude_agent_sdk import (
     TextBlock, ToolUseBlock, create_sdk_mcp_server, query, tool,
 )
 
-from . import activity, audio, brands, claude, context, design, gsap, playbooks, references, render, settings, styles, tts, usage
+from . import activity, audio, brands, claude, compose, context, design, gsap, playbooks, references, render, settings, styles, tts, usage
 from .config import DATA_DIR
 
 log = logging.getLogger("motion")
@@ -153,6 +153,9 @@ def _brief(req: dict, brand: dict | None, resolution: str, root: Path | None = N
         lines.append("- No sound effects in this video.")
     if req.get("music") == "none":
         lines.append("- No background music in this video.")
+    elif audio.composes(req.get("music"), brand):
+        lines.append("- Music: you compose it (see the Music section) — write the `music:` mood in STORYBOARD.md "
+                     "first, then the score once the frame durations are final.")
     else:
         lines.append("- Music: write STORYBOARD.md (with its top-block `music:` line) before calling the `voiceover` "
                      "tool. Make `music:` a concrete mood for this video's bed — genre, energy, tempo, instruments, e.g. "
@@ -201,6 +204,12 @@ def _brief(req: dict, brand: dict | None, resolution: str, root: Path | None = N
         lines += references.brief_lines(req["reference_id"], root, float(req.get("duration", 45)), req.get("voice") or "")
     if root:
         lines += gsap.brief_lines()
+    if req.get("music") != "none" and audio.composes(req.get("music"), brand):
+        lines += ["", "## Music: compose the bed for this video",
+                  "AutoClip has no stock music for it: you write it, timed to this video. After `sync-durations` "
+                  "(the frame lengths are final) and before assembling, write `music/score.js` and call "
+                  "`mcp__autoclip__compose_music` with the total length; it becomes the bed in audio_meta.json. Keep "
+                  "the voice-over and the sound-effect cues as they are.", "", compose.GUIDE]
     return "\n".join(lines) + "\n"
 
 
@@ -290,7 +299,9 @@ async def record_voice(pid: str, root: Path, req: dict, brand: dict | None, line
         activity.add(pid, f"Scene {frame}: “{text[:140]}”", "say")
     bgm = meta.get("bgm")
     seconds = max(float(req.get("duration", 45)), sum(v["duration_s"] for v in voices.values()))
-    if not bgm and (m := await audio.pick_auto(req.get("music") or "", brand, pid, music_mood(root, req), seconds)):
+    composing = audio.composes(req.get("music"), brand)
+    if not bgm and not composing and (m := await audio.pick_auto(req.get("music") or "", brand, pid,
+                                                                     music_mood(root, req), seconds)):
         if m.get("file"):
             activity.add(pid, f"Music: {next((x['name'] for x in audio.music_list() if x['file'] == m['file']), '')}"
                          " — added to the library", "done")
@@ -331,11 +342,47 @@ def _voiceover_server(pid: str, root: Path, req: dict, brand: dict | None):
         done = await record_voice(pid, root, req, brand, args.get("lines") or [])
         bgm = json.loads((root / "audio_meta.json").read_text()).get("bgm")
         summary = "\n".join(done) or "nothing to record"
-        music = (f"music bed: {bgm['path']} (host); set `music: none` in STORYBOARD.md so no other bed is looked up"
-                 if bgm else "no music bed (set `music: none` in STORYBOARD.md)")
+        if bgm:
+            music = f"music bed: {bgm['path']} (host); set `music: none` in STORYBOARD.md so no other bed is looked up"
+        elif audio.composes(req.get("music"), brand):
+            music = ("no music bed yet: compose it (brief → Music) once the frame durations are final — write "
+                     "music/score.js and call `mcp__autoclip__compose_music`; set `music: none` in STORYBOARD.md")
+        else:
+            music = "no music bed (set `music: none` in STORYBOARD.md)"
         return {"content": [{"type": "text", "text": f"✓ voiceover → audio_meta.json\n{summary}\n{music}"}]}
 
-    return create_sdk_mcp_server("autoclip", tools=[voiceover])
+    @tool(
+        "compose_music",
+        "Render the background music you composed: `score` is the path of your Tone.js score (default "
+        "music/score.js) defining `async function compose({ Tone, seconds, transport })`; `seconds` is the video's "
+        "total length. Writes assets/music/composed.wav (loudness-normalized), makes it the music bed in "
+        "audio_meta.json, and reports errors, loudness per second, clipping and a spectrogram image to Read.",
+        {"type": "object", "required": ["seconds"], "properties": {
+            "score": {"type": "string"}, "seconds": {"type": "number"}}},
+    )
+    async def compose_music(args):
+        src = (root / (args.get("score") or "music/score.js")).resolve()
+        if root.resolve() not in src.parents or not src.is_file():
+            return {"content": [{"type": "text", "text": "✗ Write the score inside the project first (music/score.js)."}]}
+        r = await compose.render_score(src.read_text(errors="replace"), float(args["seconds"]),
+                                       root / "assets" / "music" / "composed.wav")
+        if r["ok"]:
+            spec = root / "assets" / "music" / r["spectrogram"]
+            (root / "music").mkdir(exist_ok=True)
+            shutil.move(spec, root / "music" / r["spectrogram"])
+            meta_path = root / "audio_meta.json"
+            meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+            silent = voice_choice(req, brand)[1] == tts.NO_VOICE
+            meta["bgm"] = {"path": "assets/music/composed.wav", "source": "host", "query": None,
+                           "volume": round(0.12 * (tts.MUSIC_BOOST if silent else 1), 3), "duration_s": r["seconds"]}
+            meta["bgm_pending"] = False
+            meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
+            activity.add(pid, f"Claude composed the music ({r['seconds']}s)", "done")
+        text = compose.report_text(r, "assets/music/composed.wav").replace(
+            f"assets/music/{r.get('spectrogram')}", f"music/{r.get('spectrogram')}")
+        return {"content": [{"type": "text", "text": text}]}
+
+    return create_sdk_mcp_server("autoclip", tools=[voiceover, compose_music])
 
 
 # ------------------------------------------------------------------ the agent
@@ -432,6 +479,7 @@ class Progress:
         (r"^write .*STORYBOARD\.md$", 20, "Writing the storyboard"),
         (r"^mcp__autoclip__voiceover$", 32, "Recording the voice-over"),
         (r"^run .*sync-durations", 36, "Timing the scenes"),
+        (r"^mcp__autoclip__compose_music$", 38, "Composing the music"),
         (r"^(Task|Agent)$|^write .*compositions/frames/", 40, "Animating the scenes"),
         (r"^run .*captions\.mjs", 72, "Adding captions"),
         (r"^run .*assemble-index", 76, "Assembling the video"),
@@ -477,7 +525,8 @@ async def _agent(pid: str, root: Path, req: dict, brand: dict | None, task: str,
         skills="all",
         system_prompt={"type": "preset", "preset": "claude_code", "append": RULES},
         tools=ORCHESTRATOR_TOOLS,
-        allowed_tools=["Read", "Glob", "Grep", "TodoWrite", "Task", "Agent", "mcp__autoclip__voiceover"],
+        allowed_tools=["Read", "Glob", "Grep", "TodoWrite", "Task", "Agent", "mcp__autoclip__voiceover",
+                       "mcp__autoclip__compose_music"],
         disallowed_tools=IDLE_TOOLS,
         agents={"frame-designer": AgentDefinition(
             description="Designs and animates one video frame from its packet (Step 5). Use one per frame.",
