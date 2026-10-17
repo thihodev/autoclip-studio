@@ -1475,6 +1475,22 @@
                   <p class="hint" x-show="!status.claude?.ok"><span x-t>Connect Claude in Connections to use AI edits.</span></p>
                 </div>
 
+                <div class="card" style="margin-top:16px" x-effect="route.sub==='review' && cur?.video_path && musLoad(cur.id, cur.version)">
+                  <div class="card-head"><div class="grow"><h2><span x-t>Music</span></h2>
+                    <p><span x-t>Change only the music: the picture, voice and sound effects stay as they are.</span></p></div></div>
+                  <template x-if="mus.info?.has_music"><audio :src="`/api/projects/${cur.id}/music/audio?v=${cur.version}`" controls preload="none" style="width:100%;height:36px"></audio></template>
+                  <p class="small muted" style="margin:6px 0 0" x-show="mus.info" x-text="[mus.info?.composed ? t('Composed by Claude') : (mus.info?.has_music ? t('From the music library') : t('No music yet')), mus.info?.mood].filter(Boolean).join(' · ')"></p>
+                  <div class="field" style="margin-top:10px"><textarea x-model="mus.text" rows="2" :placeholder="t('e.g. more dramatic, a slower start, a big hit when the answer appears, no drums')"></textarea></div>
+                  <div class="field" x-show="mus.info?.has_music || mus.text.trim()"><label><span x-t>Volume</span> <span class="muted" x-text="Math.round(mus.volume * 100 / 0.12) + '%'"></span></label>
+                    <input type="range" min="0.02" max="0.36" step="0.01" x-model.number="mus.volume"></div>
+                  <div class="actions" style="justify-content:flex-end">
+                    <button class="btn primary" @click="musApply()" :disabled="mus.busy || isBusy(cur) || (!mus.text.trim() && mus.volume === mus.info?.volume) || (mus.text.trim() && !status.claude?.ok)">
+                      <span class="spin" x-show="mus.busy"></span><svg class="i" x-show="!mus.busy"><use href="#i-music"/></svg>
+                      <span x-text="mus.text.trim() ? t('Rewrite the music with Claude') : t('Apply the volume')"></span></button></div>
+                  <p class="hint" x-text="cur.timeline?.engine==='classic' ? t('A new version in about a minute; Claude writes the score in one small call.') : t('A new version in about a minute, made from the current picture — nothing is re-rendered; Claude writes the score in one small call.')"></p>
+                  <p class="hint" x-show="mus.info?.edited" x-text="t('Uses version {v}: Edit-tab changes made after it aren\'t in the new version.', {v: mus.info?.base_version})"></p>
+                </div>
+
               </div>
 
               <!-- Export: the video, and everything to finish it in another editor or post it by hand -->
@@ -2979,6 +2995,7 @@ function app() {
     hooks: { list:[], loading:false, ab:false, topic:'' }, post: { title:'', description:'', hashtags:'', youtube_tags:'' }, postBusy: false, coverText: '', coverBusy: false, sharing: false,
     musicList: [], sfxList: [], playing: '', musicUp: { mood:'', busy:false }, musicGen: { prompt:'', seconds:60, busy:false },
     styleList: [], styleOpen: false, styleQ: '', styleSrc: '', pbList: [], pbOpen: false,
+    mus: { key:'', info:null, text:'', volume:0.12, busy:false },
     rv: { time:0, dur:0, playing:false, sel:null, pin:null, mode:'time', text:'', comments:[], film:null, sending:false, dragging:null },
     workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' }, siteImport: { open:false, url:'', busy:false },
     live: {}, now: 0, dockOpen: true,
@@ -4274,6 +4291,21 @@ function app() {
       if (r) { this.rv.comments = r.comments; Object.assign(this.rv, { text:'', mode:'time', sel:null, pin:null }); }
     },
     async rvDelete(c) { const r = await this.run(() => this.api(`/api/projects/${this.cur.id}/review/${c.id}`, { method:'DELETE' })); if (r) this.rv.comments = r.comments; },
+    async musLoad(pid, version) {
+      const key = `${pid}:${version}`;
+      if (this.mus.key === key) return;
+      this.mus.key = key;
+      const info = await this.api(`/api/projects/${pid}/music`).catch(() => null);
+      if (this.mus.key !== key) return;
+      this.mus.info = info; this.mus.volume = info?.volume ?? 0.12;
+    },
+    async musApply() {
+      const body = { instruction: this.mus.text.trim(), volume: this.mus.volume === this.mus.info?.volume ? null : this.mus.volume };
+      this.mus.busy = true;
+      const r = await this.run(() => this.api(`/api/projects/${this.cur.id}/music`, { method:'POST', body }));
+      this.mus.busy = false;
+      if (r) { this.say(body.instruction ? this.t('Claude is rewriting the music') : this.t('Mixing the music')); this.mus.text = ''; this.cur = { ...this.cur, status:'rendering', progress:1, error:null }; }
+    },
     async rvApply() {
       this.rv.sending = true;
       const r = await this.run(() => this.api(`/api/projects/${this.cur.id}/review/apply`, { method:'POST', body:{ model: this.editModel || null, effort: this.editEffort || null } }));

@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import activity, audio, brands, claude, context, covers, db, design, editor, leftovers, playbooks, styles, motion, pipeline, references, render, settings, templates, tts, usage
+from . import activity, audio, brands, claude, compose, context, covers, db, design, editor, leftovers, playbooks, styles, motion, pipeline, references, render, settings, templates, tts, usage
 from .config import DATA_DIR, ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -1007,6 +1007,43 @@ async def hooks(body: HooksIn):
 
 def _narration(p: dict) -> str:
     return " ".join(s.get("text", "") for s in (p.get("timeline") or {}).get("scenes") or []).strip()
+
+
+class MusicIn(BaseModel):
+    instruction: str = Field("", max_length=1000)
+    volume: float | None = Field(None, ge=0, le=1)
+
+
+@app.get("/api/projects/{pid}/music")
+def get_music(pid: str):
+    """The video's current music bed, for the Music card."""
+    info = pipeline.music_info(_project(pid))
+    return {**{k: v for k, v in info.items() if k != "file"}, "has_music": bool(info["file"])}
+
+
+@app.get("/api/projects/{pid}/music/audio")
+def music_audio(pid: str):
+    f = pipeline.music_info(_project(pid))["file"]
+    if not f or not Path(f).is_file():
+        raise HTTPException(404, "No music")
+    return FileResponse(f)
+
+
+@app.post("/api/projects/{pid}/music")
+async def change_music(pid: str, body: MusicIn):
+    """Change only the music of a finished video: Claude rewrites the score from the note, and/or a new volume."""
+    p = _project(pid)
+    if not p.get("video_path") or p["status"] not in ("ready", "failed"):
+        raise HTTPException(409, "Wait until the video is ready")
+    if not body.instruction.strip() and body.volume is None:
+        raise HTTPException(400, "Say what to change, or set the volume")
+    if body.instruction.strip():
+        _require_setup()
+        if not compose.chrome():
+            raise HTTPException(400, "Composing music needs Claude Motion installed (Connections → Claude Motion)")
+    pipeline.spawn(pid, pipeline.change_music(pid, body.instruction.strip(), body.volume))
+    db.update_project(pid, status="rendering", progress=1)
+    return db.get_project(pid)
 
 
 def _music_file(p: dict) -> str | None:

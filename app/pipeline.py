@@ -3,13 +3,14 @@ import asyncio
 import json
 import logging
 import random
+import re
 import shutil
 import tempfile
 import time
 import uuid
 from pathlib import Path
 
-from . import activity, audio, brands, claude, compose, context, db, design, editor, motion, references, playbooks, render, settings, tts, usage
+from . import activity, audio, brands, claude, compose, context, db, design, editor, layers, motion, references, playbooks, render, settings, tts, usage
 from .config import DATA_DIR, VIDEOS_DIR
 
 log = logging.getLogger("pipeline")
@@ -182,6 +183,129 @@ async def _render_version(pid: str, note: str) -> dict:
     db.update_project(pid, timeline=tl, video_path=str(out), version=version, extra=extra,
                       status="ready", progress=100, error=None, publish_result=None)
     return db.get_project(pid)
+
+
+# ---------- the music alone: a new score or volume for a finished video, the picture untouched ----------
+
+def _base_version(p: dict) -> dict | None:
+    """The newest version made by Claude Motion or the Design tab (the timeline editor's exports don't match the
+    project's audio clips)."""
+    return next((v for v in reversed(_extra(p)["versions"]) if not v.get("edited")), None)
+
+
+def music_info(p: dict) -> dict:
+    """What the Music card shows: the current bed, its volume, whether Claude composed it and can revise it."""
+    tl = p.get("timeline") or {}
+    if tl.get("engine") == "classic":
+        file = tl.get("music") or ""
+        path = audio.MUSIC_DIR / Path(file).name if file and file != "none" else None
+        return {"engine": "classic", "file": str(path) if path and path.exists() else "", "volume": tl.get("music_volume") or 0.12,
+                "composed": compose.score_path(p["id"]).exists(), "mood": (p.get("script") or {}).get("music") or "",
+                "edited": False}
+    root = motion.project_root(p["id"])
+    if not (root / "index.html").exists():
+        return {"engine": "motion", "file": "", "volume": 0.12, "composed": False, "mood": "", "edited": False}
+    tracks = layers.motion_audio(root)
+    music = tracks["music"][0] if tracks["music"] else None
+    base = _base_version(p)
+    return {"engine": "motion", "file": str(music[0]) if music else "", "volume": music[2] if music else 0.12,
+            "composed": compose.score_path(p["id"]).exists(), "mood": motion.music_mood(root, p["request"]),
+            "edited": bool(base and base["version"] != p.get("version")), "base_version": base and base["version"]}
+
+
+def _set_bed(root: Path, rel: str, volume: float, total: float):
+    """Point index.html's music element (and audio_meta.json) at the new bed, so later renders keep it."""
+    index = (root / "index.html").read_text(encoding="utf-8")
+    el = re.search(r'<audio\s+id="el-bgm"[^>]*>', index, re.S)
+    if el:
+        new = re.sub(r'src="[^"]*"', f'src="{rel}"', el.group(0))
+        new = re.sub(r'data-volume="[^"]*"', f'data-volume="{volume:.3f}"', new)
+        index = index.replace(el.group(0), new)
+    else:
+        at = index.rindex("</audio>") + len("</audio>")
+        index = index[:at] + (f'\n      <!-- BGM -->\n      <audio\n        id="el-bgm"\n        src="{rel}"\n        data-start="0"\n'
+                              f'        data-duration="{total}"\n        data-track-index="11"\n        data-volume="{volume:.3f}"\n'
+                              "      ></audio>") + index[at:]
+    (root / "index.html").write_text(index, encoding="utf-8")
+    meta_path = root / "audio_meta.json"
+    if meta_path.exists():
+        meta = json.loads(meta_path.read_text())
+        meta["bgm"] = {**(meta.get("bgm") or {}), "path": rel, "source": "host", "volume": round(volume, 3)}
+        meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
+
+
+async def change_music(pid: str, instruction: str, volume: float | None):
+    """A new version with only the music changed: Claude revises the score (one small call) when there's an
+    instruction, and/or the bed's volume changes. Claude Motion: the audio is remixed onto the newest Motion/Design
+    picture with ffmpeg (seconds, nothing re-rendered); Quick: the timeline re-renders (about a minute)."""
+    p = db.get_project(pid)
+    req, tl = p["request"], dict(p.get("timeline") or {})
+    info = music_info(p)
+    db.update_project(pid, status="rendering", progress=5)
+    STAGES[pid] = "Composing the music" if instruction else "Mixing the music"
+    note = f"Music: {instruction.strip()[:80]}" if instruction else "Music volume"
+    try:
+        if info["engine"] == "classic":
+            if instruction:
+                activity.add(pid, "Claude is rewriting the music")
+                starts = [float(s.get("start") or 0) for s in tl.get("scenes") or []]
+                total = await render.media_duration(Path(p["video_path"]))
+                code, wav = await compose.revise(pid, instruction, starts, total, info["mood"],
+                                                 tl.get("voice") != tts.NO_VOICE, req.get("model"))
+                item = await audio.music_add(wav, f"Composed for “{(p.get('script') or {}).get('title', '')[:60]}”",
+                                             mood=info["mood"][:60], source="composed")
+                shutil.rmtree(wav.parent, ignore_errors=True)
+                compose.save_score(pid, code)
+                tl["music"] = item["file"]
+            if volume is not None:
+                tl["music_volume"] = round(volume, 3)
+            db.update_project(pid, timeline=tl)
+            await _render_version(pid, note)
+            activity.add(pid, "New music in a new version", "done")
+            return
+        root = motion.project_root(pid)
+        base = _base_version(p)
+        if not base or not (root / "index.html").exists():
+            raise RuntimeError("This video has no Claude Motion version to change the music of")
+        tracks = layers.motion_audio(root)
+        voiced = bool(tracks["voice"]) and req.get("voice") != tts.NO_VOICE
+        vol = volume if volume is not None else info["volume"]
+        version = (p.get("version") or 0) + 1
+        if instruction:
+            activity.add(pid, "Claude is rewriting the music")
+            code, wav = await compose.revise(pid, instruction, tracks["starts"], tracks["total"], info["mood"], voiced,
+                                             req.get("model"))
+            rel = f"assets/music/composed-v{version}.wav"
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(wav, root / rel)
+            shutil.rmtree(wav.parent, ignore_errors=True)
+            compose.save_score(pid, code)
+            if not info["file"] and volume is None:
+                vol = 0.12 * (1 if voiced else tts.MUSIC_BOOST)
+        elif info["file"]:
+            rel = str(Path(info["file"]).relative_to(root))
+        else:
+            raise RuntimeError("This video has no music yet — say what music it should have")
+        db.update_project(pid, progress=70)
+        STAGES[pid] = "Mixing the music"
+        mix = root / "music" / "mix.wav"
+        mix.parent.mkdir(exist_ok=True)
+        await layers._mix(tracks["voice"] + tracks["sfx"] + [(root / rel, 0.0, vol)], tracks["total"], mix)
+        out = VIDEOS_DIR / f"{pid}_v{version}.mp4"
+        picture = VIDEOS_DIR / base["file"]
+        length = await render.media_duration(picture)  # the picture sets the length; the audio is padded or cut to it
+        await render._ffmpeg("-i", picture, "-i", mix, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy",
+                             "-af", f"apad=whole_dur={length:.3f},atrim=0:{length:.3f}", "-c:a", "aac", "-b:a", "192k",
+                             "-movflags", "+faststart", out)
+        mix.unlink(missing_ok=True)
+        _set_bed(root, rel, vol, tracks["total"])
+        await render.thumbnail(out)
+        _save_version(pid, out, p["timeline"], note)
+        activity.add(pid, f"New music in version {version} — the picture is unchanged", "done")
+    except Exception as e:
+        _fail(pid, e, status="ready")
+    finally:
+        STAGES.pop(pid, None)
 
 
 async def run_project(pid: str):

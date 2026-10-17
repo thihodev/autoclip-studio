@@ -118,6 +118,7 @@ Open a video's **AI & review** tab: the player gets a full-width filmstrip split
 
 - Pause and type to comment on **the current moment**, drag across the filmstrip for **a range**, click the video to pin **a spot**, or comment on the **whole video**. Comments show on the video as it plays past them.
 - **Apply with Claude** sends the round as one edit — each comment with its scene number and time, and for Claude Motion the frame with the spot marked. Claude changes only those places and renders the next version.
+- **Music** changes only the music of a finished video: say what to change ("more dramatic, a slower start, a big hit when the answer appears") and Claude rewrites the score in one small call, or just move the volume. The voice and sound effects stay; a Claude Motion video keeps its picture byte for byte — AutoClip remixes the audio from the project's clips onto it with ffmpeg in seconds, nothing is re-rendered — and a Quick video re-renders its timeline.
 - Keys: `Space` play/pause, `←/→` one frame, `Shift+←/→` one second, `C` comment.
 
 The **Scenes** and **Style** tabs (Quick engine) edit text, footage, captions, voice and brand elements by hand. Every render is kept as a version you can preview.

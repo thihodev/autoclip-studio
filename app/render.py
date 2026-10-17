@@ -462,7 +462,7 @@ def _style(pid: str, tl: dict, brand: dict | None) -> dict:
         from . import audio  # audio imports render
 
         if (m := audio.pick(tl.get("music") or "", brand, pid, tl.get("music_mood") or "")):
-            style["music"] = {"path": m["path"], "volume": m["volume"]}
+            style["music"] = {"path": m["path"], "volume": float(tl.get("music_volume") or m["volume"])}
     return style
 
 

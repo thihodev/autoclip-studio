@@ -253,6 +253,21 @@ async def _hf_render(root: Path, page: str, name: str, out: Path, fmt: str):
         (root / name).unlink(missing_ok=True)
 
 
+def motion_audio(root: Path) -> dict:
+    """A Claude Motion project's timeline from index.html: total length, scene starts and its audio clips
+    ({voice, sfx, music}: [(file, start, volume)]), so the sound can be remixed without re-rendering the picture."""
+    index = (root / "index.html").read_text(encoding="utf-8")
+    els = [(m.group(1), _attrs(m.group(2))) for m in _EL.finditer(index)]
+    m = re.search(r'data-composition-id="main"[^>]*data-duration="([\d.]+)"', index, re.S) or \
+        re.search(r'<div\s+id="root"[^>]*data-duration="([\d.]+)"', index, re.S)
+    out = {"total": float(m.group(1)), "starts": [float(a["data-start"]) for tag, a in els if tag == "div"
+                                                  and "frames/" in a.get("data-composition-src", "")]}
+    for kind in ("voice", "sfx", "music"):
+        out[kind] = [(root / a["src"], float(a["data-start"]), float(a.get("data-volume", 1)))
+                     for tag, a in els if tag == "audio" and f"/{kind}/" in a.get("src", "")]
+    return out
+
+
 async def _motion(p: dict, work: Path, report) -> dict:
     from . import motion
     root = motion.project_root(p["id"])

@@ -28,6 +28,52 @@ MAX_SECONDS = 300
 HARNESS = """<!doctype html><meta charset="utf-8"><script src="Tone.js"></script>
 <script>
 window.__errors = [];
+// Scores schedule notes and automation per part, not in time order, and humanized times can land a hair before 0;
+// Tone rejects both. While compose() runs, every trigger, start/stop and automation is queued with its time, then
+// played in time order (negative times clamped to 0); a call Tone still rejects is skipped and counted.
+window.__queue = null;
+window.__skipped = [];
+(() => {
+  const defer = (proto, name, at) => {
+    const orig = proto && proto[name];
+    if (!orig || orig.__deferred) return;
+    const wrapped = function (...args) {
+      if (!window.__queue) return orig.apply(this, args);
+      const i = at >= 0 ? at : args.length - 1;
+      let t = 0;
+      try { t = args[i] === undefined ? 0 : this.toSeconds(args[i]); } catch (e) { t = 0; }
+      if (i >= 0 && typeof args[i] === "number" && args[i] < 0) args[i] = 0;
+      window.__queue.push({ t: Math.max(0, t || 0), n: window.__queue.length, run: () => orig.apply(this, args) });
+      return this;
+    };
+    wrapped.__deferred = true;
+    proto[name] = wrapped;
+  };
+  const P = Tone.Param.prototype;
+  for (const [name, at] of [["setValueAtTime", 1], ["linearRampToValueAtTime", 1], ["exponentialRampToValueAtTime", 1],
+                            ["setTargetAtTime", 1], ["cancelScheduledValues", 0], ["cancelAndHoldAtTime", 0], ["setRampPoint", 0]])
+    defer(P, name, at);
+  const synths = ["Synth", "MonoSynth", "FMSynth", "AMSynth", "DuoSynth", "MembraneSynth", "MetalSynth", "NoiseSynth",
+                  "PluckSynth", "PolySynth", "Sampler"].map(n => Tone[n]).filter(Boolean);
+  for (const C of synths) {
+    const noise = C === Tone.NoiseSynth;  // no note: (duration, time) / (time)
+    defer(C.prototype, "triggerAttackRelease", noise ? 1 : 2);
+    defer(C.prototype, "triggerAttack", noise ? 0 : 1);
+    defer(C.prototype, "triggerRelease", C === Tone.PolySynth || C === Tone.Sampler ? 1 : 0);
+  }
+  for (const C of ["Oscillator", "OmniOscillator", "FatOscillator", "Noise", "Player", "LFO"].map(n => Tone[n]).filter(Boolean)) {
+    defer(C.prototype, "start", 0);
+    defer(C.prototype, "stop", 0);
+  }
+})();
+window.__flush = () => {
+  const q = window.__queue || [];
+  window.__queue = null;
+  q.sort((a, b) => a.t - b.t || a.n - b.n);
+  for (const e of q) {
+    try { e.run(); } catch (err) { window.__skipped.push(`${e.t.toFixed(2)}s: ${String(err.message || err).slice(0, 120)}`); }
+  }
+};
 window.addEventListener("error", e => __errors.push(`${e.message} (line ${e.lineno})`));
 </script>
 <script src="score.js"></script>
@@ -56,10 +102,11 @@ window.__render = async (seconds) => {
   if (typeof compose !== "function") return { error: "score.js must define `async function compose({ Tone, seconds, transport })`" };
   try {
     const buffer = await Tone.Offline(async ({ transport }) => {
-      await compose({ Tone, seconds, transport });
+      window.__queue = [];
+      try { await compose({ Tone, seconds, transport }); } finally { window.__flush(); }
       transport.start(0);
     }, seconds, 2, %d);
-    return { wav: wav(buffer.get()) };
+    return { wav: wav(buffer.get()), skipped: __skipped };
   } catch (e) {
     return { error: String(e && e.stack || e).split("\\n").slice(0, 4).join("\\n") };
   }
@@ -84,6 +131,7 @@ GUIDE = """Write the score as `music/score.js`: plain JavaScript (Tone.js 15 is 
   rides), humanize timing and velocity slightly, automate filters and volumes (`.rampTo`, `linearRampToValueAtTime`)
   so sections breathe, use reverb/delay sends for depth, and use sidechain-style ducking (ramp the pad bus down on
   each kick) for electronic styles.
+- Never schedule anything before 0 or after `seconds` (clamp humanized times: `Math.max(0, t + jitter)`).
 - Arrange to the video: the first second already sounds (no slow fade-in) and matches the hook's energy; change
   section, add a hit or a riser into each scene change; build toward the main reveal; the boldest moment gets the
   biggest hit; end on the tonic with a final hit and a 1–1.5 s tail at exactly the video's length. Pick a tempo
@@ -180,6 +228,7 @@ async def render_score(code: str, seconds: float, dest: Path) -> dict:
         out = await _run_in_chrome(d / "index.html", seconds)
         if out.get("error"):
             return {"ok": False, "error": out["error"].replace(d.as_uri() + "/", "")[:1500]}
+        skipped = out.get("skipped") or []
         raw = d / "raw.wav"
         raw.write_bytes(base64.b64decode(out["wav"]))
         took = time.time() - started
@@ -194,7 +243,7 @@ async def render_score(code: str, seconds: float, dest: Path) -> dict:
     await render._ffmpeg("-i", dest, "-lavfi", "aformat=channel_layouts=mono,showspectrumpic=s=1200x300:legend=1:"
                          "fscale=lin:stop=8000:color=intensity:scale=log", spec)
     return {"ok": True, "seconds": round(await render.media_duration(dest), 2), "render_s": round(took, 1), **stats,
-            "spectrogram": spec.name}
+            "spectrogram": spec.name, "skipped": skipped}
 
 
 async def _measure(wav: Path) -> dict:
@@ -222,6 +271,9 @@ def report_text(r: dict, path: str) -> str:
     lines = [f"✓ composed → {path} ({r['seconds']}s, rendered in {r['render_s']}s, normalized to -16 LUFS)",
              f"Raw mix: peak {r['peak_db']} dB, mean {r['mean_db']} dB" + (" — CLIPPING: lower the gains" if r["clipping"] else ""),
              "Loudness per second (dB RMS): " + " ".join(map(str, r["loudness_per_second_db"]))]
+    if r.get("skipped"):
+        lines.append(f"{len(r['skipped'])} note(s)/automation(s) were skipped — usually overlapping notes on a one-voice "
+                     f"instrument (use PolySynth, or shorter notes): " + "; ".join(r["skipped"][:5]))
     if r["quiet_seconds"]:
         lines.append(f"Near-silent seconds: {r['quiet_seconds']} — fine for a deliberate break, otherwise fill them.")
     lines.append(f"Spectrogram: {path.rsplit('/', 1)[0]}/{r['spectrogram']} (Read it to check the arrangement: "
@@ -258,6 +310,7 @@ async def for_quick(meta: dict, req: dict, pid: str) -> dict | None:
         r = await render_score(code, total + 0.5, dest)
         if r["ok"]:
             dest.with_suffix(".png").unlink(missing_ok=True)
+            save_score(pid, code)
             try:
                 return await audio.music_add(dest, f"Composed for “{meta.get('title', '')[:60]}”",
                                              mood=", ".join(str(meta.get("music") or "").split(",")[:2])[:60],
@@ -266,3 +319,52 @@ async def for_quick(meta: dict, req: dict, pid: str) -> dict | None:
                 dest.unlink(missing_ok=True)
         error = r["error"]
     return None
+
+
+def score_path(pid: str) -> Path:
+    """Where a video's current score is kept (Claude Motion: inside its HyperFrames project)."""
+    from . import motion
+
+    root = motion.project_root(pid)
+    return root / "music" / "score.js" if (root / "index.html").exists() else render.project_dir(pid) / "music" / "score.js"
+
+
+def save_score(pid: str, code: str):
+    f = score_path(pid)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    if f.exists():
+        shutil.copyfile(f, f.with_name("score.prev.js"))
+    f.write_text(code)
+
+
+async def revise(pid: str, instruction: str, starts: list[float], total: float, mood: str, voiced: bool,
+                 model: str | None = None) -> tuple[str, Path]:
+    """A new score for a finished video, from the user's note: Claude edits the current score (or writes one when the
+    video's music wasn't composed). One call, one retry with the error. Returns (code, rendered wav in a temp dir)."""
+    from . import claude
+
+    old = score_path(pid).read_text(errors="replace") if score_path(pid).exists() else ""
+    brief = "\n".join([
+        f"Change the background music of a finished {round(total, 1)}-second video. The picture, voice and sound "
+        "effects stay exactly as they are; only the music is replaced.",
+        f"What the user wants: {instruction.strip() or 'a better fit for the video'}",
+        f"Its mood so far: {mood or 'unknown'}.",
+        "Scenes start at (seconds): " + ", ".join(f"{s:.2f}" for s in starts) + ".",
+        "A voice-over runs over the video: keep the music under it." if voiced
+        else "Nobody speaks: the music carries the video, so melodies and hooks are welcome.",
+        *(["", "The current score — change what the user asks and keep the rest:", "```js", old[:20000], "```"] if old
+          else ["", "The current music wasn't composed by Claude: write a new score."]),
+        "", GUIDE.replace("After each render, read the report: fix errors and clipping, fill unintended quiet seconds, and "
+                          "Read the\n  spectrogram to check that energy follows the scenes. At most 2 revisions.",
+                          "Make sure it runs without errors and never clips (keep the bus limiter).")])
+    tmp = Path(tempfile.mkdtemp(prefix="autoclip-music-"))
+    error = ""
+    for _ in range(2):
+        code = await claude.compose_score(brief + (f"\n\nThe last score failed:\n{error}\nFix it." if error else ""),
+                                          project_id=pid, model=model)
+        r = await render_score(code, total, tmp / "music.wav")
+        if r["ok"]:
+            return code, tmp / "music.wav"
+        error = r["error"]
+    shutil.rmtree(tmp, ignore_errors=True)
+    raise RuntimeError(f"Claude's score didn't render: {error[:300]}")
