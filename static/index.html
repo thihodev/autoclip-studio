@@ -3721,7 +3721,7 @@ function app() {
         'Every version and its downloads', 'The script, scenes, voice-over and footage cache',
         "Claude Motion files and Claude's session logs for this video", 'Context files attached only to this video',
       ].map(x => this.t(x));
-      this.confirm('Delete this video permanently?', this.t('“{title}” and everything made for it is removed from this computer. This cannot be undone.', {title: projTitle(p)}), 'Delete permanently', async () => {
+      this.confirm('Delete this video permanently?', this.t('“{title}” and everything made for it is removed from this computer. This cannot be undone.', {title: this.projTitle(p)}), 'Delete permanently', async () => {
         if (!await this.run(() => this.api(`/api/projects/${p.id}`, { method:'DELETE' }), 'Video deleted')) return;
         const open = this.cur?.id === p.id;
         if (open) { this.loadTimeline(); this.cur = null; }
