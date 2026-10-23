@@ -114,6 +114,22 @@ An episode is a normal project whose `request` has `template_id` and `template_m
 
 Projects (`/api/workspaces`) also take `template_id`, the series template.
 
+## Channels
+
+A channel is a project built around one topic for YouTube and TikTok; `GET /api/workspaces/{id}` returns it under `channel` (`{topic, platforms, plan, competitors, art}`).
+
+| Method | Path | What it does |
+|---|---|---|
+| POST | `/api/channels/study` | `{url}` — a YouTube or TikTok channel's latest videos and which did best (yt-dlp, titles and views only, no Claude) → `{name, site, followers, median_views, top, recent}` |
+| POST | `/api/channels/plan` | `{topic, language, format, platforms, competitors?, avoid?}` → the plan to approve (one Claude call): `{name, names, handles, tagline, audience, positioning, voice, cta, pillars, cadence, bio_youtube, bio_tiktok, hashtags, colors, learned, instructions, first_videos}` |
+| POST | `/api/channels` | `{topic, language, format, platforms, competitors, plan}` — sets it up: a brand kit, the project, its first videos on the idea board, profile pictures and banners → the project |
+| PUT | `/api/workspaces/{id}/channel` | Edit the plan (names, bios, hashtags…); the art is redrawn when the name or tagline changes |
+| POST | `/api/workspaces/{id}/art` | Redraw the profile pictures (800×800) and YouTube banners (2560×1440) from the brand kit |
+| GET | `/api/workspaces/{id}/art/{avatar,banner}-{color,dark,light}.png` | One of them |
+| POST | `/api/channels/discover/queries` | `{interest, market?}` → `{queries}`: 3 English YouTube searches for an interest (one small Claude call) |
+| POST | `/api/channels/discover/search` | `{queries}` → `{channels}`: the channels abroad that do best on them (sorted by views and by relevance), each studied, with `ratio` = median views / followers (yt-dlp, no Claude) |
+| POST | `/api/channels/discover/directions` | `{interest, market, language, queries, channels}` → `{summary, directions}`: directions for a channel in that market (one Claude call); kept, `GET /api/channels/discover` returns the last one |
+
 ## Brand kits and projects
 
 | Method | Path | |

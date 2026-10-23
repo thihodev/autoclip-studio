@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import activity, audio, brands, claude, compose, context, covers, db, design, editor, leftovers, playbooks, styles, motion, pipeline, references, render, settings, templates, tts, usage
+from . import activity, audio, brands, channels, claude, compose, context, covers, db, design, editor, leftovers, playbooks, styles, motion, pipeline, references, render, settings, templates, tts, usage
 from .config import DATA_DIR, ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -853,6 +853,8 @@ async def workspace_ideas(wid: str, body: WsIdeasIn):
         extra.append(f"Project instructions: {d['notes'][:1500]}")
     if t:
         extra.append(f"Every video is an episode of the format \"{t['name']}\": {t.get('summary', '')}")
+    if (plan := (d.get("channel") or {}).get("plan")):
+        extra.append(channel_context(plan))
     if (brand := brands.get(d.get("brand_id"))):
         extra.append(brands.prompt_context(brand)[:1200])
     if d.get("context"):
@@ -1507,7 +1509,7 @@ def _workspace(wid: str) -> dict:
     return {"id": w["id"], "name": w["name"], "created_at": w["created_at"],
             **{k: w["data"].get(k, "") for k in WS_FIELDS}, "context": w["data"].get("context", []),
             "ideas": [i for i in w["data"].get("ideas") or [] if i.get("status") != "dismissed"],
-            "videos": len(db.list_projects(limit=100000, workspace_id=wid))}
+            "channel": w["data"].get("channel"), "videos": len(db.list_projects(limit=100000, workspace_id=wid))}
 
 
 class WorkspaceIn(BaseModel):
@@ -1555,6 +1557,7 @@ def delete_workspace(wid: str):
     w = db.get_workspace(wid)
     if w:
         db.delete_workspace(wid)
+        channels.remove(wid)
         in_use = _context_in_use()
         for m in w["data"].get("context") or []:
             if m["id"] not in in_use:
@@ -1583,6 +1586,198 @@ def remove_workspace_context(wid: str, cid: str):
         context.remove(cid)
     return _workspace(wid)
 
+
+
+# ------------------------------------------------------------------ channels: a project built around one topic
+
+class ChannelStudyIn(BaseModel):
+    url: str = Field(min_length=8, max_length=500)
+
+
+class ChannelPillar(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    about: str = Field("", max_length=300)
+    examples: list[str] = Field([], max_length=3)
+
+
+class ChannelPlan(BaseModel):
+    """The channel as approved (and edited) by the person; the first videos go to the idea board."""
+    name: str = Field(min_length=1, max_length=60)
+    names: list[str] = Field([], max_length=3)
+    handles: list[str] = Field([], max_length=3)
+    tagline: str = Field("", max_length=80)
+    audience: str = Field("", max_length=300)
+    positioning: str = Field("", max_length=500)
+    voice: str = Field("", max_length=200)
+    cta: str = Field("", max_length=200)
+    pillars: list[ChannelPillar] = Field([], max_length=6)
+    cadence: str = Field("", max_length=300)
+    bio_youtube: str = Field("", max_length=1000)
+    bio_tiktok: str = Field("", max_length=80)
+    hashtags: list[str] = Field([], max_length=12)
+    colors: dict[str, str] = {}
+    learned: list[str] = Field([], max_length=8)
+    instructions: str = Field("", max_length=2000)
+    first_videos: list[dict] = Field([], max_length=5)
+
+
+class ChannelPlanIn(BaseModel):
+    topic: str = Field(min_length=3, max_length=2000)
+    language: str = "English"
+    format: str = "shorts"
+    platforms: list[str] = Field(["YouTube", "TikTok"], max_length=2)
+    competitors: list[dict] = Field([], max_length=3)  # what /api/channels/study returned
+    avoid: list[str] = Field([], max_length=5)
+
+
+class ChannelIn(ChannelPlanIn):
+    plan: ChannelPlan
+
+
+def channel_context(plan: dict) -> str:
+    """What every idea of the channel keeps to."""
+    lines = [f"This project is the channel \"{plan['name']}\"" + (f": {plan['tagline']}" if plan.get("tagline") else "")]
+    if plan.get("audience"):
+        lines.append(f"Audience: {plan['audience']}")
+    if plan.get("pillars"):
+        lines.append("Content pillars (rotate between them; favor the ones with fewer videos so far):\n"
+                     + "\n".join(f"- {p['name']}: {p.get('about', '')}" for p in plan["pillars"]))
+    return "\n".join(lines)
+
+
+def _competitors(found: list[dict]) -> list[dict]:
+    """Keep what the plan and the channel page use from a study (it comes back from the browser)."""
+    keep = ("url", "name", "site", "followers", "median_views", "count", "about", "recent")
+    return [{**{k: c.get(k) for k in keep}, "top": [{k: v.get(k) for k in ("title", "views", "duration", "url")}
+                                                   for v in (c.get("top") or [])[:channels.TOP] if isinstance(v, dict)]}
+            for c in found[:3] if isinstance(c, dict) and c.get("name")]
+
+
+@app.post("/api/channels/study")
+async def study_channel(body: ChannelStudyIn):
+    """A channel already in the niche: its latest videos and which did best (yt-dlp, no Claude)."""
+    try:
+        return await asyncio.to_thread(channels.study, body.url)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+class DiscoverIn(BaseModel):
+    interest: str = Field(min_length=2, max_length=300)
+    market: str = Field("Vietnam", max_length=60)
+    language: str = "Vietnamese"
+    queries: list[str] = Field([], max_length=3)
+    channels: list[dict] = Field([], max_length=10)  # what /api/channels/discover/search returned
+
+
+@app.get("/api/channels/discover")
+def last_discovery():
+    """The last niche search, kept so closing the dialog loses nothing."""
+    return db.get_setting("channel_discovery")
+
+
+@app.post("/api/channels/discover/queries")
+async def discover_queries(body: DiscoverIn):
+    """Step 1: English YouTube searches for an interest (one small Claude call)."""
+    _require_setup()
+    try:
+        return {"queries": await claude.niche_queries(body.interest.strip(), body.market)}
+    except Exception as e:
+        raise HTTPException(500, str(e)[:300])
+
+
+@app.post("/api/channels/discover/search")
+async def discover_search(body: DiscoverIn):
+    """Step 2: the channels abroad that do best on those searches, with their numbers (yt-dlp, no Claude)."""
+    queries = [q.strip() for q in body.queries if q.strip()] or [body.interest.strip()]
+    try:
+        return {"channels": await asyncio.to_thread(channels.search, queries)}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/channels/discover/directions")
+async def discover_directions(body: DiscoverIn):
+    """Step 3: Claude proposes directions for a channel in the person's market (one call); the result is kept."""
+    _require_setup()
+    if not body.channels:
+        raise HTTPException(400, "Search for channels first")
+    found = [{k: c.get(k) for k in ("name", "url", "followers", "median_views", "ratio", "count", "about", "top", "search_top")}
+             for c in body.channels if isinstance(c, dict) and c.get("name")]
+    try:
+        res = await claude.niche_directions(body.interest.strip(), body.market, body.language, channels.discovery_block(found))
+    except Exception as e:
+        raise HTTPException(500, str(e)[:300])
+    keep = {**body.model_dump(), "channels": body.channels, **res, "at": time.time()}
+    db.set_setting("channel_discovery", keep)
+    return keep
+
+
+@app.post("/api/channels/plan")
+async def plan_channel(body: ChannelPlanIn):
+    """Claude plans a channel around a topic (one call): to approve before anything is set up."""
+    _require_setup()
+    try:
+        return await claude.channel_plan(body.topic.strip(), body.language, body.format, body.platforms,
+                                         channels.prompt_block(_competitors(body.competitors)), avoid=body.avoid)
+    except Exception as e:
+        raise HTTPException(500, str(e)[:300])
+
+
+@app.post("/api/channels")
+def create_channel(body: ChannelIn):
+    """Set up an approved channel: a brand kit, a project with its instructions, its first ideas, a profile picture and
+    a banner."""
+    plan = body.plan.model_dump()
+    colors = {k: v for k, v in plan["colors"].items() if k in ("primary", "accent", "text") and re.fullmatch(r"#[0-9a-fA-F]{6}", v)}
+    brand = brands.create(plan["name"], {
+        "description": " ".join(x for x in (plan["tagline"], plan["positioning"]) if x),
+        "voice": plan["voice"], "audience": plan["audience"], "cta": plan["cta"], "language": body.language,
+        **({"colors": colors} if colors else {})})
+    ideas = [{"id": uuid.uuid4().hex[:10], **i, "pillar": str(v.get("pillar") or "")[:60], "status": "new", "at": time.time()}
+             for v in plan.pop("first_videos") if (i := claude._plan_item(v))]
+    wid = uuid.uuid4().hex[:10]
+    channel = {"topic": body.topic.strip(), "platforms": body.platforms, "plan": plan, "competitors": _competitors(body.competitors),
+               "art": channels.make_art(wid, plan["name"], plan["tagline"], brand)}
+    db.save_workspace(wid, plan["name"], {"notes": plan["instructions"], "website": "", "brand_id": brand["id"], "language": body.language,
+                                          "format": body.format, "template_id": None, "context": [], "ideas": ideas,
+                                          "channel": channel})
+    return _workspace(wid)
+
+
+@app.put("/api/workspaces/{wid}/channel")
+def update_channel(wid: str, body: ChannelPlan):
+    """Edit the channel's plan (names, bios, pillars…); the profile art is redrawn when the name or tagline changed."""
+    w = _ws_or_404(wid)
+    ch = w["data"].get("channel")
+    if not ch:
+        raise HTTPException(400, "This project isn't a channel")
+    plan = {**body.model_dump(exclude={"first_videos"}), "colors": ch["plan"].get("colors", {})}
+    if (plan["name"], plan["tagline"]) != (ch["plan"]["name"], ch["plan"].get("tagline")):
+        ch["art"] = channels.make_art(wid, plan["name"], plan["tagline"], brands.get(w["data"].get("brand_id")), plan["colors"])
+    db.save_workspace(wid, w["name"], {**w["data"], "channel": {**ch, "plan": plan}}, w["created_at"])
+    return _workspace(wid)
+
+
+@app.post("/api/workspaces/{wid}/art")
+def redraw_art(wid: str):
+    """Draw the profile pictures and banners again, e.g. after the brand kit's colors, font or logo changed."""
+    w = _ws_or_404(wid)
+    ch = w["data"].get("channel")
+    if not ch:
+        raise HTTPException(400, "This project isn't a channel")
+    ch["art"] = channels.make_art(wid, ch["plan"]["name"], ch["plan"].get("tagline", ""),
+                                  brands.get(w["data"].get("brand_id")), ch["plan"].get("colors"))
+    db.save_workspace(wid, w["name"], {**w["data"], "channel": ch}, w["created_at"])
+    return _workspace(wid)
+
+
+@app.get("/api/workspaces/{wid}/art/{name}")
+def art_file(wid: str, name: str):
+    path = channels.art_file(wid, name)
+    if not path:
+        raise HTTPException(404)
+    return FileResponse(path, headers={"Cache-Control": "no-cache"})
 
 # ------------------------------------------------------------------ brand kits
 

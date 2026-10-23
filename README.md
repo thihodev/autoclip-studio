@@ -160,6 +160,16 @@ With **Plan the idea first** on (the default), *Create video* doesn't start anyt
 
 Inside a **project**, **Next in this project** asks Claude what the series should cover next, knowing the videos and ideas the project already has (and its instructions, brand and source files) — e.g. a project of badminton rules gets the next rule, not one it has done. Ideas wait on the project's board until you review one and approve it, or dismiss it. Videos can be moved into or out of a project from their page or card.
 
+## Build a channel around a topic
+
+**New channel** (next to *New project* in Studio): give a topic, the language, the format and YouTube and/or TikTok. Optionally paste up to 3 channels already in the niche: AutoClip lists their latest videos with yt-dlp — titles and views only, nothing is downloaded and no Claude is used — so Claude can see what does best there and find the gap.
+
+Claude then plans the channel in one call: three name options and @handles to look for, a tagline, who it's for and why they'd follow it, 3–5 **content pillars** (recurring kinds of video), when to post, the YouTube description and TikTok bio, hashtags, colors, instructions for every video, what it learned from the other channels, and the first videos. Change any of it, ask for **another plan**, and **create the channel**: AutoClip makes a brand kit (voice, audience, call to action, colors), a project with those instructions, and puts the first videos on its idea board, each tagged with its pillar.
+
+The project's **Channel** card has the profile picture (800×800, safe inside the round crop) and the YouTube banner (2560×1440, the words inside the area every device shows) in three looks, drawn from the brand kit on your computer without Claude — change the kit's colors, font or logo and **Redraw**. The bios and hashtags are there to edit and copy, with the channels it learned from and their most viewed videos (**Learn its format** studies one, as in *Learn from a video*). **Next in this project** rotates between the pillars. AutoClip still doesn't sign in to YouTube or TikTok: you create the accounts and post.
+
+Don't know which channel to make yet? **Discover niches**: say what interests you (e.g. *personal finance*) and the market (Vietnam by default). Claude picks 3 English searches (one small call); AutoClip searches YouTube for them, sorted by views and by relevance, and reads the 8 channels that come up most — followers, median views and their best videos. Channels whose median views are a large share of their followers (shown as ×0.2 and up) are the sign a format travels now. Claude then proposes directions for a channel in your market — the format, the evidence from those numbers, what to adapt (local examples, money, laws, culture), how well it suits AI-made videos and the risks — and **Build this channel** opens *New channel* with that topic and those channels to learn from. The last discovery is kept.
+
 ## Templates: design once, make a series
 
 Claude designs a video once; **Save as template** turns it into a format for a series. Claude reads the scenes once (one small call) and marks each one:
@@ -183,7 +193,7 @@ A brand kit is a design system for videos: description, voice and tone, audience
 
 ## Also included
 
-- **Projects** — group videos per product or channel with a shared website, brand kit, instructions and context files.
+- **Projects** — group videos per product or channel with a shared website, brand kit, instructions and context files; a **channel** adds its plan, pillars, bios and profile art.
 - **Ideas** — topic suggestions for a niche, each with a hook. **Autopilot** — every N hours: ideas → videos, waiting in Studio for you.
 - **Live view** — what Claude is doing right now, with the latest frame it looked at; a corner dock tracks running videos.
 - **Usage** — on a Claude plan: the 5-hour session and weekly limits (as `/usage` in Claude Code shows them) plus tokens and time; with an API key: what you pay. Each video shows its own usage.

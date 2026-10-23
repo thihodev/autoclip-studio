@@ -502,6 +502,24 @@
   .planc .sk { background:var(--surface-2); }  /* the card itself is --surface */
   @keyframes skpulse { 50% { opacity:.45; } }
   .planc { width:min(640px, 100%); max-height:88vh; overflow:auto; } .planc .actions .grow { flex:1; }
+  .discc { width:min(980px, 100%); } .discbar { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; } .discbar input { flex:1; min-width:160px; }
+  .dirs { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:10px; }
+  .dir { display:flex; flex-direction:column; gap:6px; padding:12px 14px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface-2); }
+  .dir p { margin:0; } .dir ul { margin:0; padding-left:18px; } .dir .grow { flex:1; }
+  .disctable { display:grid; gap:6px; margin-top:8px; } .disctable .chvid { flex-wrap:wrap; }
+  .chanc { width:min(720px, 100%); } .chanc .pickchip { padding:4px 10px; }
+  .pills { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .pillar { flex:1; min-width:0; display:grid; gap:4px; }
+  .colorpick { display:flex; align-items:center; gap:6px; } .colorpick input { width:44px; }
+  .chcard { margin-bottom:16px; }
+  .charts { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; margin-top:12px; }
+  .chart { display:grid; gap:6px; } .chthumb { position:relative; }
+  .chart .ban { width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--surface-2); }
+  .chart .av { position:absolute; left:8px; bottom:8px; width:24%; aspect-ratio:1; border-radius:50%; border:2px solid var(--surface); box-shadow:0 2px 8px rgba(0,0,0,.25); }
+  .chart .actions { gap:4px; flex-wrap:wrap; }
+  .chpillars { margin:0; padding-left:18px; display:grid; gap:6px; font-size:13px; } .chpillars .small { display:block; }
+  .chcomp { display:grid; gap:4px; padding:8px 0; border-top:1px solid var(--border); } .chcomp:first-of-type { border-top:0; }
+  .chvid { display:flex; gap:8px; align-items:center; font-size:13px; } .chvid .grow { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .planchip { margin-left:4px; }
   .eponly .csec { display:none; }
   .pthumb .pmove { right:44px; color:var(--text-2); }
@@ -670,6 +688,8 @@
           <a :href="`/w/${w.id}`" :class="route.id===w.id&&'on'" @click.prevent="nav(`/w/${w.id}`)"><span x-text="w.name"></span><span class="n" x-text="projects.filter(p => p.workspace_id===w.id).length"></span></a>
         </template>
         <button type="button" @click="newWs = {open:true, name:'', website:''}"><svg class="i"><use href="#i-plus"/></svg><span x-t>New project</span></button>
+        <button type="button" @click="openChannel()"><svg class="i"><use href="#i-star"/></svg><span x-t>New channel</span></button>
+        <button type="button" @click="openDiscover()"><svg class="i"><use href="#i-zoom"/></svg><span x-t>Discover niches</span></button>
       </nav>
 
       <template x-if="ws() && wsOpen">
@@ -733,6 +753,62 @@
         <svg class="i" style="width:13px;height:13px;vertical-align:-2px"><use href="#i-grid"/></svg>
         <span x-t>Tip: open a Claude Motion video you like and choose “Save as template” to make a whole series in that design.</span></p>
 
+      <!-- A channel project (app/channels.py): its plan, bios to paste, profile art and the channels it learned from -->
+      <div class="card chcard" x-show="ws()?.channel && chForm">
+        <template x-if="ws()?.channel && chForm">
+          <div>
+            <div class="card-head"><div class="grow"><h2><span x-t>Channel</span></h2>
+              <p x-text="[chForm.tagline, ws().channel.platforms.join(' · ')].filter(Boolean).join(' — ')"></p></div>
+              <button class="btn ghost sm" @click="chOpen = !chOpen"><span x-text="t(chOpen ? 'Hide' : 'Show all')"></span></button></div>
+            <div class="charts">
+              <template x-for="a in ws().channel.art" :key="a.look">
+                <div class="chart">
+                  <div class="chthumb"><img class="ban" :src="`/api/workspaces/${ws().id}/art/${a.banner}?v=${artVer}`" :alt="t('YouTube banner')" loading="lazy">
+                    <img class="av" :src="`/api/workspaces/${ws().id}/art/${a.avatar}?v=${artVer}`" :alt="t('Profile picture')" loading="lazy"></div>
+                  <div class="actions">
+                    <a class="btn ghost sm" :href="`/api/workspaces/${ws().id}/art/${a.avatar}`" :download="`${chForm.name} - avatar.png`"><svg class="i"><use href="#i-download"/></svg><span x-t>Profile picture</span></a>
+                    <a class="btn ghost sm" :href="`/api/workspaces/${ws().id}/art/${a.banner}`" :download="`${chForm.name} - banner.png`"><svg class="i"><use href="#i-download"/></svg><span x-t>Banner</span></a>
+                  </div>
+                </div>
+              </template>
+            </div>
+            <p class="small muted" style="margin:8px 0 0"><span x-t>Profile picture 800×800, safe inside the round crop; YouTube banner 2560×1440 with the words where every device shows them. Drawn from the brand kit — change its colors, font or logo, then redraw.</span>
+              <button type="button" class="btn ghost sm" @click="redrawArt()" :disabled="chBusy"><svg class="i"><use href="#i-retry"/></svg><span x-t>Redraw</span></button></p>
+            <div class="grid-2" style="margin-top:14px" x-show="chOpen">
+              <div class="stack">
+                <div class="field"><label><span x-t>Channel name</span></label><input x-model="chForm.name" maxlength="60">
+                  <p class="hint" x-show="chForm.handles.length"><span x-t>Handles to look for:</span> <span x-text="chForm.handles.map(h => '@' + h).join(' · ')"></span></p></div>
+                <div class="field"><label><span x-t>Tagline</span></label><input x-model="chForm.tagline" maxlength="80"></div>
+                <div class="field"><label><span x-t>Content pillars</span></label>
+                  <ul class="chpillars"><template x-for="pl in chForm.pillars" :key="pl.name"><li><b x-text="pl.name"></b> <span class="muted" x-text="pl.about"></span>
+                    <span class="small muted" x-text="t(pillarCount(pl.name) === 1 ? '1 idea' : '{n} ideas', {n: pillarCount(pl.name)})"></span></li></template></ul></div>
+                <div class="field" x-show="chForm.cadence"><label><span x-t>When to post</span></label><p class="small" style="margin:0" x-text="chForm.cadence"></p></div>
+                <div class="field" x-show="ws().channel.competitors.length"><label><span x-t>Channels it learned from</span></label>
+                  <template x-for="c in ws().channel.competitors" :key="c.url">
+                    <div class="chcomp">
+                      <a :href="c.url" target="_blank" rel="noopener" x-text="c.name"></a>
+                      <span class="small muted" x-text="[c.site, c.followers && t('{n} followers', {n: fmtNum(c.followers)}), c.median_views && t('median {n} views', {n: fmtNum(c.median_views)})].filter(Boolean).join(' · ')"></span>
+                      <template x-for="v in (c.top || []).slice(0, 3)" :key="v.url">
+                        <div class="chvid"><span class="grow" x-text="v.title"></span><span class="small muted" x-text="fmtNum(v.views)"></span>
+                          <button type="button" class="btn ghost sm" x-show="v.url" @click="refAdd = { open: true, url: v.url, busy: false, then: null }" :title="t('Study this video so yours can follow its format')"><svg class="i"><use href="#i-link"/></svg><span x-t>Learn its format</span></button></div>
+                      </template>
+                    </div>
+                  </template></div>
+              </div>
+              <div class="stack">
+                <div class="field"><label><span x-t>YouTube description</span></label><textarea rows="4" x-model="chForm.bio_youtube" maxlength="1000"></textarea>
+                  <div class="actions"><button type="button" class="btn ghost sm" @click="copy(chForm.bio_youtube)" :disabled="!chForm.bio_youtube"><svg class="i"><use href="#i-copy"/></svg><span x-t>Copy</span></button></div></div>
+                <div class="field"><label><span x-t>TikTok bio</span> <span class="muted" x-text="`${chForm.bio_tiktok.length}/80`"></span></label><input x-model="chForm.bio_tiktok" maxlength="80">
+                  <div class="actions" style="margin-top:6px"><button type="button" class="btn ghost sm" @click="copy(chForm.bio_tiktok)" :disabled="!chForm.bio_tiktok"><svg class="i"><use href="#i-copy"/></svg><span x-t>Copy</span></button></div></div>
+                <div class="field"><label><span x-t>Hashtags</span></label><textarea rows="2" :value="chForm.hashtags.map(h => '#' + h).join(' ')" @change="chForm.hashtags = $event.target.value.split(/[\s,]+/).map(h => h.replace(/^#/, '')).filter(Boolean).slice(0, 12)"></textarea>
+                  <div class="actions"><button type="button" class="btn ghost sm" @click="copy(chForm.hashtags.map(h => '#' + h).join(' '))" :disabled="!chForm.hashtags.length"><svg class="i"><use href="#i-copy"/></svg><span x-t>Copy</span></button></div></div>
+                <div class="actions" style="justify-content:flex-end"><button class="btn primary" @click="saveChannel()" :disabled="chBusy || !chForm.name.trim() || !chDirty"><span class="spin" x-show="chBusy"></span><span x-t>Save channel</span></button></div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
       <!-- The project's idea board: Claude suggests what the series covers next; an approved idea becomes the video -->
       <div class="card iboard" x-show="ws()">
         <div class="card-head"><div class="grow"><h2><span x-t>Next in this project</span></h2>
@@ -745,6 +821,7 @@
           <template x-if="ideaAsk.busy"><div class="idea skel"><span class="sk" style="width:70%"></span><span class="sk"></span><span class="sk" style="width:55%"></span></div></template>
           <template x-for="i in openIdeas()" :key="i.id">
             <div class="idea">
+              <span class="chip" style="align-self:flex-start" x-show="i.pillar" x-text="i.pillar"></span>
               <strong x-text="i.title"></strong>
               <p class="small muted" x-text="i.angle"></p>
               <p class="small" x-show="i.hook">“<span x-text="i.hook"></span>”</p>
@@ -2237,6 +2314,138 @@
     </div>
   </div>
 
+  <!-- discover niches: channels abroad that do well on YouTube searches, and directions for a channel at home -->
+  <div class="modal" x-show="disc.open" x-transition.opacity @click.self="!disc.loading && (disc.open=false)" @keydown.escape.window="disc.open && !disc.loading && (disc.open=false)">
+    <div class="card wide planc discc">
+      <h2><span x-t>Discover niches</span></h2>
+      <p class="muted small" style="margin-top:4px"><span x-t>Say what interests you. AutoClip searches YouTube abroad for the channels that do best on it and reads their numbers; Claude proposes directions for a channel in your market — what to adapt, not what to copy.</span></p>
+      <div class="discbar">
+        <input x-model="disc.interest" maxlength="300" :placeholder="t('e.g. personal finance, AI tools, history stories')" @keydown.enter="discover()" :disabled="disc.loading" :aria-label="t('Interest')">
+        <input x-model="disc.market" maxlength="60" style="max-width:150px" :disabled="disc.loading" :aria-label="t('Market')" :title="t('Market')">
+        <button class="btn primary" @click="discover()" :disabled="disc.loading || disc.interest.trim().length < 2 || !status.claude?.ok"><span class="spin" x-show="disc.loading"></span><svg class="i" x-show="!disc.loading"><use href="#i-zoom"/></svg><span x-t>Discover</span></button>
+      </div>
+      <p class="hint" x-show="!disc.directions.length && !disc.loading"><span x-t>About a minute: two small Claude calls; the search itself uses no Claude.</span></p>
+      <template x-if="disc.loading"><div class="stack" style="margin-top:14px" x-data="{ s: 0 }" x-init="const i = setInterval(() => { s++; if (!disc.loading) clearInterval(i) }, 1000)">
+        <div class="small muted" style="display:flex;gap:8px;align-items:center" role="status"><span class="spin"></span><span x-text="disc.step"></span><span x-show="s >= 3" x-text="s + 's'"></span></div>
+        <span class="sk" style="width:60%"></span><span class="sk"></span><span class="sk" style="width:75%"></span></div></template>
+      <template x-if="!disc.loading && disc.directions.length">
+        <div class="stack" style="margin-top:14px">
+          <p class="small" style="margin:0" x-show="disc.summary" x-text="disc.summary"></p>
+          <p class="small muted" style="margin:0" x-show="disc.queries.length"><span x-t>Searched:</span> <span x-text="disc.queries.join(' · ')"></span></p>
+          <div class="dirs">
+            <template x-for="(d, n) in disc.directions" :key="n">
+              <div class="dir">
+                <div style="display:flex;gap:8px;align-items:flex-start"><strong class="grow" x-text="d.title"></strong>
+                  <span class="chip" :class="{high: 'ok', medium: '', low: 'warn'}[d.fit]" x-text="t({high: 'Fits AI videos well', medium: 'Fits AI videos', low: 'Hard for AI videos'}[d.fit])"></span></div>
+                <p class="small" x-text="d.format"></p>
+                <p class="small"><b x-t>Why it works:</b> <span x-text="d.evidence"></span></p>
+                <p class="small"><b x-t>For your market:</b> <span x-text="d.adapt"></span></p>
+                <p class="small muted" x-show="d.risks"><b x-t>Risks:</b> <span x-text="d.risks"></span></p>
+                <ul class="small muted" x-show="d.examples.length"><template x-for="e in d.examples"><li x-text="e"></li></template></ul>
+                <div class="actions" style="margin-top:auto"><button class="btn primary sm" @click="useDirection(d)"><svg class="i"><use href="#i-star"/></svg><span x-t>Build this channel</span></button>
+                  <span class="small muted grow" x-show="d.channels.length" x-text="t('learns from {names}', {names: d.channels.join(', ')})"></span></div>
+              </div>
+            </template>
+          </div>
+          <details class="more">
+            <summary x-text="t('The {n} channels found', {n: disc.channels.length})"></summary>
+            <div class="disctable">
+              <template x-for="c in disc.channels" :key="c.url">
+                <div class="chvid"><a class="grow" :href="c.url" target="_blank" rel="noopener" x-text="c.name"></a>
+                  <span class="small muted" x-text="t('{n} followers', {n: fmtNum(c.followers)})"></span>
+                  <span class="small muted" x-text="t('median {n} views', {n: fmtNum(c.median_views)})"></span>
+                  <span class="chip" :class="c.ratio >= 0.1 && 'ok'" x-show="c.ratio" :title="t('Median views per follower: above 0.1 its videos travel beyond its followers')" x-text="'×' + c.ratio"></span></div>
+              </template>
+            </div>
+          </details>
+        </div>
+      </template>
+      <div class="actions" style="margin-top:16px;justify-content:flex-end">
+        <button class="btn" @click="disc.open=false" :disabled="disc.loading"><span x-t>Close</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- a channel around one topic: Claude plans it (app/channels.py), approving it sets up the project -->
+  <div class="modal" x-show="chan.open" x-transition.opacity @click.self="!chan.loading && !chan.busy && (chan.open=false)" @keydown.escape.window="chan.open && !chan.loading && !chan.busy && (chan.open=false)">
+    <div class="card planc chanc">
+      <template x-if="!chan.data && !chan.loading">
+        <div class="stack">
+          <div><h2><span x-t>New channel</span></h2>
+            <p class="muted small" style="margin-top:4px"><span x-t>Give a topic. Claude plans a YouTube and TikTok channel around it — name, audience, content pillars, bios, colors and the first videos — for you to change and approve. Approving it sets up a project with its brand kit, profile picture and banner.</span></p></div>
+          <div class="field"><label><span x-t>Topic of the channel</span></label>
+            <textarea rows="2" x-model="chan.topic" maxlength="2000" :placeholder="t('e.g. Badminton rules and tips for beginners in Vietnam')"></textarea></div>
+          <div class="grid-2">
+            <div class="field"><label><span x-t>Language</span></label><select x-select x-model="chan.language"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===chan.language"></option></template></select></div>
+            <div class="field"><label><span x-t>Format</span></label><select x-select x-model="chan.format"><option value="shorts" x-t>Vertical 9:16</option><option value="youtube" x-t>Landscape 16:9</option><option value="square" x-t>Square 1:1</option></select></div>
+          </div>
+          <div class="field"><label><span x-t>Platforms</span></label>
+            <div class="actions"><template x-for="pf in ['YouTube', 'TikTok']" :key="pf">
+              <label class="toggle small"><input type="checkbox" :value="pf" x-model="chan.platforms"><span x-text="pf"></span></label></template></div></div>
+          <div class="field"><label><span x-t>Channels to learn from</span> <span class="muted"><span x-t>(optional)</span></span></label>
+            <textarea rows="2" x-model="chan.links" :placeholder="t('Links of up to 3 YouTube or TikTok channels in the niche, one per line')"></textarea>
+            <p class="hint"><span x-t>AutoClip lists their latest videos and which did best (titles and views only, nothing is downloaded); Claude uses that to find what works and the gap your channel can fill.</span></p></div>
+        </div>
+      </template>
+      <template x-if="chan.loading"><div class="stack" x-data="{ s: 0 }" x-init="const i = setInterval(() => { s++; if (!chan.loading) clearInterval(i) }, 1000)">
+        <div class="small muted" style="display:flex;gap:8px;align-items:center" role="status"><span class="spin"></span><span x-text="chan.step"></span><span x-show="s >= 3" x-text="s + 's'"></span></div>
+        <span class="sk" style="width:55%;height:22px"></span><span class="sk"></span><span class="sk" style="width:80%"></span><span class="sk" style="width:65%"></span><span class="sk" style="width:45%"></span></div></template>
+      <template x-if="!chan.loading && chan.data">
+        <div class="stack">
+          <div class="lbl"><span x-t>The channel</span></div>
+          <input class="h1edit" style="font-size:22px" x-model="chan.data.name" maxlength="60" :aria-label="t('Channel name')">
+          <div class="pills" x-show="chan.data.names.length > 1"><span class="small muted" x-t>Other names:</span>
+            <template x-for="n in chan.data.names.filter(n => n !== chan.data.name)" :key="n"><button type="button" class="pickchip" @click="chan.data.name = n" x-text="n"></button></template></div>
+          <div class="pills" x-show="chan.data.handles.length"><span class="small muted" x-t>Handles to look for:</span>
+            <template x-for="h in chan.data.handles" :key="h"><code x-text="'@' + h"></code></template></div>
+          <div class="field"><label><span x-t>Tagline</span></label><input x-model="chan.data.tagline" maxlength="80"></div>
+          <div class="grid-2">
+            <div class="field"><label><span x-t>Who it is for</span></label><textarea rows="3" x-model="chan.data.audience" maxlength="300"></textarea></div>
+            <div class="field"><label><span x-t>Why follow it</span></label><textarea rows="3" x-model="chan.data.positioning" maxlength="500"></textarea></div>
+          </div>
+          <div class="field"><label><span x-t>Content pillars</span></label>
+            <div class="eprows">
+              <template x-for="(pl, n) in chan.data.pillars" :key="n">
+                <div class="eprow"><span class="n" x-text="n + 1"></span>
+                  <div class="pillar"><input x-model="pl.name" maxlength="60" :aria-label="t('Pillar')"><textarea rows="2" style="resize:vertical;min-height:0" x-model="pl.about" maxlength="300"></textarea>
+                    <span class="small muted" x-show="pl.examples?.length" x-text="t('e.g.') + ' ' + (pl.examples || []).join(' · ')"></span></div>
+                  <button type="button" class="btn ghost icon sm" @click="chan.data.pillars.splice(n, 1)" x-show="chan.data.pillars.length > 1" :aria-label="t('Remove')"><svg class="i"><use href="#i-x"/></svg></button></div>
+              </template>
+              <button type="button" class="btn ghost sm" style="justify-self:start" x-show="chan.data.pillars.length < 6" @click="chan.data.pillars.push({ name: '', about: '', examples: [] })"><svg class="i"><use href="#i-plus"/></svg><span x-t>Add pillar</span></button>
+            </div></div>
+          <div class="field"><label><span x-t>The first videos</span></label>
+            <div class="eprows"><template x-for="(v, n) in chan.data.first_videos" :key="n">
+              <div class="eprow"><span class="n" x-text="n + 1"></span><div class="pillar"><input x-model="v.title" maxlength="120"><span class="small muted" x-text="[v.pillar, v.hook && '“' + v.hook + '”'].filter(Boolean).join(' · ')"></span></div>
+                <button type="button" class="btn ghost icon sm" @click="chan.data.first_videos.splice(n, 1)" :aria-label="t('Remove')"><svg class="i"><use href="#i-x"/></svg></button></div>
+            </template></div>
+            <p class="hint"><span x-t>They wait on the channel's idea board: review one and approve it to make the video.</span></p></div>
+          <div class="field"><label><span x-t>Colors</span></label>
+            <div class="actions"><template x-for="k in ['primary', 'accent', 'text']" :key="k">
+              <label class="colorpick"><input type="color" x-model="chan.data.colors[k]"><span class="small" x-text="t({primary: 'Primary', accent: 'Accent', text: 'Text'}[k])"></span></label></template></div></div>
+          <details class="more">
+            <summary x-t>Bios, posting rhythm and instructions</summary>
+            <div class="stack" style="margin-top:10px">
+              <div class="field"><label><span x-t>YouTube description</span></label><textarea rows="3" x-model="chan.data.bio_youtube" maxlength="1000"></textarea></div>
+              <div class="field"><label><span x-t>TikTok bio</span> <span class="muted" x-text="`${chan.data.bio_tiktok.length}/80`"></span></label><input x-model="chan.data.bio_tiktok" maxlength="80"></div>
+              <div class="field"><label><span x-t>When to post</span></label><input x-model="chan.data.cadence" maxlength="300"></div>
+              <div class="field"><label><span x-t>Instructions for Claude</span></label><textarea rows="4" x-model="chan.data.instructions" maxlength="2000"></textarea></div>
+            </div>
+          </details>
+          <div class="notice info" x-show="chan.data.learned.length"><svg class="i" style="margin-top:2px"><use href="#i-zap"/></svg>
+            <div><b x-text="t('Learned from {names}', {names: chan.found.map(c => c.name).join(', ')})"></b>
+              <ul class="small" style="margin:6px 0 0;padding-left:18px"><template x-for="l in chan.data.learned"><li x-text="l"></li></template></ul></div></div>
+        </div>
+      </template>
+      <div class="actions" style="margin-top:16px;justify-content:flex-end">
+        <button class="btn ghost" x-show="chan.data" @click="planChannel(true)" :disabled="chan.loading || chan.busy"><svg class="i"><use href="#i-retry"/></svg><span x-t>Another plan</span></button>
+        <span class="grow"></span>
+        <button class="btn" @click="chan.data ? (chan.data = null) : (chan.open = false)" :disabled="chan.loading || chan.busy"><span x-t>Back</span></button>
+        <button class="btn primary" x-show="!chan.data" @click="planChannel()" :disabled="chan.loading || chan.topic.trim().length < 3 || !chan.platforms.length || !status.claude?.ok"><span class="spin" x-show="chan.loading"></span><span x-t>Plan the channel</span></button>
+        <button class="btn primary" x-show="chan.data" @click="createChannel()" :disabled="chan.busy || !chan.data?.name?.trim() || !chan.data?.pillars?.some(p => p.name.trim())"><span class="spin" x-show="chan.busy"></span><span x-t>Create the channel</span></button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" x-show="siteImport.open" x-transition.opacity @click.self="!siteImport.busy && (siteImport.open=false)">
     <div class="card">
       <h2><span x-t>Import a brand kit from a website</span></h2>
@@ -2997,7 +3206,10 @@ function app() {
     styleList: [], styleOpen: false, styleQ: '', styleSrc: '', pbList: [], pbOpen: false,
     mus: { key:'', info:null, text:'', volume:0.12, busy:false },
     rv: { time:0, dur:0, playing:false, sel:null, pin:null, mode:'time', text:'', comments:[], film:null, sending:false, dragging:null },
-    workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' }, siteImport: { open:false, url:'', busy:false },
+    workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' },
+    chan: { open:false, topic:'', language:'English', format:'shorts', platforms:['YouTube', 'TikTok'], links:'', found:[], avoid:[], data:null, loading:false, busy:false, step:'' },
+    chForm: null, chBase: '', chOpen: false, chBusy: false, artVer: 0,
+    disc: { open:false, interest:'', market:'Vietnam', language:'Vietnamese', queries:[], channels:[], summary:'', directions:[], loading:false, step:'' }, siteImport: { open:false, url:'', busy:false },
     live: {}, now: 0, dockOpen: true,
     uploadingContext: false, motionInfo: {}, voiceEdit: false, voiceKey: '', savingVoice: false, elevenVoices: [], previewing: false, contextAccept: '.txt,.md,.markdown,.pdf,.docx,.html,.htm,.csv,.json,.srt,.vtt,.yaml,.yml',
     brandList: [], brand: null, brandBase: '', brandMissing: false, syncing: false,
@@ -4450,8 +4662,88 @@ function app() {
       const w = this.ws(); if (!w) return;
       this.wsForm = { name:w.name, website:w.website||'', brand_id:w.brand_id||'', language:w.language||'', format:w.format||'', notes:w.notes||'', template_id:w.template_id||'' };
       this.wsBase = JSON.stringify(this.wsForm);
+      this.chForm = w.channel ? JSON.parse(JSON.stringify(w.channel.plan)) : null;
+      this.chBase = JSON.stringify(this.chForm);
       if (w.language) this.form.language = w.language;
       if (w.format) this.form.format = w.format;
+    },
+    // ------------------------------------------------ channels: a project built around one topic
+    openChannel() {
+      this.chan = { ...this.chan, open: true, topic: '', links: '', found: [], avoid: [], data: null, loading: false, busy: false, language: this.form.language || 'English', format: this.form.format || 'shorts' };
+    },
+    async planChannel(again = false) {
+      const c = this.chan;
+      if (again && c.data?.name) c.avoid = [...c.avoid, c.data.name].slice(-5);
+      c.loading = true;
+      if (!again) {
+        c.found = [];
+        const links = c.links.split(/\s+/).filter(l => /^https?:\/\//.test(l)).slice(0, 3);
+        for (const url of links) {
+          c.step = this.t('Reading the videos of {url}', { url: url.replace(/^https?:\/\/(www\.)?/, '') });
+          const f = await this.run(() => this.api('/api/channels/study', { method: 'POST', body: { url } }));
+          if (f) c.found.push(f);
+        }
+      }
+      c.step = this.t('Claude is planning the channel: name, audience, pillars and first videos');
+      const d = await this.run(() => this.api('/api/channels/plan', { method: 'POST', body: { topic: c.topic.trim(), language: c.language, format: c.format, platforms: c.platforms, competitors: c.found, avoid: c.avoid } }));
+      c.loading = false;
+      if (d) c.data = d;
+    },
+    async createChannel() {
+      const c = this.chan;
+      const plan = { ...c.data, pillars: c.data.pillars.filter(p => p.name.trim()), first_videos: c.data.first_videos.filter(v => v.title.trim()) };
+      c.busy = true;
+      const w = await this.run(() => this.api('/api/channels', { method: 'POST', body: { topic: c.topic.trim(), language: c.language, format: c.format, platforms: c.platforms, competitors: c.found, plan } }), 'Channel created');
+      c.busy = false;
+      if (!w?.id) return;
+      c.open = false;
+      await Promise.all([this.loadWorkspaces(), this.loadBrands()]);
+      this.nav(`/w/${w.id}`);
+    },
+    async openDiscover() {
+      this.disc.open = true;
+      if (this.disc.directions.length) return;
+      const last = await this.api('/api/channels/discover').catch(() => null);
+      if (last?.directions) this.disc = { ...this.disc, ...last, loading: false, step: '' };
+    },
+    async discover() {
+      const d = this.disc, body = () => ({ interest: d.interest.trim(), market: d.market.trim() || 'Vietnam', language: d.language, queries: d.queries, channels: d.channels });
+      d.loading = true; d.directions = []; d.queries = []; d.channels = [];
+      d.step = this.t('Claude is choosing what to search for');
+      const q = await this.run(() => this.api('/api/channels/discover/queries', { method: 'POST', body: body() }));
+      if (q) {
+        d.queries = q.queries;
+        d.step = this.t('Searching YouTube and reading the channels: {q}', { q: q.queries.join(' · ') });
+        const f = await this.run(() => this.api('/api/channels/discover/search', { method: 'POST', body: body() }));
+        if (f) {
+          d.channels = f.channels;
+          d.step = this.t('Claude is comparing {n} channels and looking for directions', { n: f.channels.length });
+          const r = await this.run(() => this.api('/api/channels/discover/directions', { method: 'POST', body: body() }));
+          if (r) { d.summary = r.summary; d.directions = r.directions; }
+        }
+      }
+      d.loading = false;
+    },
+    useDirection(dir) {
+      const urls = this.disc.channels.filter(c => dir.channels.includes(c.name)).map(c => c.url).slice(0, 3);
+      this.disc.open = false;
+      this.openChannel();
+      Object.assign(this.chan, { topic: dir.topic || dir.title, links: urls.join('\n'), language: this.disc.language });
+    },
+    get chDirty() { return JSON.stringify(this.chForm) !== this.chBase; },
+    pillarCount(name) { return (this.ws()?.ideas || []).filter(i => i.pillar === name).length; },
+    fmtNum(n) { if (!n) return '–'; for (const [v, u] of [[1e9, 'B'], [1e6, 'M'], [1e3, 'K']]) if (n >= v) return (n / v).toFixed(1).replace(/\.0$/, '') + u; return String(n); },
+    async saveChannel() {
+      this.chBusy = true;
+      const w = await this.run(() => this.api(`/api/workspaces/${this.ws().id}/channel`, { method: 'PUT', body: this.chForm }), 'Channel saved');
+      this.chBusy = false;
+      if (w?.id) { this.workspaces = this.workspaces.map(x => x.id === w.id ? w : x); this.artVer++; this.syncWsForm(); }
+    },
+    async redrawArt() {
+      this.chBusy = true;
+      const w = await this.run(() => this.api(`/api/workspaces/${this.ws().id}/art`, { method: 'POST' }));
+      this.chBusy = false;
+      if (w?.id) { this.workspaces = this.workspaces.map(x => x.id === w.id ? w : x); this.artVer++; }
     },
     async createWs() {
       if (!this.newWs.name.trim()) return;

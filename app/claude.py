@@ -288,9 +288,138 @@ order, each one its own clear topic. Stay accurate; don't invent facts, rules or
 
 Reply with JSON:
 {{"ideas": [{{"title": "working title in {language}, max 80 characters",
+             "pillar": "the content pillar it belongs to, exactly as named above; empty when none are named",
              "angle": "one sentence in {language}: what this video teaches or shows and why it's worth watching",
              "hook": "the first spoken line in {language}, max 14 words",
              "outline": ["scene by scene, what is shown and said, one short line each in {language}"]}}]}}"""
+
+
+CHANNEL_PROMPT = """You are a strategist who builds faceless short-video channels on YouTube and TikTok.
+Plan a new channel around this topic, so the person can approve or change it before it is set up.
+
+Topic: {topic}
+Platforms: {platforms} · language of the channel: {language} · format: {format}
+{extra}{competitors}
+Find a clear position: who the channel is for, the promise that makes them follow, and how it differs from what is
+already out there. Plan content pillars (recurring kinds of video) that a faceless channel made of short animated
+videos can keep up for months, and the first videos that would make a newcomer subscribe. Be specific to the topic;
+don't invent facts, numbers or claims about competitors that the list above doesn't show.{avoid}
+
+Reply with JSON:
+{{"names": ["3 channel name options in {language} or neutral, short and easy to say, the best first"],
+  "handles": ["3 matching @handles without @, lowercase, letters, digits, dots or underscores"],
+  "tagline": "what the channel gives in under 8 words, in {language}",
+  "audience": "who it is for, in {language}, one sentence",
+  "positioning": "why follow this channel rather than others, in {language}, 1-2 sentences",
+  "voice": "voice and tone of the videos in {language}, a few words",
+  "cta": "the call to action that ends the videos, in {language}",
+  "pillars": [{{"name": "pillar name in {language}", "about": "what these videos do, in {language}, one sentence",
+               "examples": ["2 example video titles in {language}"]}}],
+  "cadence": "how often to post on each platform and when, in {language}, one sentence",
+  "bio_youtube": "the YouTube channel description in {language}, 2-4 sentences, max 900 characters",
+  "bio_tiktok": "the TikTok bio in {language}, max 80 characters",
+  "hashtags": ["8-12 hashtags without # that the channel keeps using"],
+  "colors": {{"primary": "#hex brand color that fits the topic", "accent": "#hex contrasting highlight", "text": "#hex"}},
+  "learned": ["what works for the channels listed above and what they leave out, short lines in {language}; [] when none are listed"],
+  "instructions": "instructions Claude follows for every video of this channel, in English: audience, tone, structure, what to always or never do",
+  "first_videos": [{{"title": "working title in {language}, max 80 characters", "pillar": "its pillar name",
+                    "angle": "one sentence in {language}: what this video shows and why it's worth watching",
+                    "hook": "the first spoken line in {language}, max 14 words",
+                    "outline": ["scene by scene, one short line each in {language}"]}}]}}
+Give 3-5 pillars and exactly {first} first videos from different pillars."""
+
+
+NICHE_QUERIES_PROMPT = """Someone wants to start a faceless short-video channel for viewers in {market}, by adapting what
+already works on English-language YouTube. Their interest: {interest}
+
+Write 3 different English YouTube search queries that surface the most successful channels abroad around this interest:
+each 2-5 words, the way viewers search, covering different angles of it (e.g. a broad one, a specific sub-niche, a format).
+
+Reply with JSON: {{"queries": ["...", "...", "..."]}}"""
+
+NICHE_PROMPT = """You help someone pick the direction of a new faceless short-video channel (animated videos, no presenter)
+for viewers in {market}, in {language}, by adapting what already works abroad. Their interest: {interest}
+
+Channels found on English-language YouTube for it, with their numbers:
+{channels}
+
+A high "median views / followers" means the channel's videos reach far beyond its followers: a format that travels.
+Small channels with that are the best sign that a direction works now, not just a famous creator.
+
+Propose the {count} most promising directions for a channel in {market}. For each: what the format is, the evidence from
+the numbers above (name the channels), how to adapt it for {market} (local examples, money, laws, culture, language — what
+must change rather than translate), how well it fits short animated videos made by AI, and the risks (saturation,
+facts that need care, rules of the platforms). Don't claim what the {market} market has or lacks as fact; say what to
+check. Never suggest copying a channel's videos, characters, names or words — only the format and the need it meets.
+
+Reply with JSON:
+{{"summary": "2-3 sentences in {language}: what this interest looks like abroad and where the openings are",
+  "directions": [{{"title": "short name of the direction in {language}",
+                  "format": "what each video is, in {language}, one sentence",
+                  "evidence": "why it works, citing the channels and numbers, in {language}",
+                  "adapt": "how to make it for {market}, in {language}",
+                  "fit": "high | medium | low — how well it suits short animated AI videos",
+                  "risks": "in {language}, one sentence",
+                  "channels": ["names of the channels above to learn from, at most 3"],
+                  "topic": "the topic to give the channel planner, in {language}, one sentence",
+                  "examples": ["3 example video titles for {market} in {language}"]}}]}}"""
+
+
+async def niche_queries(interest: str, market: str) -> list[str]:
+    data = await ask_json(NICHE_QUERIES_PROMPT.format(interest=interest, market=market), kind="niche", effort="low")
+    return [str(q).strip()[:80] for q in data.get("queries") or [] if str(q).strip()][:3]
+
+
+async def niche_directions(interest: str, market: str, language: str, channels: str, count: int = 4) -> dict:
+    """Directions for a new channel, from channels abroad that do well (one call)."""
+    data = await ask_json(NICHE_PROMPT.format(interest=interest, market=market, language=language, channels=channels,
+                                              count=count), kind="niche", effort="medium")
+    out = []
+    for d in data.get("directions") or []:
+        if not isinstance(d, dict) or not d.get("title"):
+            continue
+        out.append({**{k: str(d.get(k) or "").strip()[:600] for k in ("title", "format", "evidence", "adapt", "risks", "topic")},
+                    "fit": d.get("fit") if d.get("fit") in ("high", "medium", "low") else "medium",
+                    "channels": [str(c)[:80] for c in d.get("channels") or []][:3],
+                    "examples": [str(c)[:120] for c in d.get("examples") or []][:3]})
+    if not out:
+        raise RuntimeError("Claude didn't return any direction — try again")
+    return {"summary": str(data.get("summary") or "")[:800], "directions": out}
+
+
+def _hex(c, default: str) -> str:
+    return c if isinstance(c, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", c) else default
+
+
+async def channel_plan(topic: str, language: str, format: str, platforms: list[str], competitors: str = "",
+                       extra: str = "", avoid: list[str] | None = None, first: int = 3) -> dict:
+    """A channel to approve before it is set up: names, position, pillars, bios, colors and its first videos."""
+    avoid_text = ("\nPropose a clearly different channel from these, already proposed: " + "; ".join(avoid[:5])) if avoid else ""
+    data = await ask_json(CHANNEL_PROMPT.format(topic=topic, platforms=" and ".join(platforms) or "YouTube and TikTok",
+                                                language=language, format=format, extra=extra, avoid=avoid_text, first=first,
+                                                competitors=f"\n{competitors}\n" if competitors else ""),
+                          kind="channel", effort="medium")
+    strs = lambda v, n, cap: [str(x).strip()[:cap] for x in v or [] if str(x).strip()][:n]  # noqa: E731
+    names = strs(data.get("names"), 3, 60)
+    pillars = [{"name": str(p["name"])[:60], "about": str(p.get("about") or "")[:300], "examples": strs(p.get("examples"), 3, 120)}
+               for p in data.get("pillars") or [] if isinstance(p, dict) and p.get("name")][:6]
+    if not names or not pillars:
+        raise RuntimeError("Claude didn't return a channel plan — try again")
+    colors = data.get("colors") if isinstance(data.get("colors"), dict) else {}
+    videos = []
+    for x in data.get("first_videos") or []:
+        if (item := _plan_item(x)):
+            videos.append({**item, "pillar": str(x.get("pillar") or "")[:60]})
+    return {"names": names, "name": names[0],
+            "handles": [re.sub(r"[^a-z0-9._]", "", h.lower().lstrip("@"))[:30] for h in strs(data.get("handles"), 3, 40)],
+            **{k: str(data.get(k) or "").strip()[:n] for k, n in
+               (("tagline", 80), ("audience", 300), ("positioning", 500), ("voice", 200), ("cta", 200), ("cadence", 300),
+                ("bio_youtube", 1000), ("bio_tiktok", 80), ("instructions", 2000))},
+            "pillars": pillars,
+            "hashtags": [h.lstrip("#").replace(" ", "") for h in strs(data.get("hashtags"), 12, 40)],
+            "colors": {"primary": _hex(colors.get("primary"), "#E8385A"), "accent": _hex(colors.get("accent"), "#FFE14D"),
+                       "text": _hex(colors.get("text"), "#FFFFFF")},
+            "learned": strs(data.get("learned"), 8, 300), "first_videos": videos[:first]}
 
 
 def _plan_item(x: dict) -> dict | None:
@@ -308,7 +437,7 @@ async def series_ideas(name: str, language: str, duration: int, format: str, don
                                                done="\n".join(f"- {d}" for d in done[:60]) or "- none yet",
                                                hint=f"Wanted next: {hint.strip()}" if hint.strip() else "", count=count),
                           kind="concept", effort="low")
-    return [i for i in (_plan_item(x) for x in data.get("ideas") or []) if i][:count]
+    return [{**i, "pillar": str(x.get("pillar") or "")[:60]} for x in data.get("ideas") or [] if (i := _plan_item(x))][:count]
 
 
 async def suggest_hooks(topic: str, language: str, extra: str = "", model: str | None = None) -> list[dict]:
