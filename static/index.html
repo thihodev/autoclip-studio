@@ -758,7 +758,7 @@
         <template x-if="ws()?.channel && chForm">
           <div>
             <div class="card-head"><div class="grow"><h2><span x-t>Channel</span></h2>
-              <p x-text="[chForm.tagline, ws().channel.platforms.join(' · ')].filter(Boolean).join(' — ')"></p></div>
+              <p x-text="[chForm.tagline, ws().channel.platforms.join(' · '), (ws().channel.formats || []).map(f => fmtName(f) + ((chForm.lengths || {})[f] ? ' ' + lenText(chForm.lengths[f]) : '')).join(' · ')].filter(Boolean).join(' — ')"></p></div>
               <button class="btn ghost sm" @click="chOpen = !chOpen"><span x-text="t(chOpen ? 'Hide' : 'Show all')"></span></button></div>
             <div class="charts">
               <template x-for="a in ws().channel.art" :key="a.look">
@@ -821,7 +821,8 @@
           <template x-if="ideaAsk.busy"><div class="idea skel"><span class="sk" style="width:70%"></span><span class="sk"></span><span class="sk" style="width:55%"></span></div></template>
           <template x-for="i in openIdeas()" :key="i.id">
             <div class="idea">
-              <span class="chip" style="align-self:flex-start" x-show="i.pillar" x-text="i.pillar"></span>
+              <div class="pills" x-show="i.pillar || (i.format && ws()?.channel?.formats?.length > 1)"><span class="chip" x-show="i.pillar" x-text="i.pillar"></span>
+                <span class="chip" x-show="i.format && ws()?.channel?.formats?.length > 1" x-text="fmtName(i.format)"></span></div>
               <strong x-text="i.title"></strong>
               <p class="small muted" x-text="i.angle"></p>
               <p class="small" x-show="i.hook">“<span x-text="i.hook"></span>”</p>
@@ -2376,8 +2377,11 @@
             <textarea rows="2" x-model="chan.topic" maxlength="2000" :placeholder="t('e.g. Badminton rules and tips for beginners in Vietnam')"></textarea></div>
           <div class="grid-2">
             <div class="field"><label><span x-t>Language</span></label><select x-select x-model="chan.language"><template x-for="l in languages"><option :value="l" x-text="t(l)" :selected="l===chan.language"></option></template></select></div>
-            <div class="field"><label><span x-t>Format</span></label><select x-select x-model="chan.format"><option value="shorts" x-t>Vertical 9:16</option><option value="youtube" x-t>Landscape 16:9</option><option value="square" x-t>Square 1:1</option></select></div>
+            <div class="field"><label><span x-t>Formats</span></label>
+              <div class="actions" style="min-height:38px"><template x-for="f in [['youtube', 'Landscape 16:9'], ['shorts', 'Vertical 9:16'], ['square', 'Square 1:1']]" :key="f[0]">
+                <label class="toggle small"><input type="checkbox" :value="f[0]" x-model="chan.formats"><span x-text="t(f[1])"></span></label></template></div></div>
           </div>
+          <p class="hint" style="margin-top:-6px"><span x-t>Pick several to run both, e.g. long 16:9 videos on YouTube and 9:16 shorts for TikTok: Claude plans a length for each and tags every idea with its format.</span></p>
           <div class="field"><label><span x-t>Platforms</span></label>
             <div class="actions"><template x-for="pf in ['YouTube', 'TikTok']" :key="pf">
               <label class="toggle small"><input type="checkbox" :value="pf" x-model="chan.platforms"><span x-text="pf"></span></label></template></div></div>
@@ -2412,9 +2416,12 @@
               </template>
               <button type="button" class="btn ghost sm" style="justify-self:start" x-show="chan.data.pillars.length < 6" @click="chan.data.pillars.push({ name: '', about: '', examples: [] })"><svg class="i"><use href="#i-plus"/></svg><span x-t>Add pillar</span></button>
             </div></div>
+          <div class="grid-2" x-show="Object.keys(chan.data.lengths || {}).length">
+            <template x-for="f in Object.keys(chan.data.lengths || {})" :key="f">
+              <div class="field"><label x-text="t('{format} — length (seconds)', {format: fmtName(f)})"></label><input type="number" min="10" max="600" step="5" x-model.number="chan.data.lengths[f]"></div></template></div>
           <div class="field"><label><span x-t>The first videos</span></label>
             <div class="eprows"><template x-for="(v, n) in chan.data.first_videos" :key="n">
-              <div class="eprow"><span class="n" x-text="n + 1"></span><div class="pillar"><input x-model="v.title" maxlength="120"><span class="small muted" x-text="[v.pillar, v.hook && '“' + v.hook + '”'].filter(Boolean).join(' · ')"></span></div>
+              <div class="eprow"><span class="n" x-text="n + 1"></span><div class="pillar"><input x-model="v.title" maxlength="120"><span class="small muted" x-text="[chan.formats.length > 1 && fmtName(v.format), v.pillar, v.hook && '“' + v.hook + '”'].filter(Boolean).join(' · ')"></span></div>
                 <button type="button" class="btn ghost icon sm" @click="chan.data.first_videos.splice(n, 1)" :aria-label="t('Remove')"><svg class="i"><use href="#i-x"/></svg></button></div>
             </template></div>
             <p class="hint"><span x-t>They wait on the channel's idea board: review one and approve it to make the video.</span></p></div>
@@ -2439,7 +2446,7 @@
         <button class="btn ghost" x-show="chan.data" @click="planChannel(true)" :disabled="chan.loading || chan.busy"><svg class="i"><use href="#i-retry"/></svg><span x-t>Another plan</span></button>
         <span class="grow"></span>
         <button class="btn" @click="chan.data ? (chan.data = null) : (chan.open = false)" :disabled="chan.loading || chan.busy"><span x-t>Back</span></button>
-        <button class="btn primary" x-show="!chan.data" @click="planChannel()" :disabled="chan.loading || chan.topic.trim().length < 3 || !chan.platforms.length || !status.claude?.ok"><span class="spin" x-show="chan.loading"></span><span x-t>Plan the channel</span></button>
+        <button class="btn primary" x-show="!chan.data" @click="planChannel()" :disabled="chan.loading || chan.topic.trim().length < 3 || !chan.platforms.length || !chan.formats.length || !status.claude?.ok"><span class="spin" x-show="chan.loading"></span><span x-t>Plan the channel</span></button>
         <button class="btn primary" x-show="chan.data" @click="createChannel()" :disabled="chan.busy || !chan.data?.name?.trim() || !chan.data?.pillars?.some(p => p.name.trim())"><span class="spin" x-show="chan.busy"></span><span x-t>Create the channel</span></button>
       </div>
     </div>
@@ -3206,7 +3213,7 @@ function app() {
     mus: { key:'', info:null, text:'', volume:0.12, busy:false },
     rv: { time:0, dur:0, playing:false, sel:null, pin:null, mode:'time', text:'', comments:[], film:null, sending:false, dragging:null },
     workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' },
-    chan: { open:false, topic:'', language:'English', format:'shorts', platforms:['YouTube', 'TikTok'], links:'', found:[], avoid:[], data:null, loading:false, busy:false, step:'' },
+    chan: { open:false, topic:'', language:'English', formats:['shorts'], platforms:['YouTube', 'TikTok'], links:'', found:[], avoid:[], data:null, loading:false, busy:false, step:'' },
     chForm: null, chBase: '', chOpen: false, chBusy: false, artVer: 0,
     disc: { open:false, interest:'', queries:[], channels:[], summary:'', directions:[], loading:false, step:'' }, siteImport: { open:false, url:'', busy:false },
     live: {}, now: 0, dockOpen: true,
@@ -4668,7 +4675,7 @@ function app() {
     },
     // ------------------------------------------------ channels: a project built around one topic
     openChannel() {
-      this.chan = { ...this.chan, open: true, topic: '', links: '', found: [], avoid: [], data: null, loading: false, busy: false, language: this.form.language || 'English', format: this.form.format || 'shorts' };
+      this.chan = { ...this.chan, open: true, topic: '', links: '', found: [], avoid: [], data: null, loading: false, busy: false, language: this.form.language || 'English', formats: [this.form.format || 'shorts'] };
     },
     async planChannel(again = false) {
       const c = this.chan;
@@ -4684,7 +4691,7 @@ function app() {
         }
       }
       c.step = this.t('Claude is planning the channel: name, audience, pillars and first videos');
-      const d = await this.run(() => this.api('/api/channels/plan', { method: 'POST', body: { topic: c.topic.trim(), language: c.language, format: c.format, platforms: c.platforms, competitors: c.found, avoid: c.avoid } }));
+      const d = await this.run(() => this.api('/api/channels/plan', { method: 'POST', body: { topic: c.topic.trim(), language: c.language, formats: c.formats, platforms: c.platforms, competitors: c.found, avoid: c.avoid } }));
       c.loading = false;
       if (d) c.data = d;
     },
@@ -4692,7 +4699,7 @@ function app() {
       const c = this.chan;
       const plan = { ...c.data, pillars: c.data.pillars.filter(p => p.name.trim()), first_videos: c.data.first_videos.filter(v => v.title.trim()) };
       c.busy = true;
-      const w = await this.run(() => this.api('/api/channels', { method: 'POST', body: { topic: c.topic.trim(), language: c.language, format: c.format, platforms: c.platforms, competitors: c.found, plan } }), 'Channel created');
+      const w = await this.run(() => this.api('/api/channels', { method: 'POST', body: { topic: c.topic.trim(), language: c.language, formats: c.formats, platforms: c.platforms, competitors: c.found, plan } }), 'Channel created');
       c.busy = false;
       if (!w?.id) return;
       c.open = false;
@@ -4730,6 +4737,8 @@ function app() {
       Object.assign(this.chan, { topic: dir.topic || dir.title, links: urls.join('\n') });
     },
     get chDirty() { return JSON.stringify(this.chForm) !== this.chBase; },
+    lenText(s) { return s >= 90 ? Math.round(s / 60) + this.t(' min') : s + this.t(' s'); },
+    fmtName(f) { return this.t({ youtube: 'Landscape 16:9', shorts: 'Vertical 9:16', square: 'Square 1:1' }[f] || f); },
     pillarCount(name) { return (this.ws()?.ideas || []).filter(i => i.pillar === name).length; },
     fmtNum(n) { if (!n) return '–'; for (const [v, u] of [[1e9, 'B'], [1e6, 'M'], [1e3, 'K']]) if (n >= v) return (n / v).toFixed(1).replace(/\.0$/, '') + u; return String(n); },
     async saveChannel() {

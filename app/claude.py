@@ -278,7 +278,7 @@ async def plan_video(topic: str, language: str, duration: int, format: str, extr
 SERIES_PROMPT = """You plan the next videos of a series of short videos.
 
 Series: {name}
-Language: {language} · each video about {duration} seconds · format: {format}
+Language: {language} · {formats}
 {extra}
 Videos already made or planned in this series (don't repeat them; continue where they leave off):
 {done}
@@ -289,6 +289,7 @@ order, each one its own clear topic. Stay accurate; don't invent facts, rules or
 Reply with JSON:
 {{"ideas": [{{"title": "working title in {language}, max 80 characters",
              "pillar": "the content pillar it belongs to, exactly as named above; empty when none are named",
+             "format": "{format_keys}",
              "angle": "one sentence in {language}: what this video teaches or shows and why it's worth watching",
              "hook": "the first spoken line in {language}, max 14 words",
              "outline": ["scene by scene, what is shown and said, one short line each in {language}"]}}]}}"""
@@ -298,7 +299,8 @@ CHANNEL_PROMPT = """You are a strategist who builds faceless short-video channel
 Plan a new channel around this topic, so the person can approve or change it before it is set up.
 
 Topic: {topic}
-Platforms: {platforms} · language of the channel: {language} · format: {format}
+Platforms: {platforms} · language of the channel: {language}
+Formats: {formats}
 {extra}{competitors}
 Find a clear position: who the channel is for, the promise that makes them follow, and how it differs from what is
 already out there. Plan content pillars (recurring kinds of video) that a faceless channel made of short animated
@@ -320,13 +322,15 @@ Reply with JSON:
   "bio_tiktok": "the TikTok bio in {language}, max 80 characters",
   "hashtags": ["8-12 hashtags without # that the channel keeps using"],
   "colors": {{"primary": "#hex brand color that fits the topic", "accent": "#hex contrasting highlight", "text": "#hex"}},
+  "lengths": {{{lengths}}},
   "learned": ["what works for the channels listed above and what they leave out, short lines in {language}; [] when none are listed"],
   "instructions": "instructions Claude follows for every video of this channel, in English: audience, tone, structure, what to always or never do",
   "first_videos": [{{"title": "working title in {language}, max 80 characters", "pillar": "its pillar name",
+                    "format": "{format_keys}",
                     "angle": "one sentence in {language}: what this video shows and why it's worth watching",
                     "hook": "the first spoken line in {language}, max 14 words",
                     "outline": ["scene by scene, one short line each in {language}"]}}]}}
-Give 3-5 pillars and exactly {first} first videos from different pillars."""
+Give 3-5 pillars and exactly {first} first videos from different pillars{mix}."""
 
 
 NICHE_QUERIES_PROMPT = """Someone wants to find directions that already work for faceless short-video channels on
@@ -390,12 +394,16 @@ def _hex(c, default: str) -> str:
     return c if isinstance(c, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", c) else default
 
 
-async def channel_plan(topic: str, language: str, format: str, platforms: list[str], competitors: str = "",
+async def channel_plan(topic: str, language: str, formats: list[str], platforms: list[str], competitors: str = "",
                        extra: str = "", avoid: list[str] | None = None, first: int = 3) -> dict:
     """A channel to approve before it is set up: names, position, pillars, bios, colors and its first videos."""
     avoid_text = ("\nPropose a clearly different channel from these, already proposed: " + "; ".join(avoid[:5])) if avoid else ""
     data = await ask_json(CHANNEL_PROMPT.format(topic=topic, platforms=" and ".join(platforms) or "YouTube and TikTok",
-                                                language=language, format=format, extra=extra, avoid=avoid_text, first=first,
+                                                language=language, extra=extra, avoid=avoid_text, first=first,
+                                                formats="; ".join(f"{f} = {FORMAT_NAMES.get(f, f)}" for f in formats),
+                                                lengths=", ".join(f'"{f}": seconds per video in this format (10-600), '
+                                                                  "fitting the topic and the platform" for f in formats),
+                                                format_keys=" | ".join(formats), mix=" and covering every format" if len(formats) > 1 else "",
                                                 competitors=f"\n{competitors}\n" if competitors else ""),
                           kind="channel", effort="medium")
     strs = lambda v, n, cap: [str(x).strip()[:cap] for x in v or [] if str(x).strip()][:n]  # noqa: E731
@@ -408,7 +416,15 @@ async def channel_plan(topic: str, language: str, format: str, platforms: list[s
     videos = []
     for x in data.get("first_videos") or []:
         if (item := _plan_item(x)):
-            videos.append({**item, "pillar": str(x.get("pillar") or "")[:60]})
+            videos.append({**item, "pillar": str(x.get("pillar") or "")[:60],
+                           "format": x.get("format") if x.get("format") in formats else formats[0]})
+    raw = data.get("lengths") if isinstance(data.get("lengths"), dict) else {}
+    lengths = {}
+    for f in formats:
+        try:
+            lengths[f] = max(10, min(600, int(raw.get(f))))
+        except (TypeError, ValueError):
+            lengths[f] = 480 if f == "youtube" else 45
     return {"names": names, "name": names[0],
             "handles": [re.sub(r"[^a-z0-9._]", "", h.lower().lstrip("@"))[:30] for h in strs(data.get("handles"), 3, 40)],
             **{k: str(data.get(k) or "").strip()[:n] for k, n in
@@ -418,7 +434,7 @@ async def channel_plan(topic: str, language: str, format: str, platforms: list[s
             "hashtags": [h.lstrip("#").replace(" ", "") for h in strs(data.get("hashtags"), 12, 40)],
             "colors": {"primary": _hex(colors.get("primary"), "#E8385A"), "accent": _hex(colors.get("accent"), "#FFE14D"),
                        "text": _hex(colors.get("text"), "#FFFFFF")},
-            "learned": strs(data.get("learned"), 8, 300), "first_videos": videos[:first]}
+            "lengths": lengths, "learned": strs(data.get("learned"), 8, 300), "first_videos": videos[:first]}
 
 
 def _plan_item(x: dict) -> dict | None:
@@ -429,14 +445,32 @@ def _plan_item(x: dict) -> dict | None:
             "outline": outline}
 
 
-async def series_ideas(name: str, language: str, duration: int, format: str, done: list[str], count: int = 3,
+FORMAT_NAMES = {"shorts": "9:16 vertical (TikTok, YouTube Shorts, Reels)", "youtube": "16:9 landscape (YouTube videos)",
+                "square": "1:1 square"}
+
+
+def formats_line(lengths: dict[str, int]) -> str:
+    """{format: seconds} as the prompts state it."""
+    if len(lengths) == 1:
+        (f, sec), = lengths.items()
+        return f"each video about {sec} seconds · format: {f} = {FORMAT_NAMES.get(f, f)}"
+    return "the channel makes several formats: " + "; ".join(f"{f} = {FORMAT_NAMES.get(f, f)}, about {sec} seconds"
+                                                              for f, sec in lengths.items())
+
+
+async def series_ideas(name: str, language: str, lengths: dict[str, int], done: list[str], count: int = 3,
                        extra: str = "", hint: str = "") -> list[dict]:
-    """The next videos of a series (a project), different from the ones already made or planned."""
-    data = await ask_json(SERIES_PROMPT.format(name=name, language=language, duration=duration, format=format, extra=extra,
+    """The next videos of a series (a project), different from the ones already made or planned. `lengths` is
+    {format: seconds}; with several formats each idea says which one it is."""
+    keys = " | ".join(lengths)
+    data = await ask_json(SERIES_PROMPT.format(name=name, language=language, formats=formats_line(lengths), extra=extra,
+                                               format_keys=keys + (" — the format that suits this video" if len(lengths) > 1 else ""),
                                                done="\n".join(f"- {d}" for d in done[:60]) or "- none yet",
                                                hint=f"Wanted next: {hint.strip()}" if hint.strip() else "", count=count),
                           kind="concept", effort="low")
-    return [{**i, "pillar": str(x.get("pillar") or "")[:60]} for x in data.get("ideas") or [] if (i := _plan_item(x))][:count]
+    first = next(iter(lengths))
+    return [{**i, "pillar": str(x.get("pillar") or "")[:60], "format": x.get("format") if x.get("format") in lengths else first}
+            for x in data.get("ideas") or [] if (i := _plan_item(x))][:count]
 
 
 async def suggest_hooks(topic: str, language: str, extra: str = "", model: str | None = None) -> list[dict]:

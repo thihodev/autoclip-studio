@@ -1290,5 +1290,8 @@
  "Search for channels first": "Hãy tìm kênh trước",
  "Claude didn't return any direction — try again": "Claude không trả về hướng đi nào — hãy thử lại",
  "Say what interests you. AutoClip searches YouTube for the channels that do best on it and reads their numbers; Claude picks out the directions that work and how a new channel can stand out — the format, never the content.": "Nói lĩnh vực bạn quan tâm. AutoClip tìm trên YouTube các kênh làm tốt nhất về nó và đọc số liệu của họ; Claude chọn ra những hướng đi đang thành công và cách để một kênh mới nổi bật — học định dạng, không chép nội dung.",
- "How to stand out:": "Cách để nổi bật:"
+ "How to stand out:": "Cách để nổi bật:",
+ "Formats": "Định dạng",
+ "Pick several to run both, e.g. long 16:9 videos on YouTube and 9:16 shorts for TikTok: Claude plans a length for each and tags every idea with its format.": "Chọn nhiều để làm song song, vd video dài 16:9 trên YouTube và video ngắn 9:16 cho TikTok: Claude định độ dài cho từng định dạng và gắn định dạng cho mỗi ý tưởng.",
+ "{format} — length (seconds)": "{format} — độ dài (giây)"
 }

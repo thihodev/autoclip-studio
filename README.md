@@ -162,7 +162,7 @@ Inside a **project**, **Next in this project** asks Claude what the series shoul
 
 ## Build a channel around a topic
 
-**New channel** (next to *New project* in Studio): give a topic, the language, the format and YouTube and/or TikTok. Optionally paste up to 3 channels already in the niche: AutoClip lists their latest videos with yt-dlp — titles and views only, nothing is downloaded and no Claude is used — so Claude can see what does best there and find the gap.
+**New channel** (next to *New project* in Studio): give a topic, the language, YouTube and/or TikTok and one or more formats — e.g. long 16:9 videos for YouTube and 9:16 shorts for TikTok: Claude then plans a length for each format, every idea carries its format, and a video made from it uses that format and length. Optionally paste up to 3 channels already in the niche: AutoClip lists their latest videos with yt-dlp — titles and views only, nothing is downloaded and no Claude is used — so Claude can see what does best there and find the gap.
 
 Claude then plans the channel in one call: three name options and @handles to look for, a tagline, who it's for and why they'd follow it, 3–5 **content pillars** (recurring kinds of video), when to post, the YouTube description and TikTok bio, hashtags, colors, instructions for every video, what it learned from the other channels, and the first videos. Change any of it, ask for **another plan**, and **create the channel**: AutoClip makes a brand kit (voice, audience, call to action, colors), a project with those instructions, and puts the first videos on its idea board, each tagged with its pillar.
 

@@ -820,6 +820,13 @@ class MakeIdeaIn(IdeaIn):
     mode: str = Field("redraw", pattern="^(fill|redraw)$")
 
 
+def _channel_lengths(d: dict) -> dict[str, int] | None:
+    """A channel's formats with their length in seconds, e.g. {"youtube": 600, "shorts": 45}."""
+    ch = d.get("channel") or {}
+    lengths = (ch.get("plan") or {}).get("lengths") or {}
+    return {f: max(10, min(600, int(lengths.get(f) or (480 if f == "youtube" else 45)))) for f in ch.get("formats") or []} or None
+
+
 def _ws_or_404(wid: str) -> dict:
     w = db.get_workspace(wid)
     if not w:
@@ -861,9 +868,9 @@ async def workspace_ideas(wid: str, body: WsIdeasIn):
         extra.append(context.prompt_block([m["id"] for m in d["context"]], "Source material for the series", budget=10_000))
     language = (t or {}).get("language") or d.get("language") or composer.get("language") or "English"
     duration = round((t or {}).get("duration") or composer.get("duration") or 45)
+    lengths = (None if t else _channel_lengths(d)) or {(t or {}).get("format") or d.get("format") or composer.get("format") or "shorts": duration}
     try:
-        found = await claude.series_ideas(w["name"], language, duration, d.get("format") or composer.get("format") or "shorts",
-                                          done, body.count, "\n".join(extra), body.hint)
+        found = await claude.series_ideas(w["name"], language, lengths, done, body.count, "\n".join(extra), body.hint)
     except Exception as e:
         raise HTTPException(500, str(e)[:300])
     w = _ws_or_404(wid)  # re-read: Claude took a while
@@ -910,7 +917,11 @@ async def make_idea(wid: str, iid: str, body: MakeIdeaIn):
         p = made[0]
     else:
         composer = {k: v for k, v in (db.get_setting("composer", {}) or {}).items() if k in ProjectIn.model_fields}
-        p = await create_project(ProjectIn(**{**composer, "topic": brief, "hook": idea.get("hook") or None, "workspace_id": wid}))
+        fmt = {}
+        if idea.get("format") and (lengths := _channel_lengths(w["data"]) or {}).get(idea["format"]):
+            fmt = {"format": idea["format"], "duration": lengths[idea["format"]]}
+        p = await create_project(ProjectIn(**{**composer, **fmt,
+                                              "topic": brief, "hook": idea.get("hook") or None, "workspace_id": wid}))
     _set_idea(wid, iid, status="made", project_id=p["id"])
     return {"project": p, "workspace": _workspace(wid)}
 
@@ -1618,13 +1629,17 @@ class ChannelPlan(BaseModel):
     colors: dict[str, str] = {}
     learned: list[str] = Field([], max_length=8)
     instructions: str = Field("", max_length=2000)
+    lengths: dict[str, int] = {}  # seconds per video in each format
     first_videos: list[dict] = Field([], max_length=5)
+
+
+FORMATS = ("shorts", "youtube", "square")
 
 
 class ChannelPlanIn(BaseModel):
     topic: str = Field(min_length=3, max_length=2000)
     language: str = "English"
-    format: str = "shorts"
+    formats: list[str] = Field(["shorts"], min_length=1, max_length=3)  # e.g. long 16:9 on YouTube and 9:16 for TikTok
     platforms: list[str] = Field(["YouTube", "TikTok"], max_length=2)
     competitors: list[dict] = Field([], max_length=3)  # what /api/channels/study returned
     avoid: list[str] = Field([], max_length=5)
@@ -1632,6 +1647,10 @@ class ChannelPlanIn(BaseModel):
 
 class ChannelIn(ChannelPlanIn):
     plan: ChannelPlan
+
+
+def _formats(formats: list[str]) -> list[str]:
+    return [f for f in FORMATS if f in formats] or ["shorts"]
 
 
 def channel_context(plan: dict) -> str:
@@ -1717,7 +1736,7 @@ async def plan_channel(body: ChannelPlanIn):
     """Claude plans a channel around a topic (one call): to approve before anything is set up."""
     _require_setup()
     try:
-        return await claude.channel_plan(body.topic.strip(), body.language, body.format, body.platforms,
+        return await claude.channel_plan(body.topic.strip(), body.language, _formats(body.formats), body.platforms,
                                          channels.prompt_block(_competitors(body.competitors)), avoid=body.avoid)
     except Exception as e:
         raise HTTPException(500, str(e)[:300])
@@ -1733,13 +1752,15 @@ def create_channel(body: ChannelIn):
         "description": " ".join(x for x in (plan["tagline"], plan["positioning"]) if x),
         "voice": plan["voice"], "audience": plan["audience"], "cta": plan["cta"], "language": body.language,
         **({"colors": colors} if colors else {})})
-    ideas = [{"id": uuid.uuid4().hex[:10], **i, "pillar": str(v.get("pillar") or "")[:60], "status": "new", "at": time.time()}
+    formats = _formats(body.formats)
+    ideas = [{"id": uuid.uuid4().hex[:10], **i, "pillar": str(v.get("pillar") or "")[:60],
+              "format": v.get("format") if v.get("format") in formats else formats[0], "status": "new", "at": time.time()}
              for v in plan.pop("first_videos") if (i := claude._plan_item(v))]
     wid = uuid.uuid4().hex[:10]
-    channel = {"topic": body.topic.strip(), "platforms": body.platforms, "plan": plan, "competitors": _competitors(body.competitors),
+    channel = {"topic": body.topic.strip(), "platforms": body.platforms, "formats": formats, "plan": plan, "competitors": _competitors(body.competitors),
                "art": channels.make_art(wid, plan["name"], plan["tagline"], brand)}
     db.save_workspace(wid, plan["name"], {"notes": plan["instructions"], "website": "", "brand_id": brand["id"], "language": body.language,
-                                          "format": body.format, "template_id": None, "context": [], "ideas": ideas,
+                                          "format": formats[0] if len(formats) == 1 else "", "template_id": None, "context": [], "ideas": ideas,
                                           "channel": channel})
     return _workspace(wid)
 

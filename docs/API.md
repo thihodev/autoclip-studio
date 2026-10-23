@@ -121,8 +121,8 @@ A channel is a project built around one topic for YouTube and TikTok; `GET /api/
 | Method | Path | What it does |
 |---|---|---|
 | POST | `/api/channels/study` | `{url}` — a YouTube or TikTok channel's latest videos and which did best (yt-dlp, titles and views only, no Claude) → `{name, site, followers, median_views, top, recent}` |
-| POST | `/api/channels/plan` | `{topic, language, format, platforms, competitors?, avoid?}` → the plan to approve (one Claude call): `{name, names, handles, tagline, audience, positioning, voice, cta, pillars, cadence, bio_youtube, bio_tiktok, hashtags, colors, learned, instructions, first_videos}` |
-| POST | `/api/channels` | `{topic, language, format, platforms, competitors, plan}` — sets it up: a brand kit, the project, its first videos on the idea board, profile pictures and banners → the project |
+| POST | `/api/channels/plan` | `{topic, language, formats, platforms, competitors?, avoid?}` (`formats`: one or more of `shorts`, `youtube`, `square`) → the plan to approve (one Claude call): `{name, names, handles, tagline, audience, positioning, voice, cta, pillars, cadence, bio_youtube, bio_tiktok, hashtags, colors, lengths, learned, instructions, first_videos}`; `lengths` is seconds per format, each first video has a `format` |
+| POST | `/api/channels` | `{topic, language, formats, platforms, competitors, plan}` — sets it up: a brand kit, the project, its first videos on the idea board, profile pictures and banners → the project |
 | PUT | `/api/workspaces/{id}/channel` | Edit the plan (names, bios, hashtags…); the art is redrawn when the name or tagline changes |
 | POST | `/api/workspaces/{id}/art` | Redraw the profile pictures (800×800) and YouTube banners (2560×1440) from the brand kit |
 | GET | `/api/workspaces/{id}/art/{avatar,banner}-{color,dark,light}.png` | One of them |
