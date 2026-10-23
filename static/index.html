@@ -3243,7 +3243,7 @@ function app() {
     t(key, vars) { return tr(key, vars); },
     async setLang(lang) {
       if (lang !== 'en') {
-        const dict = await fetch(`/static/locales/${lang}.json`).then(r => r.ok ? r.json() : null).catch(() => null);
+        const dict = await fetch(`/static/locales/${lang}.json`, { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null);
         if (!dict) { lang = 'en'; } else Alpine.store('i18n').dict = dict;
       }
       Alpine.store('i18n').lang = lang; this.lang = lang;
