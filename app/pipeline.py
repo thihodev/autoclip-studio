@@ -85,6 +85,8 @@ async def prepare_request(pid: str) -> dict:
         own = {m["id"] for m in req.get("context") or []}
         req["context"] = [m for m in d.get("context") or [] if m["id"] not in own] + list(req.get("context") or [])
         req["website"] = req.get("website") or d.get("website") or ""
+        if d.get("series"):
+            _apply_series(p, req, ws)
         req["_workspace_applied"] = True
         changed = True
     if req.get("github_repo") and not req.get("_github_applied"):
@@ -111,6 +113,65 @@ async def prepare_request(pid: str) -> dict:
     if changed:
         db.update_project(pid, request=req)
     return req
+
+
+def _apply_series(p: dict, req: dict, ws: dict):
+    """A project that makes a series: the video is its next episode. It gets its number, knows what the earlier
+    episodes covered and what comes next, and keeps the series' voice and music."""
+    d = ws["data"]
+    earlier = sorted((x for x in db.list_projects(limit=500, workspace_id=ws["id"])
+                      if x["id"] != p["id"] and x["created_at"] < p["created_at"]), key=lambda x: x["created_at"])
+    n = len(earlier) + 1
+    look = d.get("series_look") or {}
+    for k in ("voice", "voice_rate", "style_id"):  # the first episode's choices hold for the series
+        if look.get(k) and not (k == "style_id" and req.get("engine") != "motion"):
+            req[k] = look[k]
+    if look.get("music") and not req.get("music") and (audio.MUSIC_DIR / Path(look["music"]).name).exists():
+        req["music"] = look["music"]
+    nxt = next((i["title"] for i in d.get("ideas") or [] if i.get("status") == "new"), "")
+    lines = [f'This video is episode {n} of the series "{ws["name"]}" — an episode, not an ad or a promo.',
+             "- Open on this episode's question, tension or most surprising fact in the first seconds: no greeting, "
+             "no channel introduction.",
+             f'- Title: start it with the episode number in the video\'s language (e.g. "Tập {n}: …" in Vietnamese, '
+             f'"Episode {n}: …" in English).',
+             "- Build toward a payoff and pay off the opening question before the end.",
+             "- End with one line that teases the next episode" + (f' ("{nxt}")' if nxt else "")
+             + ", then at most a short invitation to follow the series — no sales pitch.",
+             "- Stay consistent with the earlier episodes: same terms and names, never contradict them, don't repeat "
+             "what they covered."]
+    if earlier:
+        lines.append("Earlier episodes (oldest first):")
+        for k, x in enumerate(earlier[-12:], n - min(12, len(earlier))):
+            meta = x.get("script") or {}
+            title = meta.get("title") or x["request"].get("topic", "").split("\n")[0][:100]
+            lines.append(f"- Episode {k}: {title}" + (f" — {str(meta['description'])[:200]}" if meta.get("description") else ""))
+        if n > 1:
+            lines.append("- Right after the opening, one short line may recall the previous episode when it helps; never "
+                         "retell it.")
+    req["series"] = {"episode": n, "name": ws["name"]}
+    req["notes"] = (req.get("notes", "") + "\n\n" + "\n".join(lines)).strip()
+    if not look:  # this is the first episode: its voice and look become the series'
+        db.save_workspace(ws["id"], ws["name"], {**d, "series_look": {k: req.get(k) for k in ("voice", "voice_rate", "style_id")
+                                                                         if req.get(k)}}, ws["created_at"])
+
+
+def remember_series_music(p: dict, music: str):
+    """The first episode's music becomes the series' music."""
+    ws = db.get_workspace(p["workspace_id"]) if p.get("workspace_id") else None
+    if ws and ws["data"].get("series") and music and not (ws["data"].get("series_look") or {}).get("music"):
+        d = ws["data"]
+        db.save_workspace(ws["id"], ws["name"], {**d, "series_look": {**(d.get("series_look") or {}), "music": music}},
+                          ws["created_at"])
+
+
+def chapter_marks(tl: dict) -> str:
+    """YouTube chapters for the description: "0:00 Title" per chapter, from the rendered scene times."""
+    marks = [(s.get("start") or 0, s["chapter"]) for s in tl.get("scenes") or [] if s.get("chapter")]
+    if len(marks) < 3:
+        return ""
+    marks[0] = (0, marks[0][1])  # YouTube needs the first chapter at 0:00
+    fmt = lambda t: f"{int(t // 3600)}:{int(t % 3600 // 60):02d}:{int(t % 60):02d}" if t >= 3600 else f"{int(t // 60)}:{int(t % 60):02d}"  # noqa: E731
+    return "\n".join(f"{fmt(t)} {title}" for t, title in marks)
 
 
 async def _apply_github(pid: str, req: dict):
@@ -352,6 +413,7 @@ async def run_project(pid: str):
                     "lines (at most 10 words each)." if req.get("voice") == tts.NO_VOICE else ""])),
                 brand_context=brands.prompt_context(brand),
                 source=source_material(req), project_id=pid, model=req.get("model"), effort=req.get("effort"),
+                episode=bool(req.get("series")),
             )
             tl = render.new_timeline(meta, req, brand)
             mood = str(meta.get("music") or "") or tl.get("music_mood") or req.get("style", "")
@@ -371,8 +433,13 @@ async def run_project(pid: str):
                 activity.add(pid, f"Music: {next((x['name'] for x in audio.music_list() if x['file'] == m['file']), '')}"
                              " — added to the library", "done")
             db.update_project(pid, script=meta, timeline=tl)
+            if req.get("series") and tl.get("music") and tl["music"] != "none":
+                remember_series_music(p, tl["music"])
             activity.add(pid, f"Script ready: “{meta['title']}” — {len(meta['scenes'])} scenes", "say")
         await _render_version(pid, "First cut")
+        p = db.get_project(pid)
+        if (marks := chapter_marks(p.get("timeline") or {})) and "0:00 " not in (p["script"].get("description") or ""):
+            db.update_project(pid, script={**p["script"], "description": f"{p['script'].get('description', '')}\n\n{marks}".strip()})
     except Exception as e:
         _fail(pid, e)
 

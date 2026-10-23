@@ -339,10 +339,14 @@ def _ass_time(t: float) -> str:
     return f"{int(t // 3600)}:{int(t % 3600 // 60):02d}:{t % 60:05.2f}"
 
 
-def build_ass(words: list, text: str, duration: float, size, captions: dict, font_family: str = FONT_NAME) -> str | None:
+def build_ass(words: list, text: str, duration: float, size, captions: dict, font_family: str = FONT_NAME,
+              chapter: str = "") -> str | None:
+    """Captions for one scene; `chapter` shows a chapter title card over its first seconds (long videos)."""
     preset = CAPTION_PRESETS.get(captions.get("preset", "bold"))
-    if not preset or not words:
+    if not chapter and (not preset or not words):
         return None
+    show_captions = bool(preset and words)
+    preset = preset or CAPTION_PRESETS["bold"]
     w, h = size
     fs = int(min(w, h) * preset["scale"])
     outline = max(1, int(fs * preset["outline"]))
@@ -350,6 +354,9 @@ def build_ass(words: list, text: str, duration: float, size, captions: dict, fon
     color = _ass_color(captions.get("color", "#FFFFFF"))
     hl = _ass_color(captions.get("highlight_color", "#FFE14D"))
     border_style, back = (3, "&H66000000") if preset["box"] else (1, "&H80000000")
+    accent = captions.get("highlight_color", "#FFE14D").lstrip("#")
+    bright = len(accent) == 6 and sum(int(accent[i:i + 2], 16) * k for i, k in ((0, .299), (2, .587), (4, .114))) > 150
+    ink = "&H00141414" if bright else "&H00FFFFFF"  # chapter title readable on the accent box
     out_color = "&H66000000" if preset["box"] else "&H00000000"
     lines = [
         "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {w}", f"PlayResY: {h}", "WrapStyle: 0",
@@ -360,6 +367,9 @@ def build_ass(words: list, text: str, duration: float, size, captions: dict, fon
         "MarginR, MarginV, Encoding",
         f"Style: Default,{font_family.replace(',', ' ')},{fs},{color},{color},{out_color},{back},-1,0,0,0,100,100,0,0,"
         f"{border_style},{outline},0,2,{int(w * 0.07)},{int(w * (0.14 if h > w else 0.07))},{margin_v},1",
+        # Chapter card: big title on the brand's accent, centered in the upper part of the frame.
+        f"Style: Chapter,{font_family.replace(',', ' ')},{int(fs * 1.25)},{ink},{ink},{hl.replace('&H00', '&H10')},"
+        f"&H00000000,-1,0,0,0,100,100,0,0,3,{max(8, int(fs * 0.35))},0,8,{int(w * 0.08)},{int(w * 0.08)},{int(h * 0.2)},1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
 
@@ -367,7 +377,10 @@ def build_ass(words: list, text: str, duration: float, size, captions: dict, fon
         s = s.replace("\\", "").replace("{", "(").replace("}", ")")
         return s.upper() if preset["upper"] else s
 
-    for start, end, group in caption_chunks(attach_punctuation(words, text), duration):
+    if chapter:
+        lines.append(f"Dialogue: 1,{_ass_time(0)},{_ass_time(min(3.5, duration))},Chapter,,0,0,0,,"
+                     f"{{\\fad(250,300)}}{esc(chapter) if preset['upper'] else chapter.replace('{', '(').replace('}', ')')}")
+    for start, end, group in (caption_chunks(attach_punctuation(words, text), duration) if show_captions else []):
         if preset["highlight"]:
             # One event per spoken word, with that word highlighted.
             for i, (ws, _we, _) in enumerate(group):
@@ -418,7 +431,7 @@ def new_timeline(meta: dict, req: dict, brand: dict | None = None) -> dict:
         "captions": dict(DEFAULT_CAPTIONS),
         "scenes": [
             {"id": f"s{i + 1}", "text": s["text"].strip(), "search": s.get("search", ""),
-             "clip": brands.clip_for_scene(brand, s.get("asset"))}
+             "clip": brands.clip_for_scene(brand, s.get("asset")), **({"chapter": s["chapter"]} if s.get("chapter") else {})}
             for i, s in enumerate(scenes) if s.get("text", "").strip()
         ],
     }
@@ -491,7 +504,7 @@ async def _encode_scene(pid: str, scene: dict, clip_path: Path, voice_dur: float
     is_motion = (scene.get("clip") or {}).get("provider") == "motion"
     key = _hash("scene", str(clip_path), voice_dur, words, scene["text"], tl["captions"], tl["motion"], size,
                 scene.get("clip_start", 0), style["family"], style["fonts_dir"], logo,
-                scene["clip"].get("colors") if is_motion else None, layers)
+                scene["clip"].get("colors") if is_motion else None, layers, scene.get("chapter", ""))
     out = cache / f"scene_{key}.mp4"
     if out.exists():
         return out
@@ -505,7 +518,8 @@ async def _encode_scene(pid: str, scene: dict, clip_path: Path, voice_dur: float
     else:
         vf += [f"crop={w}:{h}"]
     vf += ["fps=30", "setsar=1", "format=yuv420p"]
-    ass = None if layers else build_ass(words, scene["text"], voice_dur, size, tl["captions"], style["family"])
+    ass = None if layers else build_ass(words, scene["text"], voice_dur, size, tl["captions"], style["family"],
+                                        scene.get("chapter", ""))
     if ass:
         (cache / f"cap_{key}.ass").write_text(ass, encoding="utf-8")
         vf.append(f"ass=cap_{key}.ass:fontsdir={style['fonts_dir']}")

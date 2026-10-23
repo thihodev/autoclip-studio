@@ -30,7 +30,12 @@ SCRIPT_SYSTEM = """You are a senior short-form video producer for YouTube Shorts
 You write voice-over scripts that hook in the first 2 seconds, keep a fast pace and end with a call to action.
 Reply with ONE JSON object only, no markdown fences, no commentary."""
 
-SCRIPT_PROMPT = """Create a faceless short video.
+EPISODE_SYSTEM = """You are a senior writer of faceless video series for YouTube and TikTok.
+You write episodes, not ads: the episode's question or tension in the first seconds, clear chapters that build to a
+payoff, consistency with the earlier episodes, and an ending that teases the next one. No sales pitch.
+Reply with ONE JSON object only, no markdown fences, no commentary."""
+
+SCRIPT_PROMPT = """Create a faceless {kind}.
 
 Topic: {topic}
 Language of the voice-over and all captions: {language}
@@ -39,12 +44,12 @@ Tone / style: {style}
 Extra instructions: {notes}
 {brand}{context}
 Split the voice-over into {scenes} scenes. Each scene is 1-2 sentences shown over ONE stock clip,
-so pick a concrete, filmable ENGLISH search phrase for it (e.g. "woman reading phone at night").
+so pick a concrete, filmable ENGLISH search phrase for it (e.g. "woman reading phone at night").{chapters_rule}
 
 Return JSON with exactly these keys:
 {{
   "title": "catchy title, max 90 characters, in {language}",
-  "scenes": [{{"text": "voice-over for this scene, plain sentences, no emojis, in {language}", "search": "english stock footage phrase", "asset": "brand footage id or null"}}],
+  "scenes": [{{"text": "voice-over for this scene, plain sentences, no emojis, in {language}", "search": "english stock footage phrase", "asset": "brand footage id or null"}}],{chapters_key}
   "description": "2-3 sentence post caption in {language}",
   "hashtags": ["6-10 hashtags without #"],
   "youtube_tags": ["5-10 SEO keywords"],
@@ -76,6 +81,8 @@ Return JSON:
   "voice_rate": 1.0,
   "motion": true
 }}"""
+
+LONG_VIDEO = 180  # seconds; from here videos get chapters and a slower cut
 
 IDEAS_PROMPT = """Suggest {count} short-video ideas for the niche "{niche}" that are likely to go viral
 on TikTok / YouTube Shorts right now. Language: {language}.
@@ -165,20 +172,35 @@ async def ask_json(prompt: str, system: str = SCRIPT_SYSTEM, *, kind: str = "scr
 
 async def write_script(topic: str, language: str, duration: int, style: str, notes: str, brand_context: str = "",
                        source: str = "", project_id: str | None = None, model: str | None = None,
-                       effort: str | None = None) -> dict:
+                       effort: str | None = None, episode: bool = False) -> dict:
     words = int(duration * 2.5)
-    scenes = max(3, min(12, round(duration / 5)))
+    long = duration >= LONG_VIDEO
+    # Short videos cut every ~5 s; long ones every ~8 s (a 20-minute episode has about 150 scenes).
+    scenes = max(8, min(150, round(duration / 8))) if long else max(3, min(12, round(duration / 5)))
+    chapters = max(3, min(12, round(duration / 120)))
     data = await ask_json(
         SCRIPT_PROMPT.format(
+            kind=("video series episode" if episode else "video") if long else ("short video series episode" if episode else "short video"),
+            chapters_rule=(f"\nGroup the scenes into {chapters} chapters that build on each other, each with a short title "
+                           f"(the first one can be the opening)." if long else ""),
+            chapters_key=(f'\n  "chapters": [{{"title": "chapter title in {language}, max 40 characters", '
+                          f'"first_scene": "number of its first scene, from 1"}}],' if long else ""),
             topic=topic, language=language, duration=duration, words=words, scenes=scenes,
             style=style or "engaging, informative", notes=notes or "none",
             brand=f"\n{brand_context}\n" if brand_context else "",
             context=f"\n{source}\n" if source else "",
         ),
-        kind="script", project_id=project_id, model=model, effort=effort,
+        EPISODE_SYSTEM if episode else SCRIPT_SYSTEM, kind="script", project_id=project_id, model=model, effort=effort,
     )
     if not data.get("title") or not data.get("scenes"):
         raise ValueError("Claude response is missing title or scenes")
+    for c in data.get("chapters") or []:  # the chapter title goes on its first scene (a title card in the render)
+        try:
+            n = int(c["first_scene"]) - 1
+        except (KeyError, TypeError, ValueError):
+            continue
+        if 0 <= n < len(data["scenes"]) and str(c.get("title") or "").strip():
+            data["scenes"][n]["chapter"] = str(c["title"]).strip()[:60]
     data["script"] = " ".join(sc["text"] for sc in data["scenes"])
     return data
 
@@ -401,7 +423,7 @@ async def channel_plan(topic: str, language: str, formats: list[str], platforms:
     data = await ask_json(CHANNEL_PROMPT.format(topic=topic, platforms=" and ".join(platforms) or "YouTube and TikTok",
                                                 language=language, extra=extra, avoid=avoid_text, first=first,
                                                 formats="; ".join(f"{f} = {FORMAT_NAMES.get(f, f)}" for f in formats),
-                                                lengths=", ".join(f'"{f}": seconds per video in this format (10-600), '
+                                                lengths=", ".join(f'"{f}": seconds per video in this format (10-1200), '
                                                                   "fitting the topic and the platform" for f in formats),
                                                 format_keys=" | ".join(formats), mix=" and covering every format" if len(formats) > 1 else "",
                                                 competitors=f"\n{competitors}\n" if competitors else ""),
@@ -422,7 +444,7 @@ async def channel_plan(topic: str, language: str, formats: list[str], platforms:
     lengths = {}
     for f in formats:
         try:
-            lengths[f] = max(10, min(600, int(raw.get(f))))
+            lengths[f] = max(10, min(1200, int(raw.get(f))))
         except (TypeError, ValueError):
             lengths[f] = 480 if f == "youtube" else 45
     return {"names": names, "name": names[0],

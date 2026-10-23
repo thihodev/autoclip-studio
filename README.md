@@ -170,6 +170,12 @@ The project's **Channel** card has the profile picture (800×800, safe inside th
 
 Don't know which channel to make yet? **Discover niches**: say what interests you (e.g. *personal finance*). Claude picks 3 English searches (one small call); AutoClip searches YouTube for them, sorted by views and by relevance, and reads the 8 channels that come up most — followers, median views and their best videos. Channels whose median views are a large share of their followers (shown as ×0.2 and up) are the sign a format travels now. Claude then picks out the directions that work — the format, the evidence from those numbers, how a new channel can stand out, how well it suits AI-made videos and the risks — and **Build this channel** opens *New channel* with that topic and those channels to learn from. The last discovery is kept.
 
+## Series episodes and long videos
+
+Turn on **Its videos are episodes of a series** in a project's settings (channels have it on). Each new video is then the next numbered episode, not an ad: it opens on the episode's question with no greeting, its title starts with the episode number (*Tập 3: …*), it knows the earlier episodes (their titles and summaries) so it doesn't repeat or contradict them, it pays off its question, and it ends by teasing the next idea on the board, with at most a short invitation to follow — no sales pitch. The first episode's voice, speed, visual style and music are kept for the next ones.
+
+Videos can be up to **20 minutes** (5, 10, 15 or 20 in the composer). Anything over 3 minutes is made with Quick: Claude Motion designs every scene with an agent, which would cost far too much for 150 scenes. A long Quick video is written in one call with a scene every ~8 seconds, grouped into chapters: each chapter opens with a title card, and the chapter times (`0:00 …`) are added to the description for YouTube. Composed music becomes a two-minute bed that loops.
+
 ## Templates: design once, make a series
 
 Claude designs a video once; **Save as template** turns it into a format for a series. Claude reads the scenes once (one small call) and marks each one:

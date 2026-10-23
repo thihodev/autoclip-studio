@@ -112,7 +112,7 @@ An episode is a normal project whose `request` has `template_id` and `template_m
 | PUT | `/api/projects/{id}/workspace` | `{workspace_id}` — move a video into a project (`null`: out of every project) |
 | POST | `/api/templates/{id}/ideas` | `{count?, hint?, workspace_id?}` → `{ideas}`: next episodes of a template |
 
-Projects (`/api/workspaces`) also take `template_id`, the series template.
+Projects (`/api/workspaces`) also take `template_id`, the series template, and `series` (`true`: its videos are numbered episodes; omitted: unchanged). Videos (`POST /api/projects`) take `duration` up to 1200 seconds; over 180 they are made with Quick, in chapters.
 
 ## Channels
 

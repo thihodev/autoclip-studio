@@ -24,6 +24,8 @@ from . import render
 TONE_JS = Path(__file__).parent / "assets" / "tone" / "Tone.js"
 SAMPLE_RATE = 44100
 MAX_SECONDS = 300
+LOOP_FROM = 300     # Quick videos longer than this get a looping bed (the renderer loops the music)
+LOOP_SECONDS = 120
 
 HARNESS = """<!doctype html><meta charset="utf-8"><script src="Tone.js"></script>
 <script>
@@ -293,10 +295,14 @@ async def for_quick(meta: dict, req: dict, pid: str) -> dict | None:
         starts.append(round(t, 1))
         t += w / sum(words) * total
     no_voice = req.get("voice") == "none"
+    loop = total > LOOP_FROM  # long videos: a bed that loops, not a score timed to 150 scenes
+    timing = ([f"It is a {round(total / 60)}-minute video, so write a {LOOP_SECONDS}-second bed that loops: steady "
+               "energy, no intro build or ending, and the last bar flowing back into the first."] if loop
+              else ["Scenes start at about (seconds): " + ", ".join(map(str, starts)) + "."])
     brief = "\n".join([
         f"Compose the background music for this {round(total)}-second video: “{meta.get('title', '')}”.",
         f"Mood: {meta.get('music') or req.get('style') or 'fits the topic'}.",
-        "Scenes start at about (seconds): " + ", ".join(map(str, starts)) + ".",
+        *timing,
         "Nobody speaks: the music carries the video, so melodies and hooks are welcome." if no_voice
         else "A voice-over runs over the whole video: keep the music under it.",
         "", GUIDE.replace("After each render, read the report: fix errors and clipping, fill unintended quiet seconds, and "
@@ -307,7 +313,7 @@ async def for_quick(meta: dict, req: dict, pid: str) -> dict | None:
     for _ in range(2):
         code = await claude.compose_score(brief + (f"\n\nThe last score failed:\n{error}\nFix it." if error else ""),
                                           project_id=pid, model=req.get("model"))
-        r = await render_score(code, total + 0.5, dest)
+        r = await render_score(code, LOOP_SECONDS if loop else total + 0.5, dest)
         if r["ok"]:
             dest.with_suffix(".png").unlink(missing_ok=True)
             save_score(pid, code)

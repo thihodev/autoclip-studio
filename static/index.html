@@ -710,6 +710,8 @@
               </div>
             </div>
             <div class="stack">
+              <div class="field"><label class="toggle"><input type="checkbox" x-model="wsForm.series"><span x-t>Its videos are episodes of a series</span></label>
+                <p class="hint"><span x-t>Each new video gets its episode number, knows what the earlier episodes covered and teases the next one; it opens on the episode's question and ends without a sales pitch. The first episode's voice and music are kept for the next ones.</span></p></div>
               <div class="field"><label><span x-t>Instructions for Claude</span></label>
                 <textarea x-model="wsForm.notes" style="min-height:120px" :placeholder="t('e.g. Audience: badminton players in Hanoi. Always end with the app download link. Never mention competitors.')"></textarea></div>
               <div class="field"><label><span x-t>Context files</span></label>
@@ -888,7 +890,7 @@
             <h3><span x-t>Engine</span></h3>
             <div>
               <div class="engines" role="radiogroup" :aria-label="t('Engine')">
-                <button type="button" class="engine" role="radio" :aria-checked="String(form.engine==='motion')" :class="form.engine==='motion'&&'on'" @click="form.engine='motion'" :disabled="['node','ffmpeg'].includes(motionInfo.code)">
+                <button type="button" class="engine" role="radio" :aria-checked="String(form.engine==='motion')" :class="form.engine==='motion'&&'on'" @click="form.engine='motion'; if (form.duration > 180) form.duration = 180" :disabled="['node','ffmpeg'].includes(motionInfo.code)">
                   <span class="radio"></span><span class="grow"><span class="t"><span x-t>Claude Motion</span><span class="time" x-t>10–20 min</span></span>
                   <span class="d" x-t>Claude designs and animates every scene as code — kinetic type, diagrams, charts, transitions.</span></span></button>
                 <button type="button" class="engine" role="radio" :aria-checked="String(form.engine==='classic')" :class="form.engine==='classic'&&'on'" @click="form.engine='classic'">
@@ -912,7 +914,8 @@
                     </template>
                   </div></div>
                 <div class="field"><label><span x-t>Length</span></label>
-                  <select x-select x-model.number="form.duration"><template x-for="d in [15,30,45,60,90,120,180]"><option :value="d" x-text="d<60 ? d+t(' seconds') : (d/60)+t(' min')" :selected="d===form.duration"></option></template></select></div>
+                  <select x-select x-model.number="form.duration" @change="form.duration > 180 && (form.engine = 'classic')"><template x-for="d in [15,30,45,60,90,120,180,300,600,900,1200]"><option :value="d" x-text="d<60 ? d+t(' seconds') : (d/60)+t(' min')" :selected="d===form.duration"></option></template></select>
+                  <p class="hint" x-show="form.duration > 180" x-text="t('Long videos are made with Quick, in chapters: Claude Motion designs every scene with an agent, far too costly for {n} minutes.', {n: Math.round(form.duration / 60)})"></p></div>
               </div>
               <div class="crow2" :class="form.engine!=='motion' && 'one'">
                 <div class="field"><label><span x-t>Video type</span></label>
@@ -2418,7 +2421,7 @@
             </div></div>
           <div class="grid-2" x-show="Object.keys(chan.data.lengths || {}).length">
             <template x-for="f in Object.keys(chan.data.lengths || {})" :key="f">
-              <div class="field"><label x-text="t('{format} — length (seconds)', {format: fmtName(f)})"></label><input type="number" min="10" max="600" step="5" x-model.number="chan.data.lengths[f]"></div></template></div>
+              <div class="field"><label x-text="t('{format} — length (seconds)', {format: fmtName(f)})"></label><input type="number" min="10" max="1200" step="5" x-model.number="chan.data.lengths[f]"></div></template></div>
           <div class="field"><label><span x-t>The first videos</span></label>
             <div class="eprows"><template x-for="(v, n) in chan.data.first_videos" :key="n">
               <div class="eprow"><span class="n" x-text="n + 1"></span><div class="pillar"><input x-model="v.title" maxlength="120"><span class="small muted" x-text="[chan.formats.length > 1 && fmtName(v.format), v.pillar, v.hook && '“' + v.hook + '”'].filter(Boolean).join(' · ')"></span></div>
@@ -4666,7 +4669,7 @@ function app() {
     async loadWorkspaces() { this.workspaces = await this.api('/api/workspaces').catch(() => this.workspaces); this.syncWsForm(); },
     syncWsForm() {
       const w = this.ws(); if (!w) return;
-      this.wsForm = { name:w.name, website:w.website||'', brand_id:w.brand_id||'', language:w.language||'', format:w.format||'', notes:w.notes||'', template_id:w.template_id||'' };
+      this.wsForm = { name:w.name, website:w.website||'', brand_id:w.brand_id||'', language:w.language||'', format:w.format||'', notes:w.notes||'', template_id:w.template_id||'', series: !!w.series };
       this.wsBase = JSON.stringify(this.wsForm);
       this.chForm = w.channel ? JSON.parse(JSON.stringify(w.channel.plan)) : null;
       this.chBase = JSON.stringify(this.chForm);

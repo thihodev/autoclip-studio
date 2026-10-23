@@ -51,6 +51,7 @@ def _bg(coro):
 
 
 log = logging.getLogger("autoclip")
+MOTION_MAX_SECONDS = 180  # longer videos are made with Quick
 BUSY = ("queued", "scripting", "designing", "editing", "rendering", "publishing")
 
 
@@ -66,7 +67,7 @@ def _project(pid: str) -> dict:
 class ProjectIn(BaseModel):
     topic: str = Field(min_length=3)
     language: str = "English"
-    duration: int = Field(45, ge=10, le=600)
+    duration: int = Field(45, ge=10, le=1200)  # long videos (over 3 minutes) are made with Quick
     format: str = "shorts"  # shorts | youtube | square
     style: str = ""
     notes: str = ""
@@ -565,7 +566,7 @@ class EpisodeIdeasIn(BaseModel):
 class PlanIn(BaseModel):
     topic: str = Field(min_length=3, max_length=4000)
     language: str = "English"
-    duration: int = Field(45, ge=10, le=600)
+    duration: int = Field(45, ge=10, le=1200)
     format: str = "shorts"
     playbook_id: str | None = None
     brand_id: str | None = None
@@ -824,7 +825,7 @@ def _channel_lengths(d: dict) -> dict[str, int] | None:
     """A channel's formats with their length in seconds, e.g. {"youtube": 600, "shorts": 45}."""
     ch = d.get("channel") or {}
     lengths = (ch.get("plan") or {}).get("lengths") or {}
-    return {f: max(10, min(600, int(lengths.get(f) or (480 if f == "youtube" else 45)))) for f in ch.get("formats") or []} or None
+    return {f: max(10, min(1200, int(lengths.get(f) or (480 if f == "youtube" else 45)))) for f in ch.get("formats") or []} or None
 
 
 def _ws_or_404(wid: str) -> dict:
@@ -920,6 +921,8 @@ async def make_idea(wid: str, iid: str, body: MakeIdeaIn):
         fmt = {}
         if idea.get("format") and (lengths := _channel_lengths(w["data"]) or {}).get(idea["format"]):
             fmt = {"format": idea["format"], "duration": lengths[idea["format"]]}
+            if lengths[idea["format"]] > MOTION_MAX_SECONDS:
+                fmt["engine"] = "classic"
         p = await create_project(ProjectIn(**{**composer, **fmt,
                                               "topic": brief, "hook": idea.get("hook") or None, "workspace_id": wid}))
     _set_idea(wid, iid, status="made", project_id=p["id"])
@@ -1244,6 +1247,8 @@ async def create_project(body: ProjectIn):
         raise HTTPException(400, "That reference video isn't ready")
     req["context"] = [m for cid in body.context_ids if (m := context.get(cid))]
     req["engine"] = body.engine or pipeline.default_engine()
+    if req["engine"] == "motion" and req["duration"] > MOTION_MAX_SECONDS:
+        req["engine"] = "classic"  # Claude Motion designs every scene with an agent: far too costly for long videos
     if req["engine"] == "motion" and (st := motion.status())["code"] in ("node", "ffmpeg"):
         raise HTTPException(400, f"Claude Motion needs setup: {st['detail']}")
     p = db.create_project(req, body.workspace_id)
@@ -1510,7 +1515,7 @@ def media(pid: str, name: str):
 
 # ------------------------------------------------------------------ projects (workspaces)
 
-WS_FIELDS = ("notes", "website", "brand_id", "language", "format", "template_id")
+WS_FIELDS = ("notes", "website", "brand_id", "language", "format", "template_id", "series")
 
 
 def _workspace(wid: str) -> dict:
@@ -1531,6 +1536,7 @@ class WorkspaceIn(BaseModel):
     language: str = ""
     format: str = ""
     template_id: str | None = None  # the series this project makes: its composer makes episodes of it
+    series: bool | None = None  # its videos are numbered episodes of a series (None: unchanged)
 
 
 @app.get("/api/workspaces")
@@ -1559,7 +1565,8 @@ def update_workspace(wid: str, body: WorkspaceIn):
         raise HTTPException(400, "That brand kit no longer exists")
     if body.template_id and not templates.get(body.template_id):
         raise HTTPException(400, "That template no longer exists")
-    db.save_workspace(wid, body.name.strip(), {**w["data"], **body.model_dump(exclude={"name"})}, w["created_at"])
+    db.save_workspace(wid, body.name.strip(), {**w["data"], **body.model_dump(exclude={"name"} | ({"series"} if body.series is None else set()))},
+                      w["created_at"])
     return _workspace(wid)
 
 
@@ -1760,7 +1767,7 @@ def create_channel(body: ChannelIn):
     channel = {"topic": body.topic.strip(), "platforms": body.platforms, "formats": formats, "plan": plan, "competitors": _competitors(body.competitors),
                "art": channels.make_art(wid, plan["name"], plan["tagline"], brand)}
     db.save_workspace(wid, plan["name"], {"notes": plan["instructions"], "website": "", "brand_id": brand["id"], "language": body.language,
-                                          "format": formats[0] if len(formats) == 1 else "", "template_id": None, "context": [], "ideas": ideas,
+                                          "format": formats[0] if len(formats) == 1 else "", "template_id": None, "series": True, "context": [], "ideas": ideas,
                                           "channel": channel})
     return _workspace(wid)
 
