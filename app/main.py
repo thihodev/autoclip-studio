@@ -51,7 +51,6 @@ def _bg(coro):
 
 
 log = logging.getLogger("autoclip")
-MOTION_MAX_SECONDS = 180  # longer videos are made with Quick
 BUSY = ("queued", "scripting", "designing", "editing", "rendering", "publishing")
 
 
@@ -67,7 +66,7 @@ def _project(pid: str) -> dict:
 class ProjectIn(BaseModel):
     topic: str = Field(min_length=3)
     language: str = "English"
-    duration: int = Field(45, ge=10, le=1200)  # long videos (over 3 minutes) are made with Quick
+    duration: int = Field(45, ge=10, le=1200)  # up to 20 minutes; the UI warns before a long Claude Motion run
     format: str = "shorts"  # shorts | youtube | square
     style: str = ""
     notes: str = ""
@@ -921,8 +920,6 @@ async def make_idea(wid: str, iid: str, body: MakeIdeaIn):
         fmt = {}
         if idea.get("format") and (lengths := _channel_lengths(w["data"]) or {}).get(idea["format"]):
             fmt = {"format": idea["format"], "duration": lengths[idea["format"]]}
-            if lengths[idea["format"]] > MOTION_MAX_SECONDS:
-                fmt["engine"] = "classic"
         p = await create_project(ProjectIn(**{**composer, **fmt,
                                               "topic": brief, "hook": idea.get("hook") or None, "workspace_id": wid}))
     _set_idea(wid, iid, status="made", project_id=p["id"])
@@ -1247,8 +1244,6 @@ async def create_project(body: ProjectIn):
         raise HTTPException(400, "That reference video isn't ready")
     req["context"] = [m for cid in body.context_ids if (m := context.get(cid))]
     req["engine"] = body.engine or pipeline.default_engine()
-    if req["engine"] == "motion" and req["duration"] > MOTION_MAX_SECONDS:
-        req["engine"] = "classic"  # Claude Motion designs every scene with an agent: far too costly for long videos
     if req["engine"] == "motion" and (st := motion.status())["code"] in ("node", "ffmpeg"):
         raise HTTPException(400, f"Claude Motion needs setup: {st['detail']}")
     p = db.create_project(req, body.workspace_id)

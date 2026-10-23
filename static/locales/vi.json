@@ -1294,7 +1294,10 @@
  "Formats": "Định dạng",
  "Pick several to run both, e.g. long 16:9 videos on YouTube and 9:16 shorts for TikTok: Claude plans a length for each and tags every idea with its format.": "Chọn nhiều để làm song song, vd video dài 16:9 trên YouTube và video ngắn 9:16 cho TikTok: Claude định độ dài cho từng định dạng và gắn định dạng cho mỗi ý tưởng.",
  "{format} — length (seconds)": "{format} — độ dài (giây)",
- "Long videos are made with Quick, in chapters: Claude Motion designs every scene with an agent, far too costly for {n} minutes.": "Video dài được làm bằng Quick, chia theo chương: Claude Motion thiết kế từng cảnh bằng một agent, quá tốn kém cho {n} phút.",
  "Its videos are episodes of a series": "Video trong dự án là các tập của một series",
- "Each new video gets its episode number, knows what the earlier episodes covered and teases the next one; it opens on the episode's question and ends without a sales pitch. The first episode's voice and music are kept for the next ones.": "Mỗi video mới được đánh số tập, biết các tập trước đã nói gì và gợi mở tập sau; mở đầu bằng câu hỏi của tập và kết thúc không chào hàng. Giọng đọc và nhạc của tập đầu được giữ cho các tập sau."
+ "Each new video gets its episode number, knows what the earlier episodes covered and teases the next one; it opens on the episode's question and ends without a sales pitch. The first episode's voice and music are kept for the next ones.": "Mỗi video mới được đánh số tập, biết các tập trước đã nói gì và gợi mở tập sau; mở đầu bằng câu hỏi của tập và kết thúc không chào hàng. Giọng đọc và nhạc của tập đầu được giữ cho các tập sau.",
+ "Claude Motion designs every scene with an agent: {n} minutes is about {s} scenes — roughly {x} times the Claude usage of a 1-minute video, several hours, and it may hit your plan limits midway. Quick makes it in a few minutes with one Claude call.": "Claude Motion thiết kế từng cảnh bằng một agent: {n} phút là khoảng {s} cảnh — tốn lượt Claude gấp khoảng {x} lần video 1 phút, chạy vài giờ, và có thể chạm hạn mức gói giữa chừng. Nhanh làm xong trong vài phút với một lần gọi Claude.",
+ "Quick writes it in chapters, each opening with a title card.": "Nhanh viết theo chương, mỗi chương mở đầu bằng thẻ tiêu đề.",
+ "Make a {n}-minute video with Claude Motion?": "Làm video {n} phút bằng Claude Motion?",
+ "Make it with Claude Motion": "Vẫn làm bằng Claude Motion"
 }

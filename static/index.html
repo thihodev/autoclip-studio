@@ -78,7 +78,7 @@
   .grid-3 { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
   @media (max-width: 860px) { .grid-2, .grid-3 { grid-template-columns:1fr; } }
   .field label, .lbl { display:block; font-size:12px; font-weight:500; color:var(--text-2); margin-bottom:5px; }
-  .hint { font-size:12px; color:var(--text-3); margin-top:5px; }
+  .hint { font-size:12px; color:var(--text-3); margin-top:5px; } .hint.warn { color:var(--warn); }
   input, select, textarea { width:100%; background:var(--surface); color:var(--text); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:8px 10px; font:inherit; outline:none; }
   input:focus, select:focus, textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
   input[type=range] { padding:0; border:0; box-shadow:none; accent-color:var(--accent); }
@@ -890,7 +890,7 @@
             <h3><span x-t>Engine</span></h3>
             <div>
               <div class="engines" role="radiogroup" :aria-label="t('Engine')">
-                <button type="button" class="engine" role="radio" :aria-checked="String(form.engine==='motion')" :class="form.engine==='motion'&&'on'" @click="form.engine='motion'; if (form.duration > 180) form.duration = 180" :disabled="['node','ffmpeg'].includes(motionInfo.code)">
+                <button type="button" class="engine" role="radio" :aria-checked="String(form.engine==='motion')" :class="form.engine==='motion'&&'on'" @click="form.engine='motion'" :disabled="['node','ffmpeg'].includes(motionInfo.code)">
                   <span class="radio"></span><span class="grow"><span class="t"><span x-t>Claude Motion</span><span class="time" x-t>10–20 min</span></span>
                   <span class="d" x-t>Claude designs and animates every scene as code — kinetic type, diagrams, charts, transitions.</span></span></button>
                 <button type="button" class="engine" role="radio" :aria-checked="String(form.engine==='classic')" :class="form.engine==='classic'&&'on'" @click="form.engine='classic'">
@@ -914,8 +914,9 @@
                     </template>
                   </div></div>
                 <div class="field"><label><span x-t>Length</span></label>
-                  <select x-select x-model.number="form.duration" @change="form.duration > 180 && (form.engine = 'classic')"><template x-for="d in [15,30,45,60,90,120,180,300,600,900,1200]"><option :value="d" x-text="d<60 ? d+t(' seconds') : (d/60)+t(' min')" :selected="d===form.duration"></option></template></select>
-                  <p class="hint" x-show="form.duration > 180" x-text="t('Long videos are made with Quick, in chapters: Claude Motion designs every scene with an agent, far too costly for {n} minutes.', {n: Math.round(form.duration / 60)})"></p></div>
+                  <select x-select x-model.number="form.duration"><template x-for="d in [15,30,45,60,90,120,180,300,600,900,1200]"><option :value="d" x-text="d<60 ? d+t(' seconds') : (d/60)+t(' min')" :selected="d===form.duration"></option></template></select>
+                  <p class="hint" x-show="form.duration > 180 && form.engine === 'classic'" x-text="t('Quick writes it in chapters, each opening with a title card.')"></p>
+                  <p class="hint warn" x-show="form.duration > 180 && form.engine === 'motion'" x-text="t(longMotionText(), longMotionVars(form.duration))"></p></div>
               </div>
               <div class="crow2" :class="form.engine!=='motion' && 'one'">
                 <div class="field"><label><span x-t>Video type</span></label>
@@ -3625,8 +3626,17 @@ function app() {
 
     // ------------------------------------------------ studio
     // `approved`: the plan the person approved (title, angle, hook, outline) when "Plan the idea first" is on.
+    longMotionVars(sec) { return { n: Math.round(sec / 60), s: Math.round(sec / 8), x: Math.max(2, Math.round(sec / 60)) }; },
+    longMotionText() { return 'Claude Motion designs every scene with an agent: {n} minutes is about {s} scenes — roughly {x} times the Claude usage of a 1-minute video, several hours, and it may hit your plan limits midway. Quick makes it in a few minutes with one Claude call.'; },
+    // A long Claude Motion video costs a lot: say so and ask before it starts.
+    longMotionOk(engine, seconds) {
+      if (engine !== 'motion' || seconds <= 180) return Promise.resolve(true);
+      return new Promise(res => this.confirm(this.t('Make a {n}-minute video with Claude Motion?', {n: Math.round(seconds / 60)}),
+        this.t(this.longMotionText(), this.longMotionVars(seconds)), 'Make it with Claude Motion', () => res(true), { onCancel: () => res(false) }));
+    },
     async create(approved) {
       if (this.form.plan && !approved) return this.openPlan('composer');
+      if (!this.wsTemplate() && !await this.longMotionOk(this.form.engine, this.form.duration)) return;
       const tm = this.wsTemplate();
       if (tm) return this.makeEpisode(tm, approved ? planBrief(approved) : this.form.topic.trim(), approved ? this.plan.mode : (tm.scenes.some(s => s.kind === 'redraw') ? 'redraw' : 'fill'));
       this.creating = true;
@@ -3691,6 +3701,9 @@ function app() {
     async approvePlan() {
       const data = { ...this.plan.data, outline: this.plan.data.outline.map(o => o.trim()).filter(Boolean) };
       if (this.plan.source === 'composer') { this.plan.busy = true; await this.create(data); this.plan.busy = false; this.plan.open = false; return; }
+      const fmt = this.plan.data.format, ch = this.ws()?.channel;
+      const seconds = (!this.wsTemplate() && fmt && ch?.formats?.includes(fmt) && ch.plan?.lengths?.[fmt]) || this.form.duration;
+      if (!this.wsTemplate() && !await this.longMotionOk(this.form.engine, seconds)) return;
       this.plan.busy = true;
       const r = await this.run(() => this.api(`/api/workspaces/${this.ws().id}/ideas/${this.plan.iid}/make`, { method: 'POST', body: { ...data, mode: this.plan.mode } }));
       this.plan.busy = false;
