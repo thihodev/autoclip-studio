@@ -114,6 +114,18 @@ An episode is a normal project whose `request` has `template_id` and `template_m
 
 Projects (`/api/workspaces`) also take `template_id`, the series template, and `series` (`true`: its videos are numbered episodes; omitted: unchanged). Videos (`POST /api/projects`) take `duration` up to 1200 seconds; long Quick videos are written in chapters.
 
+## Voice on this computer
+
+| Method | Path | What it does |
+|---|---|---|
+| GET, DELETE | `/api/localvoice` | Status `{supported, installed, installing, step, error, device, voices}` / uninstall (voice clips stay) |
+| POST | `/api/localvoice/install` | Install F5-TTS and the Vietnamese model in the background (poll the status) |
+| POST | `/api/localvoice/voices` | Multipart `file` (3–12 s), `name`, `text` (exactly what it says) → status |
+| DELETE | `/api/localvoice/voices/{id}` | Remove a voice |
+| GET | `/api/localvoice/voices/{id}/sample.wav` | The clip |
+
+A video uses one with `voice: "local:<id>"`; `GET /api/voices?language=Vietnamese` lists them first.
+
 ## Channels
 
 A channel is a project built around one topic for YouTube and TikTok; `GET /api/workspaces/{id}` returns it under `channel` (`{topic, platforms, plan, competitors, art}`).

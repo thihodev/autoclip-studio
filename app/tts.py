@@ -15,7 +15,7 @@ from pathlib import Path
 import edge_tts
 import httpx
 
-from . import settings
+from . import localvoice, settings
 
 API = "https://api.elevenlabs.io/v1"
 # Newest first; we fall back when an account can't use a model.
@@ -180,7 +180,7 @@ async def _silent(text: str, rate: float, dest: Path) -> list[list]:
 async def synthesize(text: str, language: str, voice: str, rate: float, dest: Path) -> list[list]:
     """Write an mp3 to `dest`; return word timings.
 
-    `voice` is an edge-tts voice name, "eleven:<voice_id>" or "none". With ElevenLabs connected, an edge name falls
+    `voice` is an edge-tts voice name, "eleven:<voice_id>", "local:<id>" (localvoice.py) or "none". With ElevenLabs connected, an edge name falls
     back to the account's default voice; without it, an ElevenLabs voice falls back to the language's edge voice.
     """
     from .render import DEFAULT_VOICES
@@ -188,6 +188,8 @@ async def synthesize(text: str, language: str, voice: str, rate: float, dest: Pa
     text = re.sub(r"\s+", " ", text).strip()
     if voice == NO_VOICE:
         return await _silent(text, rate, dest)
+    if voice and voice.startswith(localvoice.PREFIX):  # a voice on this computer: the same for every video
+        return await localvoice.synthesize(text, voice[len(localvoice.PREFIX):], rate, dest)
     eleven_id = voice[len(ELEVEN_PREFIX):] if voice and voice.startswith(ELEVEN_PREFIX) else None
     if provider() == "elevenlabs":
         return await _eleven(text, language, rate, dest, eleven_id)

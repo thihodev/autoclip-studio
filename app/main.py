@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 import edge_tts
 
-from . import activity, audio, brands, channels, claude, compose, context, covers, db, design, editor, leftovers, playbooks, styles, motion, pipeline, references, render, settings, templates, tts, usage
+from . import activity, audio, brands, channels, claude, compose, context, covers, db, design, editor, leftovers, localvoice, playbooks, styles, motion, pipeline, references, render, settings, templates, tts, usage
 from .config import DATA_DIR, ROOT, VIDEOS_DIR
 
 logging.basicConfig(level=logging.INFO)
@@ -2056,17 +2056,72 @@ async def voice_preview(body: VoiceTestIn):
     return Response(data, media_type="audio/mpeg")
 
 
+# ------------------------------------------------------------------ local voice (F5-TTS, on this computer)
+
+@app.get("/api/localvoice")
+def localvoice_status():
+    return localvoice.status()
+
+
+@app.post("/api/localvoice/install")
+async def localvoice_install():
+    if localvoice.supported():
+        raise HTTPException(400, localvoice.supported())
+    _bg(localvoice.install())
+    await asyncio.sleep(0.1)
+    return localvoice.status()
+
+
+@app.delete("/api/localvoice")
+def localvoice_remove():
+    localvoice.remove()
+    return localvoice.status()
+
+
+@app.post("/api/localvoice/voices")
+async def localvoice_add(file: UploadFile = File(...), name: str = Form(""), text: str = Form("")):
+    data = await file.read(30 * 1024 * 1024 + 1)
+    if len(data) > 30 * 1024 * 1024:
+        raise HTTPException(413, "That file is too big; use a clip of a few seconds")
+    try:
+        await localvoice.add_voice(data, file.filename or "voice.wav", name, text)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return localvoice.status()
+
+
+@app.delete("/api/localvoice/voices/{vid}")
+def localvoice_remove_voice(vid: str):
+    localvoice.remove_voice(vid)
+    return localvoice.status()
+
+
+@app.get("/api/localvoice/voices/{vid}/sample.wav")
+def localvoice_sample(vid: str):
+    if not (p := localvoice.sample(vid)):
+        raise HTTPException(404)
+    return FileResponse(p, media_type="audio/wav")
+
+
 # ------------------------------------------------------------------ voices
 
 _voices_cache: list | None = None
 
 
+def _local_voices() -> list[dict]:
+    """The voices on this computer, offered first (the model speaks Vietnamese)."""
+    if not localvoice.installed():
+        return []
+    return [{"name": localvoice.PREFIX + v["id"], "provider": "local", "label": v["name"]} for v in localvoice.voices()]
+
+
 @app.get("/api/voices")
 async def voices(language: str = "English"):
     """Voices to pick for a video: the ElevenLabs account's voices when connected, else free edge-tts voices."""
+    local = _local_voices() if language == "Vietnamese" else []
     if tts.provider() == "elevenlabs":
         try:
-            return [{"name": tts.ELEVEN_PREFIX + v["id"], "provider": "elevenlabs", "label": v["name"],
+            return local + [{"name": tts.ELEVEN_PREFIX + v["id"], "provider": "elevenlabs", "label": v["name"],
                      "gender": v.get("gender"), "accent": v.get("accent")} for v in await tts.eleven_voices()]
         except Exception:
             logging.warning("could not list ElevenLabs voices; offering free voices", exc_info=True)
@@ -2077,7 +2132,7 @@ async def voices(language: str = "English"):
         except Exception as e:
             raise HTTPException(502, f"Could not load voices ({e.__class__.__name__})")
     prefix = render.LANGUAGE_LOCALES.get(language, "en")
-    return [
+    return local + [
         {"name": v["ShortName"], "gender": v.get("Gender"), "locale": v.get("Locale")}
         for v in _voices_cache if v.get("Locale", "").split("-")[0] == prefix
     ]
