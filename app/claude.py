@@ -329,56 +329,55 @@ Reply with JSON:
 Give 3-5 pillars and exactly {first} first videos from different pillars."""
 
 
-NICHE_QUERIES_PROMPT = """Someone wants to start a faceless short-video channel for viewers in {market}, by adapting what
-already works on English-language YouTube. Their interest: {interest}
+NICHE_QUERIES_PROMPT = """Someone wants to find directions that already work for faceless short-video channels on
+YouTube. Their interest: {interest}
 
-Write 3 different English YouTube search queries that surface the most successful channels abroad around this interest:
+Write 3 different English YouTube search queries that surface the most successful channels around this interest:
 each 2-5 words, the way viewers search, covering different angles of it (e.g. a broad one, a specific sub-niche, a format).
 
 Reply with JSON: {{"queries": ["...", "...", "..."]}}"""
 
 NICHE_PROMPT = """You help someone pick the direction of a new faceless short-video channel (animated videos, no presenter)
-for viewers in {market}, in {language}, by adapting what already works abroad. Their interest: {interest}
+by finding what already works on YouTube. Their interest: {interest}
 
-Channels found on English-language YouTube for it, with their numbers:
+Channels found on YouTube for it, with their numbers:
 {channels}
 
 A high "median views / followers" means the channel's videos reach far beyond its followers: a format that travels.
 Small channels with that are the best sign that a direction works now, not just a famous creator.
 
-Propose the {count} most promising directions for a channel in {market}. For each: what the format is, the evidence from
-the numbers above (name the channels), how to adapt it for {market} (local examples, money, laws, culture, language — what
-must change rather than translate), how well it fits short animated videos made by AI, and the risks (saturation,
-facts that need care, rules of the platforms). Don't claim what the {market} market has or lacks as fact; say what to
-check. Never suggest copying a channel's videos, characters, names or words — only the format and the need it meets.
+Propose the {count} most successful directions. For each: what the format is, the evidence from the numbers above (name
+the channels), what a new channel could do better or differently to stand out, how well it fits short animated videos
+made by AI, and the risks (saturation, facts that need care, rules of the platforms). Never suggest copying a channel's
+videos, characters, names or words — only the format and the need it meets.
 
-Reply with JSON:
-{{"summary": "2-3 sentences in {language}: what this interest looks like abroad and where the openings are",
+Reply with JSON (the person reads {language}):
+{{"summary": "2-3 sentences in {language}: what works around this interest and where the openings are",
   "directions": [{{"title": "short name of the direction in {language}",
                   "format": "what each video is, in {language}, one sentence",
                   "evidence": "why it works, citing the channels and numbers, in {language}",
-                  "adapt": "how to make it for {market}, in {language}",
+                  "edge": "how a new channel can stand out, in {language}",
                   "fit": "high | medium | low — how well it suits short animated AI videos",
                   "risks": "in {language}, one sentence",
                   "channels": ["names of the channels above to learn from, at most 3"],
                   "topic": "the topic to give the channel planner, in {language}, one sentence",
-                  "examples": ["3 example video titles for {market} in {language}"]}}]}}"""
+                  "examples": ["3 example video titles in {language}"]}}]}}"""
 
 
-async def niche_queries(interest: str, market: str) -> list[str]:
-    data = await ask_json(NICHE_QUERIES_PROMPT.format(interest=interest, market=market), kind="niche", effort="low")
+async def niche_queries(interest: str) -> list[str]:
+    data = await ask_json(NICHE_QUERIES_PROMPT.format(interest=interest), kind="niche", effort="low")
     return [str(q).strip()[:80] for q in data.get("queries") or [] if str(q).strip()][:3]
 
 
-async def niche_directions(interest: str, market: str, language: str, channels: str, count: int = 4) -> dict:
+async def niche_directions(interest: str, language: str, channels: str, count: int = 4) -> dict:
     """Directions for a new channel, from channels abroad that do well (one call)."""
-    data = await ask_json(NICHE_PROMPT.format(interest=interest, market=market, language=language, channels=channels,
+    data = await ask_json(NICHE_PROMPT.format(interest=interest, language=language, channels=channels,
                                               count=count), kind="niche", effort="medium")
     out = []
     for d in data.get("directions") or []:
         if not isinstance(d, dict) or not d.get("title"):
             continue
-        out.append({**{k: str(d.get(k) or "").strip()[:600] for k in ("title", "format", "evidence", "adapt", "risks", "topic")},
+        out.append({**{k: str(d.get(k) or "").strip()[:600] for k in ("title", "format", "evidence", "edge", "risks", "topic")},
                     "fit": d.get("fit") if d.get("fit") in ("high", "medium", "low") else "medium",
                     "channels": [str(c)[:80] for c in d.get("channels") or []][:3],
                     "examples": [str(c)[:120] for c in d.get("examples") or []][:3]})

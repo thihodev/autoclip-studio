@@ -126,9 +126,9 @@ A channel is a project built around one topic for YouTube and TikTok; `GET /api/
 | PUT | `/api/workspaces/{id}/channel` | Edit the plan (names, bios, hashtags…); the art is redrawn when the name or tagline changes |
 | POST | `/api/workspaces/{id}/art` | Redraw the profile pictures (800×800) and YouTube banners (2560×1440) from the brand kit |
 | GET | `/api/workspaces/{id}/art/{avatar,banner}-{color,dark,light}.png` | One of them |
-| POST | `/api/channels/discover/queries` | `{interest, market?}` → `{queries}`: 3 English YouTube searches for an interest (one small Claude call) |
+| POST | `/api/channels/discover/queries` | `{interest}` → `{queries}`: 3 English YouTube searches for an interest (one small Claude call) |
 | POST | `/api/channels/discover/search` | `{queries}` → `{channels}`: the channels abroad that do best on them (sorted by views and by relevance), each studied, with `ratio` = median views / followers (yt-dlp, no Claude) |
-| POST | `/api/channels/discover/directions` | `{interest, market, language, queries, channels}` → `{summary, directions}`: directions for a channel in that market (one Claude call); kept, `GET /api/channels/discover` returns the last one |
+| POST | `/api/channels/discover/directions` | `{interest, language, queries, channels}` → `{summary, directions}`: the directions that work, written in `language` (one Claude call); kept, `GET /api/channels/discover` returns the last one |
 
 ## Brand kits and projects
 

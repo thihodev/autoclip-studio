@@ -2318,10 +2318,9 @@
   <div class="modal" x-show="disc.open" x-transition.opacity @click.self="!disc.loading && (disc.open=false)" @keydown.escape.window="disc.open && !disc.loading && (disc.open=false)">
     <div class="card wide planc discc">
       <h2><span x-t>Discover niches</span></h2>
-      <p class="muted small" style="margin-top:4px"><span x-t>Say what interests you. AutoClip searches YouTube abroad for the channels that do best on it and reads their numbers; Claude proposes directions for a channel in your market — what to adapt, not what to copy.</span></p>
+      <p class="muted small" style="margin-top:4px"><span x-t>Say what interests you. AutoClip searches YouTube for the channels that do best on it and reads their numbers; Claude picks out the directions that work and how a new channel can stand out — the format, never the content.</span></p>
       <div class="discbar">
         <input x-model="disc.interest" maxlength="300" :placeholder="t('e.g. personal finance, AI tools, history stories')" @keydown.enter="discover()" :disabled="disc.loading" :aria-label="t('Interest')">
-        <input x-model="disc.market" maxlength="60" style="max-width:150px" :disabled="disc.loading" :aria-label="t('Market')" :title="t('Market')">
         <button class="btn primary" @click="discover()" :disabled="disc.loading || disc.interest.trim().length < 2 || !status.claude?.ok"><span class="spin" x-show="disc.loading"></span><svg class="i" x-show="!disc.loading"><use href="#i-zoom"/></svg><span x-t>Discover</span></button>
       </div>
       <p class="hint" x-show="!disc.directions.length && !disc.loading"><span x-t>About a minute: two small Claude calls; the search itself uses no Claude.</span></p>
@@ -2339,7 +2338,7 @@
                   <span class="chip" :class="{high: 'ok', medium: '', low: 'warn'}[d.fit]" x-text="t({high: 'Fits AI videos well', medium: 'Fits AI videos', low: 'Hard for AI videos'}[d.fit])"></span></div>
                 <p class="small" x-text="d.format"></p>
                 <p class="small"><b x-t>Why it works:</b> <span x-text="d.evidence"></span></p>
-                <p class="small"><b x-t>For your market:</b> <span x-text="d.adapt"></span></p>
+                <p class="small" x-show="d.edge"><b x-t>How to stand out:</b> <span x-text="d.edge"></span></p>
                 <p class="small muted" x-show="d.risks"><b x-t>Risks:</b> <span x-text="d.risks"></span></p>
                 <ul class="small muted" x-show="d.examples.length"><template x-for="e in d.examples"><li x-text="e"></li></template></ul>
                 <div class="actions" style="margin-top:auto"><button class="btn primary sm" @click="useDirection(d)"><svg class="i"><use href="#i-star"/></svg><span x-t>Build this channel</span></button>
@@ -3209,7 +3208,7 @@ function app() {
     workspaces: [], wsOpen: false, wsForm: {}, wsBase: '', newWs: { open:false, name:'', website:'' },
     chan: { open:false, topic:'', language:'English', format:'shorts', platforms:['YouTube', 'TikTok'], links:'', found:[], avoid:[], data:null, loading:false, busy:false, step:'' },
     chForm: null, chBase: '', chOpen: false, chBusy: false, artVer: 0,
-    disc: { open:false, interest:'', market:'Vietnam', language:'Vietnamese', queries:[], channels:[], summary:'', directions:[], loading:false, step:'' }, siteImport: { open:false, url:'', busy:false },
+    disc: { open:false, interest:'', queries:[], channels:[], summary:'', directions:[], loading:false, step:'' }, siteImport: { open:false, url:'', busy:false },
     live: {}, now: 0, dockOpen: true,
     uploadingContext: false, motionInfo: {}, voiceEdit: false, voiceKey: '', savingVoice: false, elevenVoices: [], previewing: false, contextAccept: '.txt,.md,.markdown,.pdf,.docx,.html,.htm,.csv,.json,.srt,.vtt,.yaml,.yml',
     brandList: [], brand: null, brandBase: '', brandMissing: false, syncing: false,
@@ -4707,7 +4706,7 @@ function app() {
       if (last?.directions) this.disc = { ...this.disc, ...last, loading: false, step: '' };
     },
     async discover() {
-      const d = this.disc, body = () => ({ interest: d.interest.trim(), market: d.market.trim() || 'Vietnam', language: d.language, queries: d.queries, channels: d.channels });
+      const d = this.disc, body = () => ({ interest: d.interest.trim(), language: this.lang === 'vi' ? 'Vietnamese' : 'English', queries: d.queries, channels: d.channels });
       d.loading = true; d.directions = []; d.queries = []; d.channels = [];
       d.step = this.t('Claude is choosing what to search for');
       const q = await this.run(() => this.api('/api/channels/discover/queries', { method: 'POST', body: body() }));
@@ -4728,7 +4727,7 @@ function app() {
       const urls = this.disc.channels.filter(c => dir.channels.includes(c.name)).map(c => c.url).slice(0, 3);
       this.disc.open = false;
       this.openChannel();
-      Object.assign(this.chan, { topic: dir.topic || dir.title, links: urls.join('\n'), language: this.disc.language });
+      Object.assign(this.chan, { topic: dir.topic || dir.title, links: urls.join('\n') });
     },
     get chDirty() { return JSON.stringify(this.chForm) !== this.chBase; },
     pillarCount(name) { return (this.ws()?.ideas || []).filter(i => i.pillar === name).length; },

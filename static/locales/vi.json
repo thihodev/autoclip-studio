@@ -1269,10 +1269,8 @@
  "This project isn't a channel": "Dự án này không phải là kênh",
  "Claude didn't return a channel plan — try again": "Claude không trả về kế hoạch kênh — hãy thử lại",
  "Discover niches": "Khám phá ngách",
- "Say what interests you. AutoClip searches YouTube abroad for the channels that do best on it and reads their numbers; Claude proposes directions for a channel in your market — what to adapt, not what to copy.": "Nói lĩnh vực bạn quan tâm. AutoClip tìm trên YouTube nước ngoài các kênh làm tốt nhất về nó và đọc số liệu của họ; Claude đề xuất hướng đi cho một kênh ở thị trường của bạn — điều nên điều chỉnh, không phải sao chép.",
  "e.g. personal finance, AI tools, history stories": "vd: tài chính cá nhân, công cụ AI, chuyện lịch sử",
  "Interest": "Lĩnh vực quan tâm",
- "Market": "Thị trường",
  "Discover": "Khám phá",
  "About a minute: two small Claude calls; the search itself uses no Claude.": "Khoảng một phút: hai lần gọi Claude nhỏ; phần tìm kiếm không dùng Claude.",
  "Searched:": "Đã tìm:",
@@ -1280,7 +1278,6 @@
  "Fits AI videos": "Hợp video AI",
  "Hard for AI videos": "Khó làm bằng video AI",
  "Why it works:": "Vì sao hiệu quả:",
- "For your market:": "Cho thị trường của bạn:",
  "Risks:": "Rủi ro:",
  "Build this channel": "Xây kênh này",
  "learns from {names}": "học từ {names}",
@@ -1291,5 +1288,7 @@
  "Claude is comparing {n} channels and looking for directions": "Claude đang so sánh {n} kênh và tìm hướng đi",
  "YouTube returned nothing for these searches — try other words": "YouTube không trả về kết quả nào cho các từ khoá này — hãy thử từ khác",
  "Search for channels first": "Hãy tìm kênh trước",
- "Claude didn't return any direction — try again": "Claude không trả về hướng đi nào — hãy thử lại"
+ "Claude didn't return any direction — try again": "Claude không trả về hướng đi nào — hãy thử lại",
+ "Say what interests you. AutoClip searches YouTube for the channels that do best on it and reads their numbers; Claude picks out the directions that work and how a new channel can stand out — the format, never the content.": "Nói lĩnh vực bạn quan tâm. AutoClip tìm trên YouTube các kênh làm tốt nhất về nó và đọc số liệu của họ; Claude chọn ra những hướng đi đang thành công và cách để một kênh mới nổi bật — học định dạng, không chép nội dung.",
+ "How to stand out:": "Cách để nổi bật:"
 }

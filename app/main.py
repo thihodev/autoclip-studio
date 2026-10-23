@@ -1664,7 +1664,6 @@ async def study_channel(body: ChannelStudyIn):
 
 class DiscoverIn(BaseModel):
     interest: str = Field(min_length=2, max_length=300)
-    market: str = Field("Vietnam", max_length=60)
     language: str = "Vietnamese"
     queries: list[str] = Field([], max_length=3)
     channels: list[dict] = Field([], max_length=10)  # what /api/channels/discover/search returned
@@ -1681,7 +1680,7 @@ async def discover_queries(body: DiscoverIn):
     """Step 1: English YouTube searches for an interest (one small Claude call)."""
     _require_setup()
     try:
-        return {"queries": await claude.niche_queries(body.interest.strip(), body.market)}
+        return {"queries": await claude.niche_queries(body.interest.strip())}
     except Exception as e:
         raise HTTPException(500, str(e)[:300])
 
@@ -1698,14 +1697,14 @@ async def discover_search(body: DiscoverIn):
 
 @app.post("/api/channels/discover/directions")
 async def discover_directions(body: DiscoverIn):
-    """Step 3: Claude proposes directions for a channel in the person's market (one call); the result is kept."""
+    """Step 3: Claude proposes the directions that work, from those channels (one call); the result is kept."""
     _require_setup()
     if not body.channels:
         raise HTTPException(400, "Search for channels first")
     found = [{k: c.get(k) for k in ("name", "url", "followers", "median_views", "ratio", "count", "about", "top", "search_top")}
              for c in body.channels if isinstance(c, dict) and c.get("name")]
     try:
-        res = await claude.niche_directions(body.interest.strip(), body.market, body.language, channels.discovery_block(found))
+        res = await claude.niche_directions(body.interest.strip(), body.language, channels.discovery_block(found))
     except Exception as e:
         raise HTTPException(500, str(e)[:300])
     keep = {**body.model_dump(), "channels": body.channels, **res, "at": time.time()}
